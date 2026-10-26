@@ -96,14 +96,70 @@ func TestPassThreshold(t *testing.T) {
 }
 
 func TestPassVerdictLine(t *testing.T) {
-	if got := passVerdictLine(1.0, 0.90, "easy", 1); got != "hex-passgates: DONE" {
+	if got := passVerdictLine(1.0, 1.0, 1.0, 0.90, "easy", 1, 20, false); got != "hex-passgates: DONE" {
 		t.Fatalf("pass verdict %q", got)
 	}
-	if got := passVerdictLine(0.8995, 0.90, "easy", 2); got != "hex-passgates: FAILED opp=easy tc=2 wd=0.899 threshold=0.900" {
+	if got := passVerdictLine(0.8995, 0.802, 0.997, 0.90, "easy", 2, 20, false); got != "hex-passgates: FAILED opp=easy tc=2 wd=0.899 threshold=0.900 n=20 lb=0.802 ub=0.997 cap=false" {
 		t.Fatalf("fail verdict %q", got)
 	}
-	if got := passVerdictLine(0.649, 0.60, "hard", 1); got != "hex-passgates: DONE" {
+	if got := passVerdictLine(0.649, 0.55, 0.75, 0.60, "hard", 1, 20, false); got != "hex-passgates: DONE" {
 		t.Fatalf("boundary verdict %q", got)
+	}
+	if got := passVerdictLine(0.90, 0.83, 0.97, 0.90, "easy", 1, 60, true); got != "hex-passgates: DONE" {
+		t.Fatalf("cap point-rule pass %q", got)
+	}
+	if got := passVerdictLine(0.85, 0.694, 1.0, 0.90, "easy", 1, 60, true); got != "hex-passgates: FAILED opp=easy tc=1 wd=0.850 threshold=0.900 n=60 lb=0.694 ub=1.000 cap=true" {
+		t.Fatalf("cap point-rule fail %q", got)
+	}
+}
+
+func TestDecidePass(t *testing.T) {
+	wd, lb, ub, state := decidePass(20, 20, 0.90, 1.96)
+	if wd != 1 || lb != 1 || ub != 1 || state != passDecided {
+		t.Fatalf("degenerate top %v %v %v %v", wd, lb, ub, state)
+	}
+	wd, lb, ub, state = decidePass(0, 20, 0.90, 1.96)
+	if wd != 0 || lb != 0 || ub != 0 || state != failDecided {
+		t.Fatalf("degenerate bottom %v %v %v %v", wd, lb, ub, state)
+	}
+	wd, lb, ub, state = decidePass(39, 40, 0.90, 1.96)
+	if state != passDecided || lb < 0.90 {
+		t.Fatalf("certified pass %v lb=%v", state, lb)
+	}
+	wd, lb, ub, state = decidePass(5, 20, 0.60, 1.96)
+	if state != failDecided || ub >= 0.60 {
+		t.Fatalf("certified fail %v ub=%v", state, ub)
+	}
+	wd, lb, ub, state = decidePass(17, 20, 0.90, 1.96)
+	if state != passUndecided || lb >= 0.90 || ub < 0.90 {
+		t.Fatalf("straddle %v lb=%v ub=%v", state, lb, ub)
+	}
+	_, lb, ub, _ = decidePass(19, 20, 0.90, 1.96)
+	if ub != 1 {
+		t.Fatalf("upper clip %v", ub)
+	}
+	_, lb, _, _ = decidePass(1, 20, 0.90, 1.96)
+	if lb != 0 {
+		t.Fatalf("lower clip %v", lb)
+	}
+}
+
+func TestPassBlockAction(t *testing.T) {
+	stop, note := passBlockAction(1, 3, passDecided)
+	if !stop || note != "" {
+		t.Fatalf("pass-decided %v %q", stop, note)
+	}
+	stop, note = passBlockAction(2, 3, failDecided)
+	if !stop || note != "" {
+		t.Fatalf("fail-decided %v %q", stop, note)
+	}
+	stop, note = passBlockAction(1, 3, passUndecided)
+	if stop || note != "extend: needed, run another block" {
+		t.Fatalf("mid undecided %v %q", stop, note)
+	}
+	stop, note = passBlockAction(3, 3, passUndecided)
+	if !stop || note != "extend: blocked, block cap reached" {
+		t.Fatalf("cap undecided %v %q", stop, note)
 	}
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -12,6 +13,12 @@ const (
 	passThresholdEasy   = 0.90
 	passThresholdMedium = 0.75
 	passThresholdHard   = 0.60
+)
+
+const (
+	passDecided = iota
+	failDecided
+	passUndecided
 )
 
 var hexLadderRoster = []string{"easy", "medium", "hard", "master"}
@@ -45,7 +52,31 @@ func passThreshold(opp string) (float64, error) {
 	return 0, fmt.Errorf("passgate opponent %q is outside easy, medium, hard", opp)
 }
 
-func runHexPassGate(w io.Writer, env gameEnv, tcIdx, games int, opp string, fixedMs int64) error {
+func decidePass(winsDraws, games int, threshold, z float64) (float64, float64, float64, int) {
+	wd := float64(winsDraws) / float64(games)
+	half := z * math.Sqrt(wd*(1-wd)/float64(games))
+	lb := math.Max(0, wd-half)
+	ub := math.Min(1, wd+half)
+	if lb >= threshold {
+		return wd, lb, ub, passDecided
+	}
+	if ub < threshold {
+		return wd, lb, ub, failDecided
+	}
+	return wd, lb, ub, passUndecided
+}
+
+func passBlockAction(block, maxBlocks, state int) (bool, string) {
+	if state == passDecided || state == failDecided {
+		return true, ""
+	}
+	if block == maxBlocks {
+		return true, "extend: blocked, block cap reached"
+	}
+	return false, "extend: needed, run another block"
+}
+
+func runHexPassGate(w io.Writer, env gameEnv, tcIdx, games int, opp string, fixedMs int64, maxBlocks int, z float64) error {
 	threshold, err := passThreshold(opp)
 	if err != nil {
 		return err
@@ -60,31 +91,47 @@ func runHexPassGate(w io.Writer, env gameEnv, tcIdx, games int, opp string, fixe
 	if games < 1 {
 		return fmt.Errorf("passgate needs games >= 1, got %d", games)
 	}
+	if maxBlocks < 1 {
+		return fmt.Errorf("passgate needs gateMaxBlocks >= 1, got %d", maxBlocks)
+	}
 	master := &tally{name: "master"}
 	challenger := &tally{name: opp}
 	results := map[string]*tally{master.name: master, challenger.name: challenger}
-	fmt.Fprintf(w, "passgate master vs %s tc %d+%d games %d geometry %s\n", opp, tc.InitialMin, tc.IncrementSec, games, env.variant)
-	for g := 0; g < games; g++ {
-		red, blue := master, challenger
-		if g%2 == 1 {
-			red, blue = blue, red
+	fmt.Fprintf(w, "passgate master vs %s tc %d+%d games %d blocks %d geometry %s\n", opp, tc.InitialMin, tc.IncrementSec, games, maxBlocks, env.variant)
+	total := 0
+	for block := 1; block <= maxBlocks; block++ {
+		for g := 0; g < games; g++ {
+			total++
+			red, blue := challenger, master
+			if total%2 == 1 {
+				red, blue = master, challenger
+			}
+			fmt.Fprintf(w, "game %d: %s (red) vs %s (blue)\n", total, red.name, blue.name)
+			side, drawn, moves := play(env, red, blue, tcIdx, total, fixedMs)
+			winnerSeat := gateWinner(side, drawn)
+			record(results, red.name, blue.name, winnerSeat, moves)
+			fmt.Fprintln(w, gameLine(total, red.name, blue.name, winnerSeat, moves))
 		}
-		fmt.Fprintf(w, "game %d: %s (red) vs %s (blue)\n", g+1, red.name, blue.name)
-		side, drawn, moves := play(env, red, blue, tcIdx, g+1, fixedMs)
-		winnerSeat := gateWinner(side, drawn)
-		record(results, red.name, blue.name, winnerSeat, moves)
-		fmt.Fprintln(w, gameLine(g+1, red.name, blue.name, winnerSeat, moves))
+		wd, lb, ub, state := decidePass(master.wins+master.draws, total, threshold, z)
+		fmt.Fprintf(w, "extend: block %d/%d n=%d wd=%.3f lb=%.3f ub=%.3f\n", block, maxBlocks, total, wd, lb, ub)
+		stop, note := passBlockAction(block, maxBlocks, state)
+		if note != "" {
+			fmt.Fprintln(w, note)
+		}
+		if stop {
+			capped := state == passUndecided
+			fmt.Fprintln(w, passVerdictLine(wd, lb, ub, threshold, opp, tcIdx, total, capped))
+			return nil
+		}
 	}
-	wd := float64(master.wins+master.draws) / float64(games)
-	fmt.Fprintln(w, passVerdictLine(wd, threshold, opp, tcIdx))
 	return nil
 }
 
-func passVerdictLine(wd, threshold float64, opp string, tcIdx int) string {
+func passVerdictLine(wd, lb, ub, threshold float64, opp string, tcIdx, games int, capped bool) string {
 	if wd >= threshold {
 		return "hex-passgates: DONE"
 	}
-	return fmt.Sprintf("hex-passgates: FAILED opp=%s tc=%d wd=%.3f threshold=%.3f", opp, tcIdx, wd, threshold)
+	return fmt.Sprintf("hex-passgates: FAILED opp=%s tc=%d wd=%.3f threshold=%.3f n=%d lb=%.3f ub=%.3f cap=%t", opp, tcIdx, wd, threshold, games, lb, ub, capped)
 }
 
 func runHexLadder(w io.Writer, env gameEnv, tcIdx, games int, fixedMs int64) error {
