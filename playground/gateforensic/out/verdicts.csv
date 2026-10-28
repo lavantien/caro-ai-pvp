@@ -1,0 +1,13 @@
+arm,geometry,opp,tc_idx,source,provisional,attempt,status,opp_field,tc_field,wd,threshold,n,lb,ub,cap,lineno
+hex-passgates-hard-tc1,hex,hard,1,hex-passgates-hard-tc1.log,False,False,DONE,,,,,,,,,8977
+hex-passgates-hard-tc2,hex,hard,2,hex-passgates-hard-tc2.log,False,False,DONE,,,,,,,,,10169
+hex-passgates-medium-tc1,hex,medium,1,hex-passgates-medium-tc1.log,False,False,DONE,,,,,,,,,7881
+hex-passgates-medium-tc2,hex,medium,2,hex-passgates-medium-tc2.log,False,False,DONE,,,,,,,,,9415
+hex-passgates-easy-tc1,hex,easy,1,hex-passgates-easy-tc1.log,False,False,FAILED,easy,1,0.883,0.9,60,0.802,0.965,true,21026
+hex-passgates-easy-tc1.attempt1,hex,easy,1,hex-passgates-easy-tc1.attempt1.log,False,True,FAILED,easy,1,0.85,0.9,,,,,6614
+hex-passgates-easy-tc2,hex,easy,2,hex-passgates-easy-tc2.log,False,False,DONE,,,,,,,,,8172
+square-passgates-hard-tc1,square,hard,1,square-passgates-hard-tc1.log,False,False,FAILED,hard,1,0.483,0.6,60,0.357,0.61,true,7318
+square-passgates-hard-tc2,square,hard,2,square-passgates-hard-tc2.log,False,False,FAILED,hard,2,0.483,0.6,60,0.357,0.61,true,6318
+square-passgates-medium-tc1,square,medium,1,square-passgates-medium-tc1.log,False,False,FAILED,medium,1,0.525,0.75,40,0.37,0.68,false,4581
+square-passgates-medium-tc2,square,medium,2,square-passgates-medium-tc2.log,False,False,FAILED,medium,2,0.35,0.75,20,0.141,0.559,false,1978
+square-passgates-easy-tc1,square,easy,1,square-passgates-easy-tc1.log,False,False,DONE,,,,,,,,,4285

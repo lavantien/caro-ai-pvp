@@ -1,0 +1,109 @@
+{
+  "arms": {
+    "hex-passgates-easy-tc1": {
+      "bad": 0,
+      "games": 60,
+      "lines": 21027,
+      "provisional": false,
+      "sha256": "4f9f0381adf2ea4fa41fceb3a45a59c91af8588177147978f182dbaa690118ab",
+      "source": "hex-passgates-easy-tc1.log"
+    },
+    "hex-passgates-easy-tc1.attempt1": {
+      "bad": 0,
+      "games": 20,
+      "lines": 6615,
+      "provisional": false,
+      "sha256": "fb7df0c6f0490a26ff18bc03938b0e7515b13f42eeac85983611e5b5a764ee27",
+      "source": "hex-passgates-easy-tc1.attempt1.log"
+    },
+    "hex-passgates-easy-tc2": {
+      "bad": 0,
+      "games": 20,
+      "lines": 8173,
+      "provisional": false,
+      "sha256": "a59c651c42c43360fe156971216027f97c9328f7294fdfb3f0b9ccb494f53b9e",
+      "source": "hex-passgates-easy-tc2.log"
+    },
+    "hex-passgates-hard-tc1": {
+      "bad": 0,
+      "games": 20,
+      "lines": 8978,
+      "provisional": false,
+      "sha256": "d8a6b8830e088d59a31f180b472f2bda6297a1612b2b3b650db4b524b1c957db",
+      "source": "hex-passgates-hard-tc1.log"
+    },
+    "hex-passgates-hard-tc2": {
+      "bad": 0,
+      "games": 20,
+      "lines": 10170,
+      "provisional": false,
+      "sha256": "cf03f4947cacdb26fb64f5b2ef39ad13922507399021f43f767d0ef4d52a866f",
+      "source": "hex-passgates-hard-tc2.log"
+    },
+    "hex-passgates-medium-tc1": {
+      "bad": 0,
+      "games": 20,
+      "lines": 7882,
+      "provisional": false,
+      "sha256": "182d5f6506a4eaaa2b143349485b0de5dc12ab262f6966c6726bc968bc4a0ae3",
+      "source": "hex-passgates-medium-tc1.log"
+    },
+    "hex-passgates-medium-tc2": {
+      "bad": 0,
+      "games": 20,
+      "lines": 9416,
+      "provisional": false,
+      "sha256": "c73596793825ed97523d377fd542c073a9131ab5f168d9bc6f28b824088b0ae3",
+      "source": "hex-passgates-medium-tc2.log"
+    },
+    "square-passgates-easy-tc1": {
+      "bad": 0,
+      "games": 60,
+      "lines": 4286,
+      "provisional": false,
+      "sha256": "3332b6d96b025bcc73922fa32b9d274996d6d51dd25fc5b029fb1cf54fe62249",
+      "source": "square-passgates-easy-tc1.log"
+    },
+    "square-passgates-easy-tc2": {
+      "bad": 0,
+      "games": 24,
+      "lines": 2306,
+      "provisional": true,
+      "sha256": "8482c149ebc87d5a7ccb09f73772da6553c96a0e499feba2294e1862dcf8d94e",
+      "source": "square-passgates-easy-tc2.log.raw"
+    },
+    "square-passgates-hard-tc1": {
+      "bad": 0,
+      "games": 60,
+      "lines": 7319,
+      "provisional": false,
+      "sha256": "2f4623c7d08e17fd8b8c4851d95a93583ac051b407c9cb13209c48405fbd95ae",
+      "source": "square-passgates-hard-tc1.log"
+    },
+    "square-passgates-hard-tc2": {
+      "bad": 0,
+      "games": 60,
+      "lines": 6319,
+      "provisional": false,
+      "sha256": "d0c09ced892691dd4405079215131510412ff80d535fb3253937c9eaf9c0d45c",
+      "source": "square-passgates-hard-tc2.log"
+    },
+    "square-passgates-medium-tc1": {
+      "bad": 0,
+      "games": 40,
+      "lines": 4582,
+      "provisional": false,
+      "sha256": "065190b1a7ccd41ffd7ffce36f8eaa04ab7ff66f7d4fe2ba6fc34beab6838dee",
+      "source": "square-passgates-medium-tc1.log"
+    },
+    "square-passgates-medium-tc2": {
+      "bad": 0,
+      "games": 20,
+      "lines": 1979,
+      "provisional": false,
+      "sha256": "d2eaaffe55051168bfce0001f747bba7833b890dfc5820f71e1ed6c4f3890a78",
+      "source": "square-passgates-medium-tc2.log"
+    }
+  },
+  "generated_utc": "2026-10-28T01:00:51Z"
+}
