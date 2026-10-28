@@ -458,22 +458,20 @@ func TestTTKillZeroDataWordNeverCuts(t *testing.T) {
 	}
 }
 
-// Mate fence round trips: the score at either fence is in the mate band, so
-// encode and decode must both apply the ply step.
 func TestTTKillMateFenceRoundTrip(t *testing.T) {
 	ply := 3
 	step := config.EvalMateScoreStep
-	if got := scoreToTT(evalMateScoreMin, ply); got != evalMateScoreMin+ply*step {
-		t.Errorf("scoreToTT(+fence) = %d, want %d", got, evalMateScoreMin+ply*step)
+	if got := scoreToTT(config.EvalMateFloor, ply); got != config.EvalMateFloor+ply*step {
+		t.Errorf("scoreToTT(+fence) = %d, want %d", got, config.EvalMateFloor+ply*step)
 	}
-	if got := scoreToTT(-evalMateScoreMin, ply); got != -evalMateScoreMin-ply*step {
-		t.Errorf("scoreToTT(-fence) = %d, want %d", got, -evalMateScoreMin-ply*step)
+	if got := scoreToTT(-config.EvalMateFloor, ply); got != -config.EvalMateFloor-ply*step {
+		t.Errorf("scoreToTT(-fence) = %d, want %d", got, -config.EvalMateFloor-ply*step)
 	}
-	if got := scoreFromTT(evalMateScoreMin, ply); got != evalMateScoreMin-ply*step {
-		t.Errorf("scoreFromTT(+fence) = %d, want %d", got, evalMateScoreMin-ply*step)
+	if got := scoreFromTT(config.EvalMateFloor, ply); got != config.EvalMateFloor-ply*step {
+		t.Errorf("scoreFromTT(+fence) = %d, want %d", got, config.EvalMateFloor-ply*step)
 	}
-	if got := scoreFromTT(-evalMateScoreMin, ply); got != -evalMateScoreMin+ply*step {
-		t.Errorf("scoreFromTT(-fence) = %d, want %d", got, -evalMateScoreMin+ply*step)
+	if got := scoreFromTT(-config.EvalMateFloor, ply); got != -config.EvalMateFloor+ply*step {
+		t.Errorf("scoreFromTT(-fence) = %d, want %d", got, -config.EvalMateFloor+ply*step)
 	}
 }
 

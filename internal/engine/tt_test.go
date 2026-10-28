@@ -123,7 +123,7 @@ func TestTTCrossSearchMateDistance(t *testing.T) {
 	if advanced.Score != reference.Score {
 		t.Fatalf("warm TT score %d diverged from fresh %d after re-rooting", advanced.Score, reference.Score)
 	}
-	if advanced.Score >= evalMateScoreMin || advanced.Score <= -evalMateScoreMin {
+	if advanced.Score >= config.EvalMateFloor || advanced.Score <= -config.EvalMateFloor {
 		if (advanced.Score-config.EvalMateMax)%config.EvalMateScoreStep != 0 {
 			t.Errorf("decoded mate %d fell off the mateWin lattice", advanced.Score)
 		}

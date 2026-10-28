@@ -182,6 +182,7 @@ const (
 	EvalMilliUnit     = 1000
 	EvalMateMax       = 1 << 30
 	EvalMateScoreStep = 16
+	EvalMateFloor     = EvalMateMax - SearchMaxPly*EvalMateScoreStep
 )
 const EvalTempo = 1000
 const (
@@ -346,6 +347,7 @@ const (
 	SolverNodeBudget        = 1 << 20
 	SolverBudgetShare       = 0.5
 	SolverMinGrantMs        = 80
+	RefAuditNodeBudget      = SolverNodeBudget
 )
 const (
 	Argon2Time               = 2

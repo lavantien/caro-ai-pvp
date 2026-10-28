@@ -503,6 +503,12 @@ func TestEvalConstants(t *testing.T) {
 	if int64(EvalMateMax)-worst <= 1<<20 {
 		t.Errorf("mate-in-%d plies at step %d collides with normal scores", BoardCells*2, EvalMateScoreStep)
 	}
+	if EvalMateFloor != EvalMateMax-SearchMaxPly*EvalMateScoreStep {
+		t.Errorf("EvalMateFloor = %d, want the lattice fence %d", EvalMateFloor, EvalMateMax-SearchMaxPly*EvalMateScoreStep)
+	}
+	if RefAuditNodeBudget != SolverNodeBudget {
+		t.Errorf("RefAuditNodeBudget = %d, want the solver family default %d", RefAuditNodeBudget, SolverNodeBudget)
+	}
 }
 func TestSearchConstants(t *testing.T) {
 	if SearchMaxPly <= 0 || SearchMaxPly > BoardCells {
