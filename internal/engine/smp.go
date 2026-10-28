@@ -138,7 +138,7 @@ func (s *SMP) StartPonder(b *rules.Board) {
 	s.ponding = true
 	s.ponderStart = time.Now()
 	s.ponderDL.Reset()
-	s.setupJob(b, config.SearchMaxPly, false, &s.ponderDL)
+	s.setupJob(b, config.SearchMaxPly, false, &s.ponderDL, moveNone)
 	s.ensureProcs()
 	s.dispatchPonderLocked()
 	s.mu.Unlock()
@@ -246,7 +246,15 @@ func (s *SMP) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move
 	return s.searchDepth(b, dl, maxDepth, false)
 }
 
+func (s *SMP) SearchExcluded(b *rules.Board, dl Deadline, exclude rules.Move) (rules.Move, SearchStats) {
+	return s.searchDepthEx(b, dl, config.SearchMaxPly, true, exclude)
+}
+
 func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
+	return s.searchDepthEx(b, dl, maxDepth, soft, moveNone)
+}
+
+func (s *SMP) searchDepthEx(b *rules.Board, dl Deadline, maxDepth int, soft bool, exclude rules.Move) (rules.Move, SearchStats) {
 	start := time.Now()
 	var allocNs int64
 	if bg, ok := dl.(Budgeter); ok {
@@ -274,7 +282,7 @@ func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) 
 	s.searching = true
 	s.mu.Unlock()
 	defer s.clearSearching()
-	s.setupJob(b, maxDepth, soft, dl)
+	s.setupJob(b, maxDepth, soft, dl, exclude)
 	s.ensureProcs()
 	s.dispatch()
 	s.runWG.Wait()
@@ -283,7 +291,7 @@ func (s *SMP) searchDepth(b *rules.Board, dl Deadline, maxDepth int, soft bool) 
 	return bestMove, stats
 }
 
-func (s *SMP) setupJob(b *rules.Board, maxDepth int, soft bool, dl Deadline) {
+func (s *SMP) setupJob(b *rules.Board, maxDepth int, soft bool, dl Deadline, exclude rules.Move) {
 	s.tt.bumpGen()
 	s.halt.Store(false)
 	s.seq.Store(0)
@@ -294,6 +302,7 @@ func (s *SMP) setupJob(b *rules.Board, maxDepth int, soft bool, dl Deadline) {
 	for i := range s.workers {
 		s.boards[i] = *b
 		s.workers[i].resetForSearch(&s.boards[i])
+		s.workers[i].rootExclude = exclude
 		s.workers[i].nodeFeed = feed
 		s.results[i] = workerResult{}
 	}

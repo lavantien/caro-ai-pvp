@@ -386,6 +386,11 @@ func (s singleSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, 
 	mv, st := s.e.Search(b, dl)
 	return mv, st, ""
 }
+
+func (s singleSearcher) SearchExcluded(b *rules.Board, dl engine.Deadline, exclude rules.Move) (rules.Move, engine.SearchStats) {
+	return s.e.SearchExcluded(b, dl, exclude)
+}
+
 func (s singleSearcher) Close() { s.e.Close() }
 
 func (s singleSearcher) StartPonder(b *rules.Board) { s.e.StartPonder(b) }
@@ -401,6 +406,11 @@ func (s tierSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move, en
 	mv, st := s.smp.Search(b, dl)
 	return mv, st, ""
 }
+
+func (s tierSearcher) SearchExcluded(b *rules.Board, dl engine.Deadline, exclude rules.Move) (rules.Move, engine.SearchStats) {
+	return s.smp.SearchExcluded(b, dl, exclude)
+}
+
 func (s tierSearcher) Close() { s.smp.Close() }
 
 func (s tierSearcher) StartPonder(b *rules.Board) { s.smp.StartPonder(b) }
@@ -459,10 +469,35 @@ func (s *solverSearcher) Search(b *rules.Board, dl engine.Deadline) (rules.Move,
 		rest = engine.NewFixedBudget(grant - time.Since(start))
 	}
 	mv, st, _ := s.inner.Search(b, rest)
+	if s.auditRefuted(b, mv, st, start, grant, hasGrant) {
+		redl := dl
+		if hasGrant {
+			redl = engine.NewFixedBudget(grant - time.Since(start))
+		}
+		if ex, ok := s.inner.(excludedSearcher); ok {
+			if mv2, st2 := ex.SearchExcluded(b, redl, mv); mv2 != rules.MoveNone {
+				mv, st = mv2, st2
+			}
+		}
+	}
 	if hasGrant {
 		st.AllocNs = int64(grant)
 	}
 	return mv, st, ""
+}
+
+func (s *solverSearcher) auditRefuted(b *rules.Board, mv rules.Move, st engine.SearchStats, start time.Time, grant time.Duration, hasGrant bool) bool {
+	if mv == rules.MoveNone || st.Score < config.EvalMateFloor {
+		return false
+	}
+	if hasGrant && grant < config.SolverMinGrantMs*time.Millisecond {
+		return false
+	}
+	var dl engine.Deadline
+	if hasGrant {
+		dl = engine.NewFixedBudget(time.Duration(config.SolverBudgetShare * float64(grant-time.Since(start))))
+	}
+	return opponentRefutes(b, mv, st.Score, config.RefAuditNodeBudget, dl)
 }
 func (s *solverSearcher) Close() {
 	s.stopPass()

@@ -277,8 +277,10 @@ func (r *Room) collectPonder(side rules.Color, budgetNs int64, turnStart time.Ti
 	r.mu.Lock()
 	mc := 0
 	var last rules.Move
+	var pb rules.Board
 	if r.board != nil {
 		mc = r.board.MoveCount
+		pb = *r.board
 	}
 	if mc > 0 && mc <= len(r.moves) {
 		last = r.moves[mc-1]
@@ -289,6 +291,9 @@ func (r *Room) collectPonder(side rules.Color, budgetNs int64, turnStart time.Ti
 		return 0, engine.SearchStats{}, "", false
 	}
 	if !AdoptPonder(pres.stats, pres.tag, AssessSoftLimit(pres.stats.ElapsedNs, budgetNs), ring, budgetNs) {
+		return 0, engine.SearchStats{}, "", false
+	}
+	if pres.tag == "" && opponentRefutes(&pb, pres.move, pres.stats.Score, config.RefAuditNodeBudget, nil) {
 		return 0, engine.SearchStats{}, "", false
 	}
 	st, tag := ComposePonderStats(pres.stats, pres.tag, turnStart, budgetNs)

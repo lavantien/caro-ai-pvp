@@ -11,25 +11,26 @@ import (
 const moveNone = rules.MoveNone
 
 type Engine struct {
-	tt        *ttTable
-	radius    int
-	moves     [config.SearchMaxPly][config.SearchMaxMovesPerPly]rules.Move
-	scores    [config.SearchMaxPly][config.SearchMaxMovesPerPly]int
-	killers   [config.SearchMaxPly][2]rules.Move
-	history   [2][config.MaxBoardCells]int
-	pv        [config.SearchMaxPly + 1][config.SearchMaxPly]rules.Move
-	pvLen     [config.SearchMaxPly + 1]int
-	eval      evaluator
-	nodes     uint64
-	ttProbes  uint64
-	ttHits    uint64
-	cutNodes  uint64
-	cutFirst  uint64
-	nodeCheck int
-	stopped   bool
-	noOrder   bool
-	rankExact bool
-	nodeFeed  nodeFeeder
+	tt          *ttTable
+	radius      int
+	moves       [config.SearchMaxPly][config.SearchMaxMovesPerPly]rules.Move
+	scores      [config.SearchMaxPly][config.SearchMaxMovesPerPly]int
+	killers     [config.SearchMaxPly][2]rules.Move
+	history     [2][config.MaxBoardCells]int
+	pv          [config.SearchMaxPly + 1][config.SearchMaxPly]rules.Move
+	pvLen       [config.SearchMaxPly + 1]int
+	eval        evaluator
+	nodes       uint64
+	ttProbes    uint64
+	ttHits      uint64
+	cutNodes    uint64
+	cutFirst    uint64
+	nodeCheck   int
+	stopped     bool
+	noOrder     bool
+	rankExact   bool
+	nodeFeed    nodeFeeder
+	rootExclude rules.Move
 
 	rankPendingMoves  [config.SearchMaxMovesPerPly]rules.Move
 	rankPendingScores [config.SearchMaxMovesPerPly]int
@@ -82,6 +83,7 @@ func (e *Engine) resetForSearch(b *rules.Board) {
 	e.nodeCheck = config.SearchNodeCheckInterval
 	e.stopped = false
 	e.rankN = 0
+	e.rootExclude = moveNone
 	e.eval.reset(b)
 }
 
@@ -91,6 +93,10 @@ func (e *Engine) Search(b *rules.Board, dl Deadline) (rules.Move, SearchStats) {
 
 func (e *Engine) SearchDepth(b *rules.Board, dl Deadline, maxDepth int) (rules.Move, SearchStats) {
 	return e.search(b, dl, maxDepth, false)
+}
+
+func (e *Engine) SearchExcluded(b *rules.Board, dl Deadline, exclude rules.Move) (rules.Move, SearchStats) {
+	return e.searchEx(b, dl, config.SearchMaxPly, true, exclude)
 }
 
 var _ Ponderer = (*Engine)(nil)
@@ -119,7 +125,7 @@ func (e *Engine) StartPonder(b *rules.Board) {
 	board := *b
 	e.mu.Unlock()
 	go func() {
-		mv, stats := e.runSearch(&board, &e.ponderDL, config.SearchMaxPly, false)
+		mv, stats := e.runSearch(&board, &e.ponderDL, config.SearchMaxPly, false, moveNone)
 		e.ponderMove, e.ponderStats = mv, stats
 		close(done)
 	}()
@@ -168,6 +174,10 @@ func softStop(elapsed, budget time.Duration, completed int) bool {
 }
 
 func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
+	return e.searchEx(b, dl, maxDepth, soft, moveNone)
+}
+
+func (e *Engine) searchEx(b *rules.Board, dl Deadline, maxDepth int, soft bool, exclude rules.Move) (rules.Move, SearchStats) {
 	e.mu.Lock()
 	if e.closed {
 		e.mu.Unlock()
@@ -182,16 +192,17 @@ func (e *Engine) search(b *rules.Board, dl Deadline, maxDepth int, soft bool) (r
 	}
 	e.searching = true
 	e.mu.Unlock()
-	mv, stats := e.runSearch(b, dl, maxDepth, soft)
+	mv, stats := e.runSearch(b, dl, maxDepth, soft, exclude)
 	e.mu.Lock()
 	e.searching = false
 	e.mu.Unlock()
 	return mv, stats
 }
 
-func (e *Engine) runSearch(b *rules.Board, dl Deadline, maxDepth int, soft bool) (rules.Move, SearchStats) {
+func (e *Engine) runSearch(b *rules.Board, dl Deadline, maxDepth int, soft bool, exclude rules.Move) (rules.Move, SearchStats) {
 	start := time.Now()
 	e.beginSearch(b)
+	e.rootExclude = exclude
 	e.nodeFeed, _ = dl.(nodeFeeder)
 	var stats SearchStats
 	stats.Threads = 1
@@ -272,6 +283,10 @@ func (e *Engine) finishStats(stats *SearchStats, score int, depth int, start tim
 
 func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.Move) {
 	n := e.generate(b, 0, e.tt.move(b.Hash))
+	exclude := e.rootExclude
+	if n <= 1 {
+		exclude = moveNone
+	}
 	alpha, beta := -config.EvalMateMax, config.EvalMateMax
 	alpha0 := alpha
 	best, bestMove := alpha-1, moveNone
@@ -279,6 +294,9 @@ func (e *Engine) searchRoot(b *rules.Board, depth int, dl Deadline) (int, rules.
 	for i := 0; i < n; i++ {
 		pickMax(e.moves[0][:n], e.scores[0][:n], i, n)
 		m := e.moves[0][i]
+		if m == exclude {
+			continue
+		}
 		side := b.Side
 		e.eval.makeMove(side, rules.Cell(m))
 		b.Make(rules.Cell(m))
