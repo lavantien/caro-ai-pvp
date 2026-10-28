@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -435,6 +436,32 @@ func TestExecuteMutantsInfraErrorVoidsRun(t *testing.T) {
 	}
 	if got, rerr := os.ReadFile(path); rerr != nil || string(got) != src {
 		t.Errorf("file not restored after infra failure: %q, err %v", got, rerr)
+	}
+}
+
+func TestRunMutationPrintsPlanLineBeforeVerdicts(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module probe\n\ngo 1.27\n",
+		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
+	})
+	var out strings.Builder
+	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), &fakeRunner{}, nil, nil, false)
+	if err != nil {
+		t.Fatalf("runMutation err = %v", err)
+	}
+	if res.total < 1 {
+		t.Fatalf("total = %d, want at least one mutant", res.total)
+	}
+	want := fmt.Sprintf("mutate: plan %d mutants over 1 package(s)\n", res.total)
+	s := out.String()
+	if !strings.Contains(s, want) {
+		t.Fatalf("stdout missing plan line %q:\n%s", want, s)
+	}
+	planIdx := strings.Index(s, want)
+	for _, marker := range []string{" SURVIVED\n", " KILLED\n", "mutate: baseline green"} {
+		if idx := strings.Index(s, marker); idx >= 0 && idx < planIdx {
+			t.Errorf("plan line must precede %q:\n%s", marker, s)
+		}
 	}
 }
 

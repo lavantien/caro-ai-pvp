@@ -333,5 +333,10 @@ func discoverMutants(ctx context.Context, out io.Writer, workDir string, pattern
 		}
 	}
 	sortMutants(ms)
+	pkgsSeen := map[string]bool{}
+	for _, m := range ms {
+		pkgsSeen[m.pkg] = true
+	}
+	_, _ = fmt.Fprintf(out, "mutate: plan %d mutants over %d package(s)\n", len(ms), len(pkgsSeen))
 	return ms, paths, nil
 }
