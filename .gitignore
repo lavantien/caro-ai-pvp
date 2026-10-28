@@ -17,3 +17,5 @@ coverage.out
 
 .scratch/
 playground/bookgen/out/
+playground/gateforensic/out/moves.csv
+playground/gateforensic/out/events.csv
