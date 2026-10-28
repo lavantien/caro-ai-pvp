@@ -90,6 +90,7 @@ func tinyParams() treeParams {
 	p.critical = 200
 	p.total = 100_000
 	p.solver = 50
+	p.ladderGate = config.BookTreeLadderGateMilli
 	return p
 }
 
@@ -464,6 +465,65 @@ func TestTreePlyBoundLeavesFreezeAndNeverExpand(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("no bound leaf recorded")
+	}
+}
+
+func TestTreeLadderStopsAtBudgetCap(t *testing.T) {
+	sa := &stubAnalyst{score: 5000}
+	p := tinyParams()
+	p.total = 3200
+	path := filepath.Join(t.TempDir(), "tree.txt")
+	bt, err := newBookTree(p, 4, priorsTable{}, sa.analyze, (&stubSolver{nodes: 10}).probe, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := boardWithMoves(t, rules.Cell(119), rules.Cell(72))
+	key := canonicalBoardKey(b)
+	bt.spent = 2500
+	if _, _, err := bt.analyze(key, b, p.critical, p.opponentK); err != nil {
+		t.Fatal(err)
+	}
+	if bt.spent != 2700 {
+		t.Fatalf("primer spent %d, want 2700", bt.spent)
+	}
+	frozen, _, err := bt.tryFreeze(key, b, p.critical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if frozen {
+		t.Fatal("a ladder cut at the cap must not certify a freeze")
+	}
+	recs := bt.log.analyses[key]
+	if len(recs) != 2 {
+		t.Fatalf("ladder bought %d rungs, want exactly the one affordable rung", len(recs)-1)
+	}
+	if recs[1].budget != p.critical*2 {
+		t.Fatalf("second rung budget %d, want the affordable double %d", recs[1].budget, p.critical*2)
+	}
+	if bt.spent != 3100 {
+		t.Fatalf("spent %d, the 4x rung must stop at the cap %d", bt.spent, p.total)
+	}
+}
+
+func TestTreeLadderSkipsImplausibleFreezes(t *testing.T) {
+	sa := &stubAnalyst{score: 800, rankings: map[int][]rankedMove{0: rootOpeningRanking()}}
+	bt, _ := newTestTree(t, sa.analyze, (&stubSolver{nodes: 10}).probe)
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	for key, recs := range bt.log.analyses {
+		if len(recs) != 1 {
+			t.Fatalf("node %s bought %d analyses, want the single base pass under the plausibility gate", hexKey(key[:])[:12], len(recs))
+		}
+	}
+	quiet := 0
+	for _, f := range bt.log.frozen {
+		if f.reason == "quiet" {
+			quiet++
+		}
+	}
+	if quiet != 0 {
+		t.Fatalf("%d quiet freezes out of implausible ladders", quiet)
 	}
 }
 

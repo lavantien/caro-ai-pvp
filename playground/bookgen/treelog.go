@@ -23,6 +23,7 @@ type treeParams struct {
 	stableIters int
 	stableMarg  int
 	lopsided    int
+	ladderGate  int
 	prune       int
 	total       int
 	solver      int
@@ -39,6 +40,7 @@ func paramsFromConfig(tier string) treeParams {
 		stableIters: config.BookTreeStableIters,
 		stableMarg:  config.BookTreeStableMarginMilli,
 		lopsided:    config.BookTreeLopsidedMilli,
+		ladderGate:  config.BookTreeLadderGateMilli,
 		prune:       config.BookTreePruneMarginMilli,
 		total:       config.BookTreeTotalNodes,
 		solver:      config.BookSolverNodeBudget,
@@ -46,9 +48,9 @@ func paramsFromConfig(tier string) treeParams {
 }
 
 func (p treeParams) fingerprint(plyBound int) string {
-	return fmt.Sprintf("F tree v%d tier=%s ply=%d k=%d leaf=%d critical=%d reverify=%d critmargin=%d stable=%d stablemargin=%d lopsided=%d prune=%d total=%d solver=%d",
+	return fmt.Sprintf("F tree v%d tier=%s ply=%d k=%d leaf=%d critical=%d reverify=%d critmargin=%d stable=%d stablemargin=%d lopsided=%d laddergate=%d prune=%d total=%d solver=%d",
 		config.BookSidecarVersion, p.tier, plyBound, p.opponentK, p.leaf, p.critical, p.reverify, p.critMargin,
-		p.stableIters, p.stableMarg, p.lopsided, p.prune, p.total, p.solver)
+		p.stableIters, p.stableMarg, p.lopsided, p.ladderGate, p.prune, p.total, p.solver)
 }
 
 type childRec struct {
@@ -138,7 +140,7 @@ func parseTreeLog(path string) (treeLog, error) {
 		if nl < 0 {
 			tl.torn = true
 		} else {
-			if err := sidecarHeaderError("tree", path, string(data[:nl]), 13); err != nil {
+			if err := sidecarHeaderError("tree", path, string(data[:nl]), 14); err != nil {
 				return tl, err
 			}
 			tl.fp = string(data[:nl])

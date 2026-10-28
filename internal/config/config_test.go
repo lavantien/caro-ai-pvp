@@ -547,8 +547,9 @@ func TestBookTreeConstantsMatchPreregistration(t *testing.T) {
 		{"BookTreeStableIters", BookTreeStableIters, 3},
 		{"BookTreeStableMarginMilli", BookTreeStableMarginMilli, 150},
 		{"BookTreeLopsidedMilli", BookTreeLopsidedMilli, 3000},
+		{"BookTreeLadderGateMilli", BookTreeLadderGateMilli, 1500},
 		{"BookTreePruneMarginMilli", BookTreePruneMarginMilli, 300},
-		{"BookTreeTotalNodes", BookTreeTotalNodes, 1 << 28},
+		{"BookTreeTotalNodes", BookTreeTotalNodes, 1 << 36},
 		{"BookTreeVisitScale", BookTreeVisitScale, 1000},
 		{"BookTreeVisitFloor", BookTreeVisitFloor, 1},
 	}
@@ -565,6 +566,9 @@ func TestBookTreeConstantsMatchPreregistration(t *testing.T) {
 	}
 	if BookTreeStableMarginMilli >= BookTreeLopsidedMilli {
 		t.Errorf("stability margin %d must sit under the lopsided floor %d", BookTreeStableMarginMilli, BookTreeLopsidedMilli)
+	}
+	if BookTreeLadderGateMilli >= BookTreeLopsidedMilli {
+		t.Errorf("ladder gate %d must sit under the lopsided floor %d", BookTreeLadderGateMilli, BookTreeLopsidedMilli)
 	}
 }
 func TestEngineEvalConstants(t *testing.T) {

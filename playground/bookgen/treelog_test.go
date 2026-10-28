@@ -42,6 +42,11 @@ func TestTreeFingerprintRefusesDrift(t *testing.T) {
 	if mismatch.fingerprint(8) == fp {
 		t.Fatal("leaf budget drift must change the fingerprint")
 	}
+	mismatch = paramsFromConfig(config.TierMaster.Name)
+	mismatch.ladderGate += 1
+	if mismatch.fingerprint(8) == fp {
+		t.Fatal("ladder gate drift must change the fingerprint")
+	}
 	if p.fingerprint(16) == fp {
 		t.Fatal("ply bound drift must change the fingerprint")
 	}

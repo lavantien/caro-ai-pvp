@@ -239,8 +239,9 @@ const (
 	BookTreeStableIters         = 3
 	BookTreeStableMarginMilli   = 150
 	BookTreeLopsidedMilli       = 3000
+	BookTreeLadderGateMilli     = 1500
 	BookTreePruneMarginMilli    = 300
-	BookTreeTotalNodes          = 1 << 28
+	BookTreeTotalNodes          = 1 << 36
 	BookTreeVisitScale          = 1000
 	BookTreeVisitFloor          = 1
 	BookTreeGeneratorTag        = "bookgen-tree"

@@ -242,6 +242,17 @@ func (bt *bookTree) analyze(key [config.BookKeyBytes]byte, b *rules.Board, budge
 	return rec, ranking, err
 }
 
+func (bt *bookTree) rungReachable(key [config.BookKeyBytes]byte, cost int) bool {
+	if bt.spent+uint64(cost) > uint64(bt.params.total) {
+		return false
+	}
+	recs := bt.log.analyses[key]
+	if len(recs) == 0 {
+		return false
+	}
+	return absInt(recs[len(recs)-1].score) >= bt.params.ladderGate
+}
+
 func (bt *bookTree) tryFreeze(key [config.BookKeyBytes]byte, b *rules.Board, base int) (bool, []rankedMove, error) {
 	ranking := []rankedMove(nil)
 	for mult := 2; mult <= 1<<(bt.params.stableIters-1); mult *= 2 {
@@ -253,6 +264,9 @@ func (bt *bookTree) tryFreeze(key [config.BookKeyBytes]byte, b *rules.Board, bas
 		}
 		if dup {
 			continue
+		}
+		if !bt.rungReachable(key, base*mult) {
+			break
 		}
 		_, rank, err := bt.analyze(key, b, base*mult, bt.params.opponentK)
 		if err != nil {
