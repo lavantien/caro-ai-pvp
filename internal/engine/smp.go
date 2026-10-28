@@ -369,6 +369,7 @@ func (s *SMP) runWorker(w *Engine, b *rules.Board, res *workerResult) {
 		hasBudget = true
 	}
 	completed := 0
+	mateStreak := 0
 	for depth := 1; depth <= s.jobMaxDepth; depth++ {
 		if w.stopped || dl.Exceeded() {
 			break
@@ -391,8 +392,13 @@ func (s *SMP) runWorker(w *Engine, b *rules.Board, res *workerResult) {
 		res.rootIters = depth
 		completed = depth
 		if score >= config.EvalMateMax-config.EvalMateScoreStep {
-			s.halt.Store(true)
-			break
+			if mateStreak == 1 {
+				s.halt.Store(true)
+				break
+			}
+			mateStreak = 1
+		} else {
+			mateStreak = 0
 		}
 	}
 	res.nodes = w.nodes

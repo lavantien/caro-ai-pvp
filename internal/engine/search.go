@@ -210,6 +210,7 @@ func (e *Engine) runSearch(b *rules.Board, dl Deadline, maxDepth int, soft bool)
 	var rootMoves [config.PonderDepthHistory]rules.Move
 	var rootScores [config.PonderDepthHistory]int
 	rootIters := 0
+	mateStreak := 0
 	for depth := 1; depth <= maxDepth; depth++ {
 		if e.stopped || dl.Exceeded() {
 			break
@@ -228,7 +229,12 @@ func (e *Engine) runSearch(b *rules.Board, dl Deadline, maxDepth int, soft bool)
 		stats.PV = e.pv[0]
 		stats.PVLen = e.pvLen[0]
 		if score >= config.EvalMateMax-config.EvalMateScoreStep {
-			break
+			if mateStreak == 1 {
+				break
+			}
+			mateStreak = 1
+		} else {
+			mateStreak = 0
 		}
 	}
 	n := min(config.PonderDepthHistory, rootIters)

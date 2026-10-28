@@ -167,8 +167,8 @@ func TestMutKillFinishStatsPermilles(t *testing.T) {
 func TestMutKillMateEarlyBreakNodes(t *testing.T) {
 	e := New(0)
 	_, stats := e.SearchDepth(mate1Board(t), NewFixedBudget(time.Second), 4)
-	if stats.Depth != 1 || stats.Nodes != 2 {
-		t.Errorf("mate in 1 depth=%d nodes=%d, want 1 and 2", stats.Depth, stats.Nodes)
+	if stats.Depth != 2 || stats.Nodes != 161 || stats.RootIters != 2 {
+		t.Errorf("mate in 1 depth=%d nodes=%d rootiters=%d, want the verified halt at 2 161 2", stats.Depth, stats.Nodes, stats.RootIters)
 	}
 }
 

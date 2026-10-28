@@ -372,7 +372,7 @@ func TestSMPKillTTHitPermilleMatchesWorkers(t *testing.T) {
 func TestSMPKillCutPermilleSingleCutNode(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
-	_, stats := s.SearchDepth(mate1Board(t), NewFixedBudget(time.Second), 2)
+	_, stats := s.SearchDepth(mate1Board(t), NewFixedBudget(time.Second), 1)
 	r := &s.results[0]
 	if r.cutNodes != 1 || r.cutFirst != 1 {
 		t.Fatalf("setup: cut nodes %d first %d, want exactly 1 and 1", r.cutNodes, r.cutFirst)
@@ -428,8 +428,8 @@ func TestSMPKillImmediateWinHaltsPool(t *testing.T) {
 	if !s.halt.Load() {
 		t.Error("immediate win left the shared halt flag unset")
 	}
-	if res.completed != 1 {
-		t.Errorf("completed = %d, want the win iteration only", res.completed)
+	if res.completed != 2 {
+		t.Errorf("completed = %d, want the win iteration plus its verification", res.completed)
 	}
 }
 
