@@ -224,8 +224,9 @@ class PipelineTest(unittest.TestCase):
 
         with open(self.out / "ledger.csv", encoding="utf-8", newline="") as f:
             rows = {r["arm"]: r for r in csv.DictReader(f)}
-        self.assertEqual(rows["square-passgates-easy-tc2"]["provisional"], "true")
-        self.assertEqual(rows["square-passgates-hard-tc1"]["provisional"], "false")
+        for arm, row in rows.items():
+            self.assertEqual(row["provisional"], "false", arm)
+        self.assertIn("square-passgates-easy-tc2", rows)
 
     def test_integrity_all_pass(self):
         text = self.out / "integrity.txt"

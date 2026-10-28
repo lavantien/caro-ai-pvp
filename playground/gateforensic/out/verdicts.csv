@@ -11,3 +11,4 @@ square-passgates-hard-tc2,square,hard,2,square-passgates-hard-tc2.log,False,Fals
 square-passgates-medium-tc1,square,medium,1,square-passgates-medium-tc1.log,False,False,FAILED,medium,1,0.525,0.75,40,0.37,0.68,false,4581
 square-passgates-medium-tc2,square,medium,2,square-passgates-medium-tc2.log,False,False,FAILED,medium,2,0.35,0.75,20,0.141,0.559,false,1978
 square-passgates-easy-tc1,square,easy,1,square-passgates-easy-tc1.log,False,False,DONE,,,,,,,,,4285
+square-passgates-easy-tc2,square,easy,2,square-passgates-easy-tc2.log,False,False,FAILED,easy,2,0.85,0.9,60,0.76,0.94,true,5744

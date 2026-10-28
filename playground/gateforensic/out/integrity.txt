@@ -1,19 +1,20 @@
-PASS wd-recompute square-passgates-medium-tc1 verdict=0.525 recomputed=0.525 n=40
-PASS threshold square-passgates-medium-tc1 verdict=0.75
-PASS wd-recompute square-passgates-hard-tc1 verdict=0.483 recomputed=0.483 n=60
-PASS threshold square-passgates-hard-tc1 verdict=0.6
 PASS wd-recompute square-passgates-hard-tc2 verdict=0.483 recomputed=0.483 n=60
 PASS threshold square-passgates-hard-tc2 verdict=0.6
+PASS wd-recompute square-passgates-hard-tc1 verdict=0.483 recomputed=0.483 n=60
+PASS threshold square-passgates-hard-tc1 verdict=0.6
+PASS wd-recompute square-passgates-medium-tc2 verdict=0.35 recomputed=0.35 n=20
+PASS threshold square-passgates-medium-tc2 verdict=0.75
+PASS wd-recompute square-passgates-easy-tc2 verdict=0.85 recomputed=0.85 n=60
+PASS threshold square-passgates-easy-tc2 verdict=0.9
+PASS wd-recompute square-passgates-medium-tc1 verdict=0.525 recomputed=0.525 n=40
+PASS threshold square-passgates-medium-tc1 verdict=0.75
 PASS wd-recompute hex-passgates-easy-tc1 verdict=0.883 recomputed=0.883 n=60
 PASS threshold hex-passgates-easy-tc1 verdict=0.9
 PASS wd-recompute hex-passgates-easy-tc1.attempt1 verdict=0.85 recomputed=0.85 n=20
 PASS threshold hex-passgates-easy-tc1.attempt1 verdict=0.9
-PASS wd-recompute square-passgates-medium-tc2 verdict=0.35 recomputed=0.35 n=20
-PASS threshold square-passgates-medium-tc2 verdict=0.75
 PASS seat-parity violations=[(0,)]
 PASS move-counts violations=[(0,), (0,)]
 PASS verdict-count violations=[]
 PASS extend-totals violations=[]
 PASS ponder-refs violations=[(0,)]
-PASS unfinished-game square-passgates-easy-tc2
-PASS win-sign total=322 consistent=322 share=1.000
+PASS win-sign total=355 consistent=355 share=1.000

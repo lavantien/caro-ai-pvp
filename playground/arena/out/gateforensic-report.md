@@ -2,7 +2,7 @@
 
 generated from playground/gateforensic/out datasets, wald z=1.96,
 phases early<=20 mid<=40,
-win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
+win-sign consistency 1.000, provisional arms []
 
 ## per arm W+D with Wald 95 percent intervals
 
@@ -16,7 +16,7 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | hex-passgates-medium-tc1 | hex | medium | 1 | 20 | 7 | 9 | 4 | 0.8 | 0.625 | 0.975 | DONE |  |  |  |  |  | False |
 | hex-passgates-medium-tc2 | hex | medium | 2 | 20 | 4 | 13 | 3 | 0.85 | 0.694 | 1 | DONE |  |  |  |  |  | False |
 | square-passgates-easy-tc1 | square | easy | 1 | 60 | 54 | 2 | 4 | 0.933 | 0.87 | 0.996 | DONE |  |  |  |  |  | False |
-| square-passgates-easy-tc2 | square | easy | 2 | 23 | 17 | 2 | 4 | 0.826 | 0.671 | 0.981 |  |  |  |  |  |  | True |
+| square-passgates-easy-tc2 | square | easy | 2 | 60 | 45 | 6 | 9 | 0.85 | 0.76 | 0.94 | FAILED | 0.85 | 0.9 | 60 | 0.76 | 0.94 | False |
 | square-passgates-hard-tc1 | square | hard | 1 | 60 | 25 | 4 | 31 | 0.483 | 0.357 | 0.61 | FAILED | 0.483 | 0.6 | 60 | 0.357 | 0.61 | False |
 | square-passgates-hard-tc2 | square | hard | 2 | 60 | 26 | 3 | 31 | 0.483 | 0.357 | 0.61 | FAILED | 0.483 | 0.6 | 60 | 0.357 | 0.61 | False |
 | square-passgates-medium-tc1 | square | medium | 1 | 40 | 18 | 3 | 19 | 0.525 | 0.37 | 0.68 | FAILED | 0.525 | 0.75 | 40 | 0.37 | 0.68 | False |
@@ -42,8 +42,8 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | hex-passgates-medium-tc2 | hex | medium | 2 | red | 10 | 1 | 7 | 2 | 0.8 | 0.552 | 1.048 |
 | square-passgates-easy-tc1 | square | easy | 1 | blue | 30 | 27 | 2 | 1 | 0.967 | 0.902 | 1.031 |
 | square-passgates-easy-tc1 | square | easy | 1 | red | 30 | 27 | 0 | 3 | 0.9 | 0.793 | 1.007 |
-| square-passgates-easy-tc2 | square | easy | 2 | blue | 11 | 9 | 0 | 2 | 0.818 | 0.59 | 1.046 |
-| square-passgates-easy-tc2 | square | easy | 2 | red | 12 | 8 | 2 | 2 | 0.833 | 0.622 | 1.044 |
+| square-passgates-easy-tc2 | square | easy | 2 | blue | 30 | 24 | 1 | 5 | 0.833 | 0.7 | 0.967 |
+| square-passgates-easy-tc2 | square | easy | 2 | red | 30 | 21 | 5 | 4 | 0.867 | 0.745 | 0.988 |
 | square-passgates-hard-tc1 | square | hard | 1 | blue | 30 | 7 | 2 | 21 | 0.3 | 0.136 | 0.464 |
 | square-passgates-hard-tc1 | square | hard | 1 | red | 30 | 18 | 2 | 10 | 0.667 | 0.498 | 0.835 |
 | square-passgates-hard-tc2 | square | hard | 2 | blue | 30 | 12 | 2 | 16 | 0.467 | 0.288 | 0.645 |
@@ -73,8 +73,8 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | hex-passgates-medium-tc2 | hex | medium | 2 | red | 1 | 7 | 2 | 0 |
 | square-passgates-easy-tc1 | square | easy | 1 | blue | 27 | 2 | 1 | 0 |
 | square-passgates-easy-tc1 | square | easy | 1 | red | 27 | 0 | 3 | 0 |
-| square-passgates-easy-tc2 | square | easy | 2 | blue | 9 | 0 | 2 | 1 |
-| square-passgates-easy-tc2 | square | easy | 2 | red | 8 | 2 | 2 | 0 |
+| square-passgates-easy-tc2 | square | easy | 2 | blue | 24 | 1 | 5 | 0 |
+| square-passgates-easy-tc2 | square | easy | 2 | red | 21 | 5 | 4 | 0 |
 | square-passgates-hard-tc1 | square | hard | 1 | blue | 7 | 2 | 21 | 0 |
 | square-passgates-hard-tc1 | square | hard | 1 | red | 18 | 2 | 10 | 0 |
 | square-passgates-hard-tc2 | square | hard | 2 | blue | 12 | 2 | 16 | 0 |
@@ -104,8 +104,8 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | hex-passgates-medium-tc2 | hex | medium | 2 | True | 2403 | 6.71 | 5 | 22.09 | 8.57 | 24.5 | 9.8 | 98.1 | 2.78 | 4.03 | 0.714 |
 | square-passgates-easy-tc1 | square | easy | 1 | False | 1619 | 6.47 | 6 | 4.7 | 1.26 | 0 | 0 | 96.8 | 3.86 | 3.92 | 0.979 |
 | square-passgates-easy-tc1 | square | easy | 1 | True | 1057 | 8.31 | 8 | 22.84 | 6.09 | 19 | 19 | 95.9 | 4.02 | 4.69 | 0.83 |
-| square-passgates-easy-tc2 | square | easy | 2 | False | 877 | 7.42 | 7 | 7.26 | 1.38 | 0 | 0 | 97.3 | 5.57 | 5.77 | 0.965 |
-| square-passgates-easy-tc2 | square | easy | 2 | True | 597 | 9.7 | 9 | 37.71 | 7.22 | 19.2 | 26.8 | 96.5 | 5.81 | 7.37 | 0.801 |
+| square-passgates-easy-tc2 | square | easy | 2 | False | 2181 | 7.38 | 7 | 6.66 | 1.26 | 0 | 0 | 97.2 | 5.53 | 5.74 | 0.963 |
+| square-passgates-easy-tc2 | square | easy | 2 | True | 1489 | 9.7 | 9 | 33 | 6.33 | 20.7 | 23.9 | 96.4 | 5.71 | 7.11 | 0.808 |
 | square-passgates-hard-tc1 | square | hard | 1 | False | 1799 | 7.76 | 8 | 12.94 | 4.47 | 15.7 | 35.1 | 95.6 | 3.15 | 4.07 | 0.746 |
 | square-passgates-hard-tc1 | square | hard | 1 | True | 1792 | 7.74 | 8 | 18.55 | 6.33 | 17.4 | 15.4 | 95.9 | 3.21 | 4.12 | 0.754 |
 | square-passgates-hard-tc2 | square | hard | 2 | False | 1524 | 8.39 | 8 | 22.03 | 4.05 | 15.9 | 50.5 | 95.7 | 5.76 | 7.45 | 0.763 |
@@ -127,7 +127,7 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | hex-passgates-medium-tc1 | hex | medium | 1 | 20 | 248.1 | 182.5 | 86 | 397 | 397 | 126.3 | 86 | 189 |
 | hex-passgates-medium-tc2 | hex | medium | 2 | 20 | 291.1 | 397 | 65 | 397 | 397 | 94.3 | 65 | 122 |
 | square-passgates-easy-tc1 | square | easy | 1 | 60 | 54.4 | 35 | 31 | 256 | 256 | 47.4 | 31 | 148 |
-| square-passgates-easy-tc2 | square | easy | 2 | 23 | 74.8 | 47 | 25 | 256 | 256 | 57.5 | 25 | 140 |
+| square-passgates-easy-tc2 | square | easy | 2 | 60 | 73 | 41 | 25 | 256 | 256 | 52.6 | 25 | 140 |
 | square-passgates-hard-tc1 | square | hard | 1 | 60 | 78.3 | 49.5 | 29 | 256 | 256 | 65.6 | 29 | 170 |
 | square-passgates-hard-tc2 | square | hard | 2 | 60 | 66.3 | 59.5 | 22 | 256 | 256 | 56.3 | 22 | 151 |
 | square-passgates-medium-tc1 | square | medium | 1 | 40 | 72.3 | 53 | 23 | 256 | 256 | 57.4 | 23 | 111 |
@@ -138,7 +138,7 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | geometry | games | draws | draw_share | draw_moves_min | draw_moves_max |
 |---|---|---|---|---|---|
 | hex | 180 | 107 | 0.594 | 397 | 397 |
-| square | 263 | 14 | 0.053 | 256 | 256 |
+| square | 300 | 18 | 0.06 | 256 | 256 |
 
 ## turning points of master losses
 
@@ -173,6 +173,11 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | square-passgates-easy-tc2 | 9 | 112 | late | 9300 | 400 | cp | 113 | -1600 | PONDER |
 | square-passgates-easy-tc2 | 10 | 16 | early | 1073741712 | 1073741712 | mate | 17 | -1073741680 |  |
 | square-passgates-easy-tc2 | 11 | 53 | late | 9000 | 0 | cp | 54 | -600 |  |
+| square-passgates-easy-tc2 | 30 | 77 | late | 1073741712 | 3500 | mate | 78 | -1500 | PONDER |
+| square-passgates-easy-tc2 | 32 | 4 | early | 1000 | 1000 | cp | 5 | -1600 |  |
+| square-passgates-easy-tc2 | 35 | 74 | late | 9000 | 500 | cp | 75 | -2500 |  |
+| square-passgates-easy-tc2 | 41 | 88 | late | 9000 | 0 | cp | 89 | -5000 | PONDER |
+| square-passgates-easy-tc2 | 60 | 81 | late | 1073741712 | 0 | mate | 82 | -1073741792 |  |
 | square-passgates-hard-tc1 | 2 | 16 | early | 1073741712 | 1073741712 | mate | 17 | -1300 |  |
 | square-passgates-hard-tc1 | 4 | 4 | early | 1000 | 1000 | cp | 5 | -900 |  |
 | square-passgates-hard-tc1 | 5 | 83 | late | 1073741712 | 200 | mate | 84 | -5400 |  |
@@ -279,7 +284,7 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | hex-passgates-medium-tc1 | 4 | 0 | 81.5 | 86 | 0 | 1 | 3 |
 | hex-passgates-medium-tc2 | 3 | 0 | 60 | 60.3 | 0 | 0 | 3 |
 | square-passgates-easy-tc1 | 4 | 0 | 71.5 | 72.8 | 0 | 1 | 3 |
-| square-passgates-easy-tc2 | 4 | 0 | 57 | 60.5 | 1 | 0 | 3 |
+| square-passgates-easy-tc2 | 9 | 0 | 74 | 62.9 | 2 | 0 | 7 |
 | square-passgates-hard-tc1 | 31 | 0 | 16 | 40.6 | 16 | 4 | 11 |
 | square-passgates-hard-tc2 | 31 | 0 | 17 | 29.8 | 16 | 5 | 10 |
 | square-passgates-medium-tc1 | 19 | 0 | 25 | 33.7 | 8 | 3 | 8 |
@@ -325,9 +330,9 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | square-passgates-easy-tc1 | master | adopt | 343 |
 | square-passgates-easy-tc1 | master | miss | 388 |
 | square-passgates-easy-tc1 | master | reject | 161 |
-| square-passgates-easy-tc2 | master | adopt | 199 |
-| square-passgates-easy-tc2 | master | miss | 222 |
-| square-passgates-easy-tc2 | master | reject | 75 |
+| square-passgates-easy-tc2 | master | adopt | 492 |
+| square-passgates-easy-tc2 | master | miss | 550 |
+| square-passgates-easy-tc2 | master | reject | 195 |
 | square-passgates-hard-tc1 | hard | adopt | 459 |
 | square-passgates-hard-tc1 | hard | miss | 399 |
 | square-passgates-hard-tc1 | hard | reject | 442 |
@@ -381,9 +386,9 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | square-passgates-easy-tc1 | square | easy | 1 | early | 1200 | 0.69 | 0.227 | 0.039 | 0 | 3633 |
 | square-passgates-easy-tc1 | square | easy | 1 | late | 1066 | 0.585 | 0.331 | 0.072 | 0.038 | 3726 |
 | square-passgates-easy-tc1 | square | easy | 1 | mid | 998 | 0.774 | 0.222 | 0.508 | 0.004 | 17140 |
-| square-passgates-easy-tc2 | square | easy | 2 | early | 460 | 0.759 | 0.165 | 0.041 | 0.009 | 3651 |
-| square-passgates-easy-tc2 | square | easy | 2 | late | 876 | 0.588 | 0.368 | 0.067 | 0.042 | 1581 |
-| square-passgates-easy-tc2 | square | easy | 2 | mid | 384 | 0.875 | 0.125 | 0.328 | 0.013 | 12921 |
+| square-passgates-easy-tc2 | square | easy | 2 | early | 1200 | 0.698 | 0.225 | 0.034 | 0.003 | 3137 |
+| square-passgates-easy-tc2 | square | easy | 2 | late | 2147 | 0.548 | 0.379 | 0.068 | 0.034 | 1381 |
+| square-passgates-easy-tc2 | square | easy | 2 | mid | 1031 | 0.807 | 0.193 | 0.327 | 0.018 | 12015 |
 | square-passgates-hard-tc1 | square | hard | 1 | early | 1200 | 0.443 | 0.484 | 0.013 | 0.008 | 352 |
 | square-passgates-hard-tc1 | square | hard | 1 | late | 2396 | 0.429 | 0.477 | 0.038 | 0.073 | -1264 |
 | square-passgates-hard-tc1 | square | hard | 1 | mid | 1103 | 0.461 | 0.529 | 0.127 | 0.14 | -984 |
@@ -408,7 +413,7 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | hex-passgates-medium-tc1 | 4 | 2 | 1 | 0 | 0 | 3 |
 | hex-passgates-medium-tc2 | 3 | 0 | 0 | 0 | 0 | 3 |
 | square-passgates-easy-tc1 | 4 | 1 | 0 | 0 | 0 | 4 |
-| square-passgates-easy-tc2 | 4 | 2 | 0 | 0 | 1 | 3 |
+| square-passgates-easy-tc2 | 9 | 4 | 0 | 0 | 3 | 6 |
 | square-passgates-hard-tc1 | 31 | 8 | 4 | 0 | 7 | 20 |
 | square-passgates-hard-tc2 | 31 | 14 | 7 | 0 | 3 | 21 |
 | square-passgates-medium-tc1 | 19 | 6 | 1 | 0 | 3 | 15 |
@@ -425,7 +430,7 @@ win-sign consistency 1.000, provisional arms ['square-passgates-easy-tc2']
 | hex-passgates-medium-tc1 | 4 | 2 | 1 | 2 | 2 | 1 |
 | hex-passgates-medium-tc2 | 3 | 0 | 0 | 1 | 2 | 0 |
 | square-passgates-easy-tc1 | 4 | 1 | 3 | 4 | 0 | 0 |
-| square-passgates-easy-tc2 | 4 | 2 | 1 | 2 | 2 | 1 |
+| square-passgates-easy-tc2 | 9 | 4 | 2 | 6 | 3 | 1 |
 | square-passgates-hard-tc1 | 31 | 8 | 4 | 7 | 24 | 4 |
 | square-passgates-hard-tc2 | 31 | 14 | 9 | 2 | 29 | 9 |
 | square-passgates-medium-tc1 | 19 | 6 | 2 | 9 | 10 | 2 |

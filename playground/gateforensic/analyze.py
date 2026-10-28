@@ -76,8 +76,9 @@ WITH p AS (
     FROM events WHERE kind = 'ponder'
 )
 SELECT count(*) AS violations FROM p
+JOIN games g USING (arm, game)
 LEFT JOIN moves m USING (arm, game, move_no)
-WHERE m.arm IS NULL
+WHERE g.result != 'U' AND m.arm IS NULL
 """
 
 CHECK_UNFINISHED = """

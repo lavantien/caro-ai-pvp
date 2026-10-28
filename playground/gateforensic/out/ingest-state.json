@@ -66,11 +66,11 @@
     },
     "square-passgates-easy-tc2": {
       "bad": 0,
-      "games": 24,
-      "lines": 2306,
-      "provisional": true,
-      "sha256": "8482c149ebc87d5a7ccb09f73772da6553c96a0e499feba2294e1862dcf8d94e",
-      "source": "square-passgates-easy-tc2.log.raw"
+      "games": 60,
+      "lines": 5745,
+      "provisional": false,
+      "sha256": "a3f2d739eed78f5456113c34cb9deb2b976477a6a0f9a625cfaef0ce72a3f155",
+      "source": "square-passgates-easy-tc2.log"
     },
     "square-passgates-hard-tc1": {
       "bad": 0,
@@ -105,5 +105,5 @@
       "source": "square-passgates-medium-tc2.log"
     }
   },
-  "generated_utc": "2026-10-28T01:00:51Z"
+  "generated_utc": "2026-10-28T04:53:22Z"
 }
