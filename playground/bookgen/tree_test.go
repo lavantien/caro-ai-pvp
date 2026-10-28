@@ -202,6 +202,98 @@ func TestTreeRootExpandsAllProtocolOpenings(t *testing.T) {
 	}
 }
 
+func TestTreeOwnNodeGapComesFromRankingSpread(t *testing.T) {
+	analyst := func(b *rules.Board, budget, k int) (leafRec, []rankedMove) {
+		rank := topLegal(b, 8, 2000)
+		if b.MoveCount == 0 {
+			rank = rootOpeningRanking()
+		}
+		if b.MoveCount == 2 {
+			rank = topLegal(b, 2, 0)
+			rank[0].Score = 2000
+			rank[1].Score = 1400
+		}
+		best := rank[0]
+		return leafRec{budget: budget, score: best.Score, best: best.Move, nodes: uint64(budget)}, rank
+	}
+	bt, _ := newTestTree(t, analyst, (&stubSolver{nodes: 10}).probe)
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	clear := false
+	routine := false
+	for key, ex := range bt.log.expansions {
+		if !ex.own || ex.bestGap < bt.params.critMargin {
+			continue
+		}
+		clear = true
+		if ex.bestGap != 600 {
+			t.Fatalf("own gap at %s = %d, want the ranking spread 600", hexKey(key[:])[:12], ex.bestGap)
+		}
+		for _, c := range ex.children {
+			recs := bt.log.analyses[c.child]
+			if len(recs) > 0 && recs[0].budget == bt.params.leaf {
+				routine = true
+			}
+		}
+	}
+	if !clear {
+		t.Fatal("no own expansion carried a clear ranking spread, every own node priced critical")
+	}
+	if !routine {
+		t.Fatal("children of a clear-spread own node never drew the routine budget")
+	}
+}
+
+func TestTreeEmissionWeightsKeyToOwnSpread(t *testing.T) {
+	analyst := func(b *rules.Board, budget, k int) (leafRec, []rankedMove) {
+		rank := topLegal(b, 8, 2000)
+		if b.MoveCount == 0 {
+			rank = rootOpeningRanking()
+		}
+		if b.MoveCount == 2 {
+			rank = topLegal(b, 2, 0)
+			rank[0].Score = 2000
+			rank[1].Score = 1400
+		}
+		best := rank[0]
+		return leafRec{budget: budget, score: best.Score, best: best.Move, nodes: uint64(budget)}, rank
+	}
+	bt, _ := newTestTree(t, analyst, (&stubSolver{nodes: 10}).probe)
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	entries, _, err := bt.emitEntries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := make(map[[config.BookKeyBytes]byte]bookEntry, len(entries))
+	for _, ent := range entries {
+		index[ent.key] = ent
+	}
+	found := false
+	for key, ex := range bt.log.expansions {
+		if !ex.own || ex.ply != 2 {
+			continue
+		}
+		ent, ok := index[key]
+		if !ok {
+			continue
+		}
+		found = true
+		want := visitWeight(ex.bestGap, bt.params.prune)
+		if ent.visits != want {
+			t.Fatalf("owner entry at %s carries visits %d, want %d from gap %d", hexKey(key[:])[:12], ent.visits, want, ex.bestGap)
+		}
+		if ent.visits <= config.BookTreeVisitFloor {
+			t.Fatalf("owner entry at %s carries the floor visits %d, the spread must lift it", hexKey(key[:])[:12], ent.visits)
+		}
+	}
+	if !found {
+		t.Fatal("no ply-2 owner expansion ever reached emission")
+	}
+}
+
 func TestTreeOwnerExpandsBestOnlyOpponentExpandsTopK(t *testing.T) {
 	sa := &stubAnalyst{score: 200, rankings: map[int][]rankedMove{0: rootOpeningRanking()}}
 	bt, _ := newTestTree(t, sa.analyze, (&stubSolver{nodes: 10}).probe)

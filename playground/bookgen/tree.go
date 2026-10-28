@@ -352,6 +352,19 @@ func protocolOpenings(ranked []rankedMove) []rankedMove {
 	return chosen
 }
 
+func expansionGap(chosen, ranked []rankedMove) int {
+	gap := 0
+	if len(chosen) >= 2 {
+		gap = chosen[0].Score - chosen[1].Score
+	} else if len(ranked) >= 2 {
+		gap = ranked[0].Score - ranked[1].Score
+	}
+	if gap < 0 {
+		return 0
+	}
+	return gap
+}
+
 func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply int, ranking []rankedMove) error {
 	ranked := rankedByScoreMoves(ranking, key, bt.priors)
 	var chosen []rankedMove
@@ -378,13 +391,7 @@ func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply in
 	if len(chosen) == 0 {
 		return fmt.Errorf("bookgen: expansion at ply %d chose no move", ply)
 	}
-	gap := 0
-	if len(chosen) >= 2 {
-		gap = chosen[0].Score - chosen[1].Score
-		if gap < 0 {
-			gap = 0
-		}
-	}
+	gap := expansionGap(chosen, ranked)
 	ex := treeExpansion{ply: ply, own: b.Side == rules.Red, best: chosen[0].Move, bestGap: gap}
 	seen := make(map[[config.BookKeyBytes]byte]struct{}, len(chosen))
 	for _, rm := range chosen {
