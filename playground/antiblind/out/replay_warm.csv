@@ -1,0 +1,17 @@
+arm,game,seat,warm_blind,warm_score,warm_depth,warm_tt_hit,warm_hash_full,warm_solver_found,cold_solver_found,warm_vs_cold_solver_disagree,game_moves
+hex-passgates-medium-tc1,3,red,true,1073741744,3,89,0,true,VCF,false,94
+square-passgates-easy-tc2,3,red,true,1073741680,6,224,0,false,none,false,59
+square-passgates-hard-tc1,21,red,true,1073741712,6,297,0,false,none,false,29
+square-passgates-hard-tc2,27,red,false,20200,6,291,0,true,VCF,false,38
+square-passgates-hard-tc2,36,blue,true,1073741680,5,137,5,true,VCF,false,69
+square-passgates-hard-tc2,38,blue,false,3400,6,387,0,false,none,false,23
+square-passgates-hard-tc2,42,blue,true,1073741744,3,227,5,true,VCF,false,81
+square-passgates-medium-tc2,10,blue,false,4500,6,323,0,false,none,false,21
+square-passgates-medium-tc1,6,blue,false,3400,6,300,0,false,none,false,23
+square-passgates-medium-tc1,21,red,true,1073741712,6,254,0,false,none,false,29
+square-passgates-medium-tc2,17,red,false,-1500,6,237,0,false,none,false,86
+square-passgates-easy-tc2,10,blue,false,2500,6,250,0,false,none,false,25
+square-passgates-hard-tc2,5,red,false,500,6,280,0,false,none,false,24
+square-passgates-hard-tc2,54,blue,true,1073741744,4,286,0,true,VCF,false,47
+square-passgates-medium-tc1,31,red,true,1073741744,3,367,1,true,VCF,false,72
+square-passgates-medium-tc2,8,blue,true,1073741712,4,156,0,true,VCF,false,165
