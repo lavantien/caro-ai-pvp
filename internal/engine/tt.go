@@ -83,6 +83,9 @@ func (t *ttTable) probe(hash uint64, depth int, alpha, beta int, ply int) (int, 
 		return 0, move, false
 	}
 	score := scoreFromTT(ttScore(data), ply)
+	if uint8(data>>56)>>2 != t.gen && (score >= config.EvalMateFloor || score <= -config.EvalMateFloor) {
+		return 0, move, false
+	}
 	switch uint8(data>>56) & 3 {
 	case ttBoundExact:
 		return score, move, true

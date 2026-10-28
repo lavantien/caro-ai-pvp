@@ -388,8 +388,10 @@ func TestMutKillRootSentinelCraft(t *testing.T) {
 	fb := floodBoard(t, "E5", "F5")
 	e := New(testTTBytes)
 	e.beginSearch(fb)
+	e.tt.bumpGen()
 	seedChildTT(t, e, fb, mustCell(t, "E5"), m-config.EvalMateScoreStep, 2)
 	seedChildTT(t, e, fb, mustCell(t, "F5"), m-config.EvalMateScoreStep, 2)
+	e.tt.gen--
 	mv, stats := e.SearchDepth(fb, NewFixedBudget(time.Second), 3)
 	if mv != rules.Move(mustCell(t, "E5")) || stats.Score != -m || stats.PVLen != 0 || stats.Depth != 3 {
 		t.Errorf("root sentinel craft: mv=%d score=%d pvlen=%d depth=%d, want E5 -M 0 3", mv, stats.Score, stats.PVLen, stats.Depth)
