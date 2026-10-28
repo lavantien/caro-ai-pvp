@@ -120,18 +120,18 @@ func runHexPassGate(w io.Writer, env gameEnv, tcIdx, games int, opp string, fixe
 		}
 		if stop {
 			capped := state == passUndecided
-			fmt.Fprintln(w, passVerdictLine(wd, lb, ub, threshold, opp, tcIdx, total, capped))
+			fmt.Fprintln(w, passVerdictLine(env.variant, wd, lb, ub, threshold, opp, tcIdx, total, capped))
 			return nil
 		}
 	}
 	return nil
 }
 
-func passVerdictLine(wd, lb, ub, threshold float64, opp string, tcIdx, games int, capped bool) string {
+func passVerdictLine(variant string, wd, lb, ub, threshold float64, opp string, tcIdx, games int, capped bool) string {
 	if wd >= threshold {
-		return "hex-passgates: DONE"
+		return variant + "-passgates: DONE"
 	}
-	return fmt.Sprintf("hex-passgates: FAILED opp=%s tc=%d wd=%.3f threshold=%.3f n=%d lb=%.3f ub=%.3f cap=%t", opp, tcIdx, wd, threshold, games, lb, ub, capped)
+	return fmt.Sprintf("%s-passgates: FAILED opp=%s tc=%d wd=%.3f threshold=%.3f n=%d lb=%.3f ub=%.3f cap=%t", variant, opp, tcIdx, wd, threshold, games, lb, ub, capped)
 }
 
 func runHexLadder(w io.Writer, env gameEnv, tcIdx, games int, fixedMs int64) error {

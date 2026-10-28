@@ -14,7 +14,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $target = 'hex-passgates'
-$verdictPrefix = 'hex-passgates:'
+$verdictPattern = '^(hex|square)-passgates: (DONE|FAILED.*)$'
+$verdictDonePattern = '^(hex|square)-passgates: DONE$'
 
 $usage = @'
 hex-passgates: detached hex master pass gate chain, master vs each lower tier
@@ -61,19 +62,19 @@ function Convert-ToRepoPath([string]$rel) { Join-Path $repo ($rel -replace '/', 
 function Get-ArmVerdict([string]$name) {
 	$log = Convert-ToRepoPath "$OutRoot/$name.log"
 	if (-not (Test-Path $log)) { return $null }
-	$line = Select-String -Path $log -Pattern ('^' + [regex]::Escape($verdictPrefix) + ' (DONE|FAILED.*)$') | Select-Object -Last 1
+	$line = Select-String -Path $log -Pattern $verdictPattern | Select-Object -Last 1
 	if ($null -eq $line) { return $null }
 	return $line.Line
 }
 
 function Test-ArmDone([string]$name) {
 	$v = Get-ArmVerdict $name
-	return $null -ne $v -and $v -eq "$verdictPrefix DONE"
+	return $null -ne $v -and $v -match $verdictDonePattern
 }
 
 function Test-ArmFailed([string]$name) {
 	$v = Get-ArmVerdict $name
-	return $null -ne $v -and $v -like "$verdictPrefix FAILED*"
+	return $null -ne $v -and $v -match '^(hex|square)-passgates: FAILED'
 }
 
 function Write-Status([string]$text) {

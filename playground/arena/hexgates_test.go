@@ -96,20 +96,23 @@ func TestPassThreshold(t *testing.T) {
 }
 
 func TestPassVerdictLine(t *testing.T) {
-	if got := passVerdictLine(1.0, 1.0, 1.0, 0.90, "easy", 1, 20, false); got != "hex-passgates: DONE" {
+	if got := passVerdictLine("hex", 1.0, 1.0, 1.0, 0.90, "easy", 1, 20, false); got != "hex-passgates: DONE" {
 		t.Fatalf("pass verdict %q", got)
 	}
-	if got := passVerdictLine(0.8995, 0.802, 0.997, 0.90, "easy", 2, 20, false); got != "hex-passgates: FAILED opp=easy tc=2 wd=0.899 threshold=0.900 n=20 lb=0.802 ub=0.997 cap=false" {
+	if got := passVerdictLine("hex", 0.8995, 0.802, 0.997, 0.90, "easy", 2, 20, false); got != "hex-passgates: FAILED opp=easy tc=2 wd=0.899 threshold=0.900 n=20 lb=0.802 ub=0.997 cap=false" {
 		t.Fatalf("fail verdict %q", got)
 	}
-	if got := passVerdictLine(0.649, 0.55, 0.75, 0.60, "hard", 1, 20, false); got != "hex-passgates: DONE" {
+	if got := passVerdictLine("hex", 0.649, 0.55, 0.75, 0.60, "hard", 1, 20, false); got != "hex-passgates: DONE" {
 		t.Fatalf("boundary verdict %q", got)
 	}
-	if got := passVerdictLine(0.90, 0.83, 0.97, 0.90, "easy", 1, 60, true); got != "hex-passgates: DONE" {
+	if got := passVerdictLine("hex", 0.90, 0.83, 0.97, 0.90, "easy", 1, 60, true); got != "hex-passgates: DONE" {
 		t.Fatalf("cap point-rule pass %q", got)
 	}
-	if got := passVerdictLine(0.85, 0.694, 1.0, 0.90, "easy", 1, 60, true); got != "hex-passgates: FAILED opp=easy tc=1 wd=0.850 threshold=0.900 n=60 lb=0.694 ub=1.000 cap=true" {
+	if got := passVerdictLine("hex", 0.85, 0.694, 1.0, 0.90, "easy", 1, 60, true); got != "hex-passgates: FAILED opp=easy tc=1 wd=0.850 threshold=0.900 n=60 lb=0.694 ub=1.000 cap=true" {
 		t.Fatalf("cap point-rule fail %q", got)
+	}
+	if got := passVerdictLine("square", 0.483, 0.357, 0.610, 0.60, "hard", 1, 60, true); got != "square-passgates: FAILED opp=hard tc=1 wd=0.483 threshold=0.600 n=60 lb=0.357 ub=0.610 cap=true" {
+		t.Fatalf("square verdict %q", got)
 	}
 }
 
