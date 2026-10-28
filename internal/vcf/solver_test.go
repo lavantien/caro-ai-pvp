@@ -61,6 +61,18 @@ var (
 		o(0, 1), o(0, 2), o(0, 3), x(0, 0),
 		o(3, 1), o(3, 2), o(3, 3), x(3, 0),
 	}
+	specBlockFour = []placed{
+		x(2, 1), x(2, 2), x(2, 3), x(2, 4), o(2, 0),
+		o(-1, 5), o(0, 5), o(1, 5),
+	}
+	specDoubleAfterBlock = []placed{
+		o(0, 1), o(0, 2), o(0, 3), x(0, 0),
+		x(-3, 5), x(-2, 5), x(-1, 5),
+	}
+	specSingleAfterBlock = []placed{
+		o(0, 1), o(0, 2), o(0, 3), x(0, 0),
+		x(-3, 5), x(-2, 5), x(-1, 5), o(-4, 5),
+	}
 )
 
 func buildAt(t testing.TB, cross bool, ar, ac int, side rules.Color, spec []placed) *rules.Board {
@@ -604,5 +616,151 @@ func TestSolverStagedCapLadderMatchesFresh(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestSolverAbortedSolveStoresNoFailMemo(t *testing.T) {
+	cases := []struct {
+		name string
+		spec []placed
+		ar   int
+		ac   int
+		kind Kind
+	}{
+		{"twoDeadFours", specTwoDeadFours, 8, 4, KindVCF},
+		{"farBlock", specFarBlock, 8, 4, KindVCF},
+		{"counterFour", specCounterFour, 8, 4, KindVCF},
+		{"blockFour", specBlockFour, 8, 4, KindVCF},
+		{"quiet", specQuiet, 8, 4, KindVCT},
+		{"vctCounterFour", specVCTCounterFour, 8, 9, KindVCT},
+	}
+	for _, tc := range cases {
+		b := buildAt(t, false, tc.ar, tc.ac, rules.Red, tc.spec)
+		s := New(tc.kind)
+		s.Solve(b, 1, nil, nil)
+		if !s.aborted {
+			t.Fatalf("%s: budget 1 solve did not abort", tc.name)
+		}
+		if s.plyCap != 3 {
+			t.Fatalf("%s: abort landed at cap %d, want 3", tc.name, s.plyCap)
+		}
+		for slot, stamp := range s.ttStamps {
+			if stamp != 0 {
+				t.Fatalf("%s: aborted solve stored a fail memo at slot %d stamp %d", tc.name, slot, stamp)
+			}
+		}
+	}
+}
+
+func TestSolverSingleRoundMemoReuse(t *testing.T) {
+	b := buildAt(t, false, 8, 4, rules.Red, specTwoDeadFours)
+	s := New(KindVCF)
+	s.maxPly = 5
+	var first, second SolverStats
+	s.Solve(b, config.SolverNodeBudget, nil, &first)
+	s.Solve(b, config.SolverNodeBudget, nil, &second)
+	if second.Nodes >= first.Nodes {
+		t.Fatalf("single round memo reuse: second solve nodes %d not below first %d", second.Nodes, first.Nodes)
+	}
+}
+
+func buildFullCrossExceptGaps(t testing.TB, row, aCol, bCol int) *rules.Board {
+	t.Helper()
+	b := rules.NewCrossCheck()
+	for r := 0; r < config.CrossCheckSize; r++ {
+		for c := 0; c < config.CrossCheckSize; c++ {
+			if r == row && (c == aCol || c == bCol || (c >= 1 && c <= 6)) {
+				continue
+			}
+			b.Side = rules.Red
+			if (r+c)%2 == 1 {
+				b.Side = rules.Blue
+			}
+			b.Make(cellOf(r, c, testGeom))
+		}
+	}
+	for c := 1; c <= 2; c++ {
+		b.Side = rules.Blue
+		b.Make(cellOf(row, c, testGeom))
+	}
+	for c := 4; c <= 6; c++ {
+		b.Side = rules.Red
+		b.Make(cellOf(row, c, testGeom))
+	}
+	b.Side = rules.Red
+	return b
+}
+
+func TestSolverStampWithinRoundCap(t *testing.T) {
+	specCase := func(name string, spec []placed, ar, ac int, kind Kind, cap int) struct {
+		name string
+		cap  int
+		b    func(testing.TB) *rules.Board
+		s    func() *Solver
+	} {
+		return struct {
+			name string
+			cap  int
+			b    func(testing.TB) *rules.Board
+			s    func() *Solver
+		}{name, cap, func(t testing.TB) *rules.Board { return buildAt(t, false, ar, ac, rules.Red, spec) }, func() *Solver { return New(kind) }}
+	}
+	cases := []struct {
+		name string
+		cap  int
+		b    func(testing.TB) *rules.Board
+		s    func() *Solver
+	}{
+		specCase("twoDeadFours", specTwoDeadFours, 8, 4, KindVCF, 5),
+		specCase("farBlock", specFarBlock, 8, 4, KindVCF, 5),
+		specCase("counterFour", specCounterFour, 8, 4, KindVCF, 5),
+		specCase("doubleAfterBlock", specDoubleAfterBlock, 8, 4, KindVCF, 9),
+		specCase("singleAfterBlock", specSingleAfterBlock, 8, 4, KindVCF, 3),
+		specCase("quiet", specQuiet, 8, 4, KindVCT, 5),
+		{"fullCross", 3, func(t testing.TB) *rules.Board { return buildFullCrossExceptGaps(t, 4, 3, 7) }, func() *Solver { return New(KindVCF) }},
+	}
+	for _, tc := range cases {
+		b := tc.b(t)
+		s := tc.s()
+		s.maxPly = tc.cap
+		s.Solve(b, config.SolverNodeBudget, nil, nil)
+		deep := 0
+		for _, stamp := range s.ttStamps {
+			if int(stamp) > deep {
+				deep = int(stamp)
+			}
+		}
+		if deep == 0 {
+			t.Fatalf("%s: fixture stored no fail memos", tc.name)
+		}
+		if deep > tc.cap {
+			t.Fatalf("%s: stamp %d exceeds the single round cap %d", tc.name, deep, tc.cap)
+		}
+	}
+}
+
+func TestSolverStampOneEntryProbes(t *testing.T) {
+	b := buildAt(t, false, 8, 4, rules.Red, specCounterFour)
+	s := New(KindVCF)
+	s.maxPly = 3
+	s.Solve(b, config.SolverNodeBudget, nil, nil)
+	ones := 0
+	var probeKey uint64
+	for slot, stamp := range s.ttStamps {
+		if stamp == 1 {
+			if ones == 0 {
+				probeKey = s.ttKeys[slot]
+			}
+			ones++
+		}
+	}
+	if ones < 2 {
+		t.Fatalf("expected at least 2 stamp-1 entries, got %d", ones)
+	}
+	if !s.ttProbe(probeKey, 1) {
+		t.Fatal("stamp-1 entry misses a probe at remaining 1")
+	}
+	if s.ttProbe(probeKey, 2) {
+		t.Fatal("stamp-1 entry hits a probe at remaining 2")
 	}
 }
