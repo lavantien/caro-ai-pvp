@@ -1,8 +1,9 @@
 [CmdletBinding()]
 param(
-	[string]$Tier = 'master',
+	[string]$Tier = 'grandmaster',
 	[string]$Corpus = 'playground/bookgen/out/book-corpus.txt',
-	[switch]$Reverify,
+	[bool]$Reverify = $true,
+	[string]$TreeLog = 'db/book-tree-gm.txt',
 	[string]$MemLimit = '12GiB',
 	[string]$Log = 'playground/bookgen/out/tree-run.log',
 	[string]$Bin = 'bin/bookgen.exe',
@@ -16,11 +17,14 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 
 $usage = @'
 booktree-run: detached fixed-budget tree expansion book build
-  runs: bin/bookgen.exe -phase tree -tier <tier> [corpus paths] [-reverify]
+  runs: bin/bookgen.exe -phase tree -tier <tier> -tree-log <path> [corpus paths] [-reverify]
+  defaults to the grandmaster standard: tier grandmaster, fresh gm tree log,
+  reverify on, the 16-ply probe bound
   the builder resumes itself from its expansion log, relaunching this script
   when no build process is alive continues the recorded tree
   stdout telemetry appended to the log
-  switches: -DryRun prints the plan, -Foreground runs inline without detaching
+  switches: -DryRun prints the plan, -Foreground runs inline without detaching,
+  -Reverify:$false skips the reverify pass
 '@
 
 if ($Help) { Write-Output $usage; exit 0 }
@@ -35,11 +39,11 @@ function Test-TreeAlive {
 	return 0
 }
 
-$phaseArgs = @('-phase', 'tree', '-tier', $Tier)
+$phaseArgs = @('-phase', 'tree', '-tier', $Tier, '-tree-log', $TreeLog)
+if ($Reverify) { $phaseArgs += '-reverify' }
 if (Test-Path (Join-Path $repo ($Corpus -replace '/', '\'))) {
 	$phaseArgs += $Corpus
 }
-if ($Reverify) { $phaseArgs += '-reverify' }
 $argLine = ($phaseArgs | ForEach-Object { if ($_ -match '\s') { "`"$_`"" } else { $_ } }) -join ' '
 
 function Invoke-Build {
@@ -67,7 +71,7 @@ function Invoke-Build {
 }
 
 if ($DryRun) {
-	Write-Output "booktree-run dryrun: tier $Tier corpus $Corpus reverify $Reverify mem $MemLimit"
+	Write-Output "booktree-run dryrun: tier $Tier corpus $Corpus reverify $Reverify treelog $TreeLog mem $MemLimit"
 	$alive = Test-TreeAlive
 	Write-Output "build process alive pid $alive"
 	Invoke-Build | Out-Null
@@ -76,8 +80,7 @@ if ($DryRun) {
 }
 
 if (-not $Foreground) {
-	$pass = @('-NoProfile', '-File', $PSCommandPath, '-Foreground', '-Tier', $Tier, '-Corpus', $Corpus, '-MemLimit', $MemLimit, '-Log', $Log, '-Bin', $Bin)
-	if ($Reverify) { $pass += '-Reverify' }
+	$pass = @('-NoProfile', '-File', $PSCommandPath, '-Foreground', '-Tier', $Tier, '-Corpus', $Corpus, '-Reverify', ([string]$Reverify), '-TreeLog', $TreeLog, '-MemLimit', $MemLimit, '-Log', $Log, '-Bin', $Bin)
 	Start-Process -FilePath pwsh.exe -ArgumentList $pass -WorkingDirectory $repo -WindowStyle Hidden
 	Write-Output "booktree-run detached, log $Log"
 	exit 0
