@@ -48,22 +48,22 @@ const (
 const maxWinCells = 48
 
 type Solver struct {
-	kind       Kind
-	maxPly     int
-	plyCap     int
-	moves      [config.SolverMaxPly][config.MaxBoardCells]rules.Move
-	ranks      [config.SolverMaxPly][config.MaxBoardCells]uint8
-	defends    [config.SolverMaxPly][config.MaxBoardCells]rules.Cell
-	line       [config.SolverMaxPly]rules.Move
-	winA       [maxWinCells]rules.Cell
-	ttKeys     [1 << config.SolverTTBits]uint64
-	ttVerdicts [1 << config.SolverTTBits]uint8
-	nodes      int
-	budget     int
-	check      int
-	plies      int
-	aborted    bool
-	deadline   Deadline
+	kind     Kind
+	maxPly   int
+	plyCap   int
+	moves    [config.SolverMaxPly][config.MaxBoardCells]rules.Move
+	ranks    [config.SolverMaxPly][config.MaxBoardCells]uint8
+	defends  [config.SolverMaxPly][config.MaxBoardCells]rules.Cell
+	line     [config.SolverMaxPly]rules.Move
+	winA     [maxWinCells]rules.Cell
+	ttKeys   [1 << config.SolverTTBits]uint64
+	ttStamps [1 << config.SolverTTBits]uint16
+	nodes    int
+	budget   int
+	check    int
+	plies    int
+	aborted  bool
+	deadline Deadline
 }
 
 func New(kind Kind) *Solver {
@@ -119,19 +119,16 @@ func (s *Solver) ok() bool {
 	return true
 }
 
-func (s *Solver) ttProbe(hash uint64) (result, bool) {
+func (s *Solver) ttProbe(hash uint64, remaining int) bool {
 	slot := hash & uint64(len(s.ttKeys)-1)
-	if s.ttVerdicts[slot] != 0 && s.ttKeys[slot] == hash {
-		return resFail, true
-	}
-	return resFail, false
+	return s.ttStamps[slot] != 0 && s.ttKeys[slot] == hash && int(s.ttStamps[slot]) >= remaining
 }
 
-func (s *Solver) ttStore(hash uint64, r result) {
-	if r != resFail {
+func (s *Solver) ttStoreFail(hash uint64, remaining int) {
+	if remaining <= 0 {
 		return
 	}
 	slot := hash & uint64(len(s.ttKeys)-1)
 	s.ttKeys[slot] = hash
-	s.ttVerdicts[slot] = 2
+	s.ttStamps[slot] = uint16(remaining)
 }

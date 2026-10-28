@@ -14,23 +14,22 @@ func (s *Solver) attack(b *rules.Board, ply int) result {
 	}
 	attacker := b.Side
 	if ply > 0 {
-		if r, hit := s.ttProbe(b.Hash); hit {
-			return r
+		if s.ttProbe(b.Hash, s.plyCap-ply) {
+			return resFail
 		}
 	}
 	if n, first := s.probeWins(b, attacker, s.winA[:]); n > 0 {
 		s.line[ply] = rules.Move(first)
 		s.plies = ply + 1
-		s.ttStore(b.Hash, resWin)
 		return resWin
 	}
 	if b.IsFull() {
-		s.ttStore(b.Hash, resFail)
+		s.ttStoreFail(b.Hash, s.plyCap-ply)
 		return resFail
 	}
 	if nD, defCell := s.probeWins(b, attacker.Opponent(), nil); nD > 0 {
 		if nD > 1 {
-			s.ttStore(b.Hash, resFail)
+			s.ttStoreFail(b.Hash, s.plyCap-ply)
 			return resFail
 		}
 		return s.forcedBlock(b, attacker, defCell, ply)
@@ -65,14 +64,15 @@ func (s *Solver) forcedBlock(b *rules.Board, attacker rules.Color, u rules.Cell,
 		r := s.defend(b, cands[i], ply+1)
 		b.Unmake()
 		if r == resWin {
-			s.ttStore(b.Hash, resWin)
 			return resWin
 		}
 		if r == resAbort {
 			overall = resAbort
 		}
 	}
-	s.ttStore(b.Hash, overall)
+	if overall == resFail {
+		s.ttStoreFail(b.Hash, s.plyCap-ply)
+	}
 	return overall
 }
 
@@ -87,14 +87,15 @@ func (s *Solver) threatLine(b *rules.Board, attacker rules.Color, ply int) resul
 		r := s.defend(b, rules.Cell(m), ply+1)
 		b.Unmake()
 		if r == resWin {
-			s.ttStore(b.Hash, resWin)
 			return resWin
 		}
 		if r == resAbort {
 			overall = resAbort
 		}
 	}
-	s.ttStore(b.Hash, overall)
+	if overall == resFail {
+		s.ttStoreFail(b.Hash, s.plyCap-ply)
+	}
 	return overall
 }
 

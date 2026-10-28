@@ -1,6 +1,7 @@
 package vcf
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -489,5 +490,119 @@ func TestDefusingSkipsNonWinCells(t *testing.T) {
 	var frames [config.PatternDirections]fiveFrame
 	if n := fiveFrames(b, rules.Red, cellOf(8, 4, testGeom), frames[:]); n != 0 {
 		t.Fatalf("fiveFrames: quiet stone reported %d fives", n)
+	}
+}
+
+func TestSolverTTStampTable(t *testing.T) {
+	s := New(KindVCF)
+	slot := uint64(3) & uint64(len(s.ttKeys)-1)
+	if s.ttProbe(slot, 1) {
+		t.Fatal("empty slot probes as hit")
+	}
+	s.ttStoreFail(slot, 5)
+	if !s.ttProbe(slot, 5) {
+		t.Fatal("stamp at remaining misses")
+	}
+	if !s.ttProbe(slot, 4) {
+		t.Fatal("stamp above remaining misses")
+	}
+	if s.ttProbe(slot, 6) {
+		t.Fatal("stamp below remaining hits")
+	}
+	other := slot ^ 1
+	s.ttStoreFail(other, 9)
+	if !s.ttProbe(other, 9) {
+		t.Fatal("second entry misses")
+	}
+	if s.ttProbe(slot, 6) {
+		t.Fatal("first entry leaked the shallower stamp")
+	}
+	s.ttStoreFail(slot, 0)
+	if !s.ttProbe(slot, 5) {
+		t.Fatal("zero remaining store must not clear")
+	}
+}
+
+func TestSolverMemoReusedOnResolve(t *testing.T) {
+	b := buildAt(t, false, 8, 4, rules.Red, specTwoDeadFours)
+	s := New(KindVCF)
+	var first, second SolverStats
+	s.Solve(b, config.SolverNodeBudget, nil, &first)
+	s.Solve(b, config.SolverNodeBudget, nil, &second)
+	if second.Nodes >= first.Nodes {
+		t.Fatalf("memo reuse: second solve nodes %d not below first %d", second.Nodes, first.Nodes)
+	}
+}
+
+func clusteredBoard(rng *rand.Rand, g *geom.Geometry, k int) *rules.Board {
+	b := rules.NewBoardFor(g)
+	cells := make([]rules.Cell, 0, g.Cells)
+	for cell := 0; cell < g.Cells; cell++ {
+		w, m := cell/64, uint64(1)<<(uint(cell)%64)
+		if b.Region[w]&m != 0 {
+			cells = append(cells, rules.Cell(cell))
+		}
+	}
+	if len(cells) == 0 {
+		return b
+	}
+	cur := cells[rng.Intn(len(cells))]
+	near := func(c rules.Cell) []rules.Cell {
+		var out []rules.Cell
+		for _, o := range cells {
+			if g.Distance(int(c), int(o)) <= 3 {
+				out = append(out, o)
+			}
+		}
+		return out
+	}
+	for i := 0; i < k; i++ {
+		pool := near(cur)
+		if len(pool) == 0 {
+			pool = cells
+		}
+		c := pool[rng.Intn(len(pool))]
+		w, m := int(c)/64, uint64(1)<<(uint(c)%64)
+		if b.Full[w]&m != 0 {
+			continue
+		}
+		b.Make(c)
+		cur = c
+	}
+	if rng.Intn(2) == 0 {
+		b.Side = b.Side.Opponent()
+	}
+	return b
+}
+
+func TestSolverStagedCapLadderMatchesFresh(t *testing.T) {
+	hexG := hexGeom(t)
+	for _, kind := range []Kind{KindVCF, KindVCT} {
+		budget := 1 << 16
+		if kind == KindVCT {
+			budget = 1 << 14
+		}
+		for _, g := range []*geom.Geometry{testGeom, hexG} {
+			rng := rand.New(rand.NewSource(int64(kind)*7919 + 42))
+			for iter := 0; iter < 24; iter++ {
+				b := clusteredBoard(rng, g, 5+rng.Intn(8))
+				clone := *b
+				var freshStats SolverStats
+				fresh := New(kind)
+				foundFresh := fresh.Solve(b, budget, nil, &freshStats)
+				staged := New(kind)
+				staged.maxPly = 3
+				staged.Solve(&clone, budget, nil, nil)
+				staged.maxPly = config.SolverMaxPly
+				var stagedStats SolverStats
+				foundStaged := staged.Solve(&clone, budget, nil, &stagedStats)
+				if foundFresh != foundStaged {
+					t.Fatalf("kind %d geometry %s iter %d: staged verdict %v != fresh %v", kind, g.Name, iter, foundStaged, foundFresh)
+				}
+				if foundFresh && freshStats.Plies != stagedStats.Plies {
+					t.Fatalf("kind %d geometry %s iter %d: staged plies %d != fresh %d", kind, g.Name, iter, stagedStats.Plies, freshStats.Plies)
+				}
+			}
+		}
 	}
 }

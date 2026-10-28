@@ -1,0 +1,33 @@
+kind=0 iter=10 mismatch=0 freshWins=1 stagedWins=1
+kind=0 iter=20 mismatch=0 freshWins=1 stagedWins=1
+kind=0 iter=30 mismatch=0 freshWins=1 stagedWins=1
+kind=0 iter=40 mismatch=0 freshWins=2 stagedWins=2
+kind=0 iter=50 mismatch=0 freshWins=2 stagedWins=2
+kind=0 iter=60 mismatch=0 freshWins=3 stagedWins=3
+kind=0 iter=70 mismatch=0 freshWins=4 stagedWins=4
+kind=0 iter=80 mismatch=0 freshWins=5 stagedWins=5
+SUMMARY kind=0 mismatch=0 freshWins=5 stagedWins=5 witnessIter=-1
+kind=1 iter=10 mismatch=0 freshWins=2 stagedWins=2
+kind=1 iter=20 mismatch=0 freshWins=2 stagedWins=2
+kind=1 iter=30 mismatch=0 freshWins=2 stagedWins=2
+kind=0 iter=10 mismatch=0 freshWins=1 stagedWins=1
+kind=0 iter=20 mismatch=0 freshWins=1 stagedWins=1
+kind=0 iter=30 mismatch=0 freshWins=1 stagedWins=1
+kind=0 iter=40 mismatch=0 freshWins=2 stagedWins=2
+kind=0 iter=50 mismatch=0 freshWins=2 stagedWins=2
+kind=0 iter=60 mismatch=0 freshWins=3 stagedWins=3
+kind=0 iter=70 mismatch=0 freshWins=4 stagedWins=4
+kind=0 iter=80 mismatch=0 freshWins=5 stagedWins=5
+SUMMARY kind=0 mismatch=0 freshWins=5 stagedWins=5 witnessIter=-1
+kind=1 iter=40 mismatch=0 freshWins=3 stagedWins=3
+kind=1 iter=10 mismatch=0 freshWins=2 stagedWins=2
+kind=1 iter=50 mismatch=0 freshWins=6 stagedWins=6
+kind=1 iter=20 mismatch=0 freshWins=2 stagedWins=2
+kind=1 iter=60 mismatch=0 freshWins=9 stagedWins=9
+kind=1 iter=30 mismatch=0 freshWins=2 stagedWins=2
+kind=1 iter=40 mismatch=0 freshWins=3 stagedWins=3
+kind=1 iter=50 mismatch=0 freshWins=6 stagedWins=6
+kind=1 iter=60 mismatch=0 freshWins=9 stagedWins=9
+kind=1 iter=70 mismatch=0 freshWins=11 stagedWins=11
+kind=1 iter=80 mismatch=0 freshWins=13 stagedWins=13
+SUMMARY kind=1 mismatch=0 freshWins=13 stagedWins=13 witnessIter=-1
