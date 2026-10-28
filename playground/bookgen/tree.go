@@ -325,6 +325,33 @@ func (bt *bookTree) cascade() error {
 	return nil
 }
 
+func protocolOpenings(ranked []rankedMove) []rankedMove {
+	open := make(map[rules.Move]struct{}, len(config.BookOpeningCells))
+	for _, c := range config.BookOpeningCells {
+		open[rules.Move(c)] = struct{}{}
+	}
+	chosen := make([]rankedMove, 0, len(config.BookOpeningCells))
+	scored := make(map[rules.Move]struct{}, len(open))
+	for _, rm := range ranked {
+		if _, ok := open[rm.Move]; !ok {
+			continue
+		}
+		chosen = append(chosen, rm)
+		scored[rm.Move] = struct{}{}
+	}
+	tie := 0
+	if len(chosen) > 0 {
+		tie = chosen[0].Score
+	}
+	for _, c := range config.BookOpeningCells {
+		if _, ok := scored[rules.Move(c)]; ok {
+			continue
+		}
+		chosen = append(chosen, rankedMove{Move: rules.Move(c), Score: tie})
+	}
+	return chosen
+}
+
 func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply int, ranking []rankedMove) error {
 	ranked := rankedByScoreMoves(ranking, key, bt.priors)
 	var chosen []rankedMove
@@ -334,18 +361,7 @@ func (bt *bookTree) expand(key [config.BookKeyBytes]byte, b *rules.Board, ply in
 		}
 		chosen = append(chosen, rankedMove{Move: s.move, Score: mateScore(s.pvLen)})
 	} else if ply == 0 {
-		openSet := make(map[rules.Move]struct{}, len(config.BookOpeningCells))
-		for _, c := range config.BookOpeningCells {
-			openSet[rules.Move(c)] = struct{}{}
-		}
-		for _, rm := range ranked {
-			if _, ok := openSet[rm.Move]; ok {
-				chosen = append(chosen, rm)
-			}
-		}
-		if len(chosen) == 0 {
-			return fmt.Errorf("bookgen: root analysis ranked no protocol opening cell")
-		}
+		chosen = protocolOpenings(ranked)
 	} else if b.Side == rules.Blue {
 		for i, rm := range ranked {
 			if i >= bt.params.opponentK {

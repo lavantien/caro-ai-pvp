@@ -111,6 +111,54 @@ func rootOpeningRanking() []rankedMove {
 	return rm
 }
 
+func TestTreeRootSeedsProtocolOpeningsUnderEngineContract(t *testing.T) {
+	p := tinyParams()
+	p.critical = 150_000
+	p.total = 200_000
+	p.solver = 1 << 14
+	path := filepath.Join(t.TempDir(), "tree.txt")
+	a := &engineAnalyst{}
+	bt, err := newBookTree(p, 4, priorsTable{}, a.analyze, treeSolverPort, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bt.run(io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	ex, ok := bt.log.expansions[bt.root]
+	if !ok {
+		t.Fatal("root never expanded")
+	}
+	want := make(map[[config.BookKeyBytes]byte]struct{}, len(config.BookOpeningCells))
+	for _, c := range config.BookOpeningCells {
+		b := rules.NewBoard()
+		b.Make(rules.Cell(c))
+		ck, _ := canonicalEntry(keyOf(b), 0)
+		want[ck] = struct{}{}
+	}
+	got := make(map[[config.BookKeyBytes]byte]struct{}, len(ex.children))
+	for _, c := range ex.children {
+		got[c.child] = struct{}{}
+	}
+	if len(got) != len(ex.children) {
+		t.Fatalf("root children %d hold %d distinct keys, orbit-mate duplicates must not enqueue", len(ex.children), len(got))
+	}
+	if len(got) != len(want) {
+		t.Fatalf("engine ranking seeds %d canonical root orbits, want %d covering every protocol opening", len(got), len(want))
+	}
+	for ck := range want {
+		if _, ok := got[ck]; !ok {
+			t.Fatalf("protocol opening orbit %s missing from the engine-driven root expansion", hexKey(ck[:])[:12])
+		}
+	}
+	if ex.best != rules.Move(119) {
+		t.Errorf("root best %d, want the engine's own pick 119 first", ex.best)
+	}
+	if ex.bestGap != 0 {
+		t.Errorf("root gap %d, unscored openings must tie with the engine pick at 0", ex.bestGap)
+	}
+}
+
 func TestTreeRootExpandsAllProtocolOpenings(t *testing.T) {
 	sa := &stubAnalyst{score: 5000, rankings: map[int][]rankedMove{0: rootOpeningRanking()}}
 	bt, _ := newTestTree(t, sa.analyze, (&stubSolver{nodes: 10}).probe)
