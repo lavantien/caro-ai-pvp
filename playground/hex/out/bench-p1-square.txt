@@ -1,0 +1,51 @@
+goos: windows
+goarch: amd64
+pkg: github.com/lavantien/caro-ai-pvp/internal/rules
+cpu: 12th Gen Intel(R) Core(TM) i7-12700F
+BenchmarkMakeUnmake-20         	144487894	         8.052 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMakeUnmake-20         	137091075	         9.908 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMakeUnmake-20         	124639803	         8.118 ns/op	       0 B/op	       0 allocs/op
+BenchmarkWins-20               	 1849394	       626.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkWins-20               	 1974967	       576.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkWins-20               	 1957238	       587.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastLastMoveWin-20    	41531544	        28.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastLastMoveWin-20    	44559638	        28.66 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastLastMoveWin-20    	53161326	        30.59 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLegalMoves-20         	 2002603	       617.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLegalMoves-20         	 2005339	       595.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLegalMoves-20         	 1870466	       620.9 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/lavantien/caro-ai-pvp/internal/rules	22.050s
+goos: windows
+goarch: amd64
+pkg: github.com/lavantien/caro-ai-pvp/internal/engine
+cpu: 12th Gen Intel(R) Core(TM) i7-12700F
+BenchmarkEvalMakeUnmake-20    	 1471033	       826.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvalMakeUnmake-20    	 1577593	       756.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvalMakeUnmake-20    	 1488778	       798.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvalReset-20         	   27314	     40067 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvalReset-20         	   36076	     36317 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvalReset-20         	   30267	     37433 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenerate-20          	 2394474	       460.8 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenerate-20          	 2408025	       433.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenerate-20          	 3656084	       347.8 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/lavantien/caro-ai-pvp/internal/engine	10.856s
+goos: windows
+goarch: amd64
+pkg: github.com/lavantien/caro-ai-pvp/internal/pattern
+cpu: 12th Gen Intel(R) Core(TM) i7-12700F
+BenchmarkInit-20           	      86	  14525771 ns/op	       0 B/op	       0 allocs/op
+BenchmarkInit-20           	      85	  18075595 ns/op	       0 B/op	       0 allocs/op
+BenchmarkInit-20           	      74	  21824092 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIndex-20          	27360903	        41.45 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIndex-20          	26770654	        44.35 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIndex-20          	27415098	        40.98 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIndexMovers-20    	30165078	        41.36 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIndexMovers-20    	27875728	        38.82 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIndexMovers-20    	30707736	        40.83 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup-20         	1000000000	         0.6815 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup-20         	1000000000	         0.8661 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLookup-20         	1000000000	         0.5825 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/lavantien/caro-ai-pvp/internal/pattern	14.327s
