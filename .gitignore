@@ -16,6 +16,11 @@ coverage.out
 .playwright-mcp/
 
 .scratch/
+.gotmp/
+playground/arena/out/*.status
 playground/bookgen/out/
+playground/bookgen/out-v1/*
+!playground/bookgen/out-v1/*.md
+playground/shots/logs/
 playground/gateforensic/out/moves.csv
 playground/gateforensic/out/events.csv
