@@ -1,0 +1,6 @@
+20261025-031138 run 1 drive claimed: 0 of 2 series settled
+20261025-031138 run 1 series 1/2 started: easy-1 vs easy-2
+20261025-031738 run 1 series 1/2 settled: easy-1 2-1 easy-2 in 6m0s
+20261025-031738 run 1 series 2/2 started: easy-2 vs easy-1
+20261025-032304 run 1 series 2/2 settled: easy-2 2-1 easy-1 in 5m26s
+20261025-032304 run 1 finished: summary in logs\tourny\20261025-031138-ui
