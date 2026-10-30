@@ -429,6 +429,20 @@ func TestBookSearcherPonderProbesThePonderBoard(t *testing.T) {
 	}
 }
 
+func TestBookSearcherPonderBoundIsExclusiveEvenWhenBooked(t *testing.T) {
+	atBound := []string{"H8", "I9", "P8", "I10", "H10", "I11", "H11", "I12"}
+	bk, err := book.Load(bytes.NewReader(buildBookArtifact(t, []bookRow{{moves: atBound, reply: "A1"}})))
+	if err != nil {
+		t.Fatalf("load staged artifact: %v", err)
+	}
+	past := &recordingInner{}
+	s := &bookSearcher{inner: past, book: bk, maxPly: 8, cores: 2}
+	s.StartPonder(bookBoard(t, atBound...))
+	if past.starts != 1 {
+		t.Fatalf("ponder at the ply bound over a booked position = %d inward starts, want the board forwarded past the bound", past.starts)
+	}
+}
+
 func TestBookSearcherDelegatesLifecycleAndPlainDeadlines(t *testing.T) {
 	bk, err := book.Load(bytes.NewReader(buildBookArtifact(t, []bookRow{{reply: "H8"}})))
 	if err != nil {
@@ -676,5 +690,28 @@ func TestUnreadableBookArtifactPathFailsLoudlyAtConstruction(t *testing.T) {
 	}
 	if !strings.Contains(msg, "opening the book artifact") {
 		t.Errorf("unreadable path panic = %q, want the open failure named", msg)
+	}
+}
+
+func TestMissingBookArtifactTriedListCarriesNoBlankEntries(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	savedPath := config.BookArtifactPath
+	config.BookArtifactPath = filepath.Join("no-such-book-tree", "book.carobook")
+	t.Cleanup(func() { config.BookArtifactPath = savedPath })
+	stageExecutablePath(t, "", errors.New("no exe"))
+	savedWarn := missingBookWarn
+	missingBookWarn = new(sync.Once)
+	t.Cleanup(func() { missingBookWarn = savedWarn })
+	if bk := loadBotBook(); bk != nil {
+		t.Fatalf("missing artifact loaded %d entries, want nil", bk.Len())
+	}
+	if out := buf.String(); strings.Contains(out, "tried ; ") {
+		t.Fatalf("missing-artifact warning %q carries a blank tried path, want only the searched paths", out)
 	}
 }
