@@ -439,12 +439,12 @@ func play(env gameEnv, redT, blueT *tally, tcIdx, gameNo int, fixedMs int64) (ru
 				s.ring.Append(int64(budget), stats.Depth)
 			}
 		}
-		emitMLine(os.Stdout, gameNo, b.MoveCount+1, side, mv, &stats, tag)
+		emitMLine(os.Stdout, env, gameNo, b.MoveCount+1, side, mv, &stats, tag)
 		if !b.IsLegal(rules.Cell(mv)) {
 			n := b.LegalMoves(legalBuf[:])
 			mv = legalBuf[0]
 			fmt.Fprintf(os.Stderr, "arena: %s returned illegal %v, fell back (legal count %d)\n",
-				s.label, cellNameOf(mv), n)
+				s.label, cellNameOf(env, mv), n)
 		}
 		cell := rules.Cell(mv)
 		b.Make(cell)
@@ -489,8 +489,8 @@ func ponderOutcome(armed, hit, adopted bool) string {
 	return "reject"
 }
 
-func emitMLine(w io.Writer, gameNo, moveNo int, side rules.Color, mv rules.Move, st *engine.SearchStats, tag string) {
-	fmt.Fprintf(w, "g%d %s\n", gameNo, server.MLine(moveNo, side, mv, st, tag))
+func emitMLine(w io.Writer, env gameEnv, gameNo, moveNo int, side rules.Color, mv rules.Move, st *engine.SearchStats, tag string) {
+	fmt.Fprintf(w, "g%d %s\n", gameNo, server.MLineFor(env.g, moveNo, side, mv, st, tag))
 }
 
 func emitPonderOutcome(w io.Writer, gameNo, moveNo int, seat, outcome string) {
@@ -531,10 +531,6 @@ func record(results map[string]*tally, redLabel, blueLabel, winnerSeat string, m
 	}
 }
 
-func cellNameOf(m rules.Move) string {
-	return string(rules.AppendCellName(nil, rules.Cell(m)))
-}
-
-func appendCellName(dst []byte, m rules.Move) []byte {
-	return rules.AppendCellName(dst, rules.Cell(m))
+func cellNameOf(env gameEnv, m rules.Move) string {
+	return string(env.g.AppendName(nil, int(m)))
 }

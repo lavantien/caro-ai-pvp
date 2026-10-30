@@ -58,7 +58,11 @@ func AppendMLine(dst []byte, g *geom.Geometry, moveNumber int, side rules.Color,
 }
 
 func MLine(moveNumber int, side rules.Color, move rules.Move, st *engine.SearchStats, tag string) string {
-	return string(AppendMLine(make([]byte, 0, mLineCap), geom.Default(), moveNumber, side, move, st, tag))
+	return MLineFor(geom.Default(), moveNumber, side, move, st, tag)
+}
+
+func MLineFor(g *geom.Geometry, moveNumber int, side rules.Color, move rules.Move, st *engine.SearchStats, tag string) string {
+	return string(AppendMLine(make([]byte, 0, mLineCap), g, moveNumber, side, move, st, tag))
 }
 
 func sideName(c rules.Color) string {

@@ -40,12 +40,79 @@ func TestEmitMLineMatchesBotLogFormat(t *testing.T) {
 	st.PV[0] = h8
 	st.PVLen = 1
 	var buf bytes.Buffer
-	emitMLine(&buf, 5, 9, rules.Red, h8, &st, config.BotLogTagPonder)
+	env, err := resolveGeometry("square")
+	if err != nil {
+		t.Fatal(err)
+	}
+	emitMLine(&buf, env, 5, 9, rules.Red, h8, &st, config.BotLogTagPonder)
 	want := fmt.Sprintf("g5 %s\n", fmt.Sprintf(config.BotLogFormat,
 		9, "Red", "H8", 9, "7.28m", "6.54m", 5.8, 10, 2, 91, "+1200", 8,
 		1.11, 2.24, config.BotLogTagPonder, "H8"))
 	if buf.String() != want {
 		t.Errorf("emitMLine output mismatch:\n got %q\nwant %q", buf.String(), want)
+	}
+}
+
+func TestEmitMLineHexNamesRideTheGeometry(t *testing.T) {
+	env, err := resolveGeometry("hex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	center, err := env.g.ParseCell("L12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	neighbor, err := env.g.ParseCell("M12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := &engine.SearchStats{Depth: 3, PVLen: 2}
+	st.PV[0], st.PV[1] = rules.Move(center), rules.Move(neighbor)
+	var buf bytes.Buffer
+	emitMLine(&buf, env, 12, 12, rules.Red, rules.Move(center), st, "")
+	line := buf.String()
+	if !strings.Contains(line, ", L12, ") || !strings.Contains(line, "pv=L12 M12") {
+		t.Errorf("hex mline = %q, want L12 names riding the geometry", line)
+	}
+	if strings.Contains(line, "I17") {
+		t.Errorf("hex mline rendered a square-modulus name: %q", line)
+	}
+	if got := cellNameOf(env, rules.Move(center)); got != "L12" {
+		t.Errorf("cellNameOf(hex center) = %q, want L12", got)
+	}
+}
+
+func TestHexCellNamesRoundTripOverRegion(t *testing.T) {
+	env, err := resolveGeometry("hex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	side := 0
+	for _, v := range config.Variants {
+		if v.Kind == "hex" {
+			side = v.Size
+		}
+	}
+	visited := 0
+	for cell := 0; cell < env.g.Cells; cell++ {
+		if !env.g.Contains(cell) {
+			continue
+		}
+		name, nerr := env.g.CellName(cell)
+		if nerr != nil {
+			t.Fatalf("cell %d: %v", cell, nerr)
+		}
+		back, perr := env.g.ParseCell(name)
+		if perr != nil {
+			t.Fatalf("name %q: %v", name, perr)
+		}
+		if back != cell {
+			t.Fatalf("round trip %d -> %q -> %d", cell, name, back)
+		}
+		visited++
+	}
+	if want := 3*side*(side-1) + 1; visited != want {
+		t.Errorf("hex region cell count = %d, want %d", visited, want)
 	}
 }
 
