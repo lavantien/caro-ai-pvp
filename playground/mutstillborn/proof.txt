@@ -1,0 +1,27 @@
+go build cmd/mutate
+=== fresh run, no allowlist ===
+exit 1
+mutate: memory cap 2048 MiB per tree, 1 workers, worst case 2048 MiB
+mutate: plan 6 mutants over 1 package(s)
+mutate: baseline green for 1 package(s)
+add.go:4:11 replace + with - KILLED
+greet.go:4:15 replace + with - KILLED
+spare.go:4:19 replace 0 with -1 KILLED
+spare.go:4:19 replace 0 with 1 SURVIVED
+spare.go:4:22 replace 4 with 3 SURVIVED
+spare.go:4:22 replace 4 with 5 SURVIVED
+mutate: 6/6 run, 3 killed, 3 survived, 0 allowed
+
+=== challenge run, allowlist holds the stillborn ===
+exit 1
+mutate: memory cap 2048 MiB per tree, 1 workers, worst case 2048 MiB
+mutate: plan 6 mutants over 1 package(s)
+mutate: baseline green for 1 package(s)
+add.go:4:11 replace + with - KILLED
+greet.go:4:15 replace + with - CHALLENGED
+spare.go:4:19 replace 0 with -1 KILLED
+spare.go:4:19 replace 0 with 1 SURVIVED
+spare.go:4:22 replace 4 with 3 SURVIVED
+spare.go:4:22 replace 4 with 5 SURVIVED
+mutate: 1 allow entries no longer equivalent (suite killed the mutant; prune or re-prove): greet.go:4:15 replace + with -
+

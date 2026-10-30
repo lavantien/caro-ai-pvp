@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-$log = Join-Path $PSScriptRoot "sigs.log"
+$log = Join-Path $PSScriptRoot "sigs.txt"
 Remove-Item $log -ErrorAction SilentlyContinue
 $work = Join-Path $env:TEMP ("mutstillborn-sigs-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force $work | Out-Null

@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $repo = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$log = Join-Path $PSScriptRoot "proof.log"
+$log = Join-Path $PSScriptRoot "proof.txt"
 Remove-Item $log -ErrorAction SilentlyContinue
 $env:CGO_ENABLED = "1"
 $stamp = [guid]::NewGuid().ToString("N")

@@ -1,0 +1,31 @@
+go version:
+go version go1.27.2 windows/amd64
+=== stillborn string subtraction in the package under test ===
+exit 1
+# sigstill [sigstill.test]
+.\greet.go:4:9: invalid operation: operator - not defined on "hi " (constant of type string)
+FAIL	sigstill [build failed]
+FAIL
+
+=== dependency package fails to compile ===
+exit 1
+# sigdep/dep
+FAIL	sigdep/use [build failed]
+dep\den.go:3:11: invalid operation: operator - not defined on "a" (untyped string constant)
+FAIL
+
+=== mutated package constant breaks the test file compile ===
+exit 1
+# sigtestfile [sigtestfile.test]
+.\den_test.go:3:16: invalid operation: division by zero
+FAIL	sigtestfile [build failed]
+FAIL
+
+=== vet rejection in the package under test ===
+exit 1
+# sigvet
+# [sigvet]
+.\vet.go:5:24: fmt.Printf format %d has arg "x" of wrong type string
+FAIL	sigvet [build failed]
+FAIL
+
