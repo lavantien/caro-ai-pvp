@@ -289,6 +289,186 @@ func FuzzCasualLogWriteGame(f *testing.F) {
 	})
 }
 
+func TestCasualLogRejectsBoundaryTimeControlIndexes(t *testing.T) {
+	c, _ := newTestCasualLogs(t)
+	for _, tc := range []int{-1, len(config.TimeControls)} {
+		h := casualHeader()
+		h.TCIdx = tc
+		err := c.WriteGame(h, twoLines()[:1])
+		if err == nil || !strings.Contains(err.Error(), "tc index") {
+			t.Errorf("tc index %d = %v, want the rejection naming the index", tc, err)
+		}
+	}
+}
+
+func TestCasualLogRendersHeaderNumbersInBaseTen(t *testing.T) {
+	c, dir := newTestCasualLogs(t)
+	h := casualHeader()
+	h.GameNo = 10
+	h.TCIdx = 3
+	h.BOLen = 10
+	if err := c.WriteGame(h, twoLines()[:1]); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got := readCasualFile(t, casualFilePath(dir, h))
+	for _, want := range []string{"game 10 room ab12", "tc 10+5 bo10 outcome red"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("header %q missing from %q", want, got)
+		}
+	}
+}
+
+func TestTrimTornTailKeepsWholeLinesAndDropsFragments(t *testing.T) {
+	for _, row := range []struct {
+		name string
+		seed string
+		want string
+	}{
+		{"a complete tail", "x\n", "x\n"},
+		{"a fragment after the last line", "xx\ny", "xx\n"},
+		{"a newline first in the window", "\ny", "\n"},
+		{"earlier lines survive the cut", "a\nb\ncz", "a\nb\n"},
+		{"an empty file", "", ""},
+		{"a single byte fragment", "q", ""},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "tail.txt")
+			if err := os.WriteFile(path, []byte(row.seed), 0o644); err != nil {
+				t.Fatalf("seed: %v", err)
+			}
+			if err := trimTornTail(path); err != nil {
+				t.Fatalf("trim: %v", err)
+			}
+			if got := readCasualFile(t, path); got != row.want {
+				t.Errorf("tail after trim = %q, want %q", got, row.want)
+			}
+		})
+	}
+}
+
+func TestTrimTornTailCutsExactlyTheWindowWhenNoNewlineRemains(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "long.txt")
+	seed := strings.Repeat("x", 4608)
+	if err := os.WriteFile(path, []byte(seed), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if err := trimTornTail(path); err != nil {
+		t.Fatalf("trim: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if want := int64(len(seed) - 4096); info.Size() != want {
+		t.Errorf("size after trim = %d, want %d", info.Size(), want)
+	}
+}
+
+func TestCasualLogWriteIsQuietWhenCloseSucceeds(t *testing.T) {
+	c, _ := newTestCasualLogs(t)
+	out := filepath.Join(t.TempDir(), "stderr.txt")
+	f, err := os.Create(out)
+	if err != nil {
+		t.Fatalf("capture stderr: %v", err)
+	}
+	saved := os.Stderr
+	os.Stderr = f
+	writeErr := c.WriteGame(casualHeader(), twoLines())
+	os.Stderr = saved
+	if err := f.Close(); err != nil {
+		t.Fatalf("close capture: %v", err)
+	}
+	if writeErr != nil {
+		t.Fatalf("write: %v", writeErr)
+	}
+	b, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read capture: %v", err)
+	}
+	if strings.Contains(string(b), "casual log close") {
+		t.Errorf("stderr after a clean close = %q, want silence", string(b))
+	}
+}
+
+func TestSanitizeLogNameBoundaryRunesAndLength(t *testing.T) {
+	for _, row := range []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"every allowed rune", "azAZ09.-_", "azAZ09.-_"},
+		{"spacing and punctuation fold", "Carol vs Bot!", "Carol_vs_Bot_"},
+		{"exactly the cap", strings.Repeat("a", 64), strings.Repeat("a", 64)},
+		{"over the cap", strings.Repeat("b", 66), strings.Repeat("b", 64)},
+		{"wide runes count once", strings.Repeat("é", 65), strings.Repeat("_", 64)},
+	} {
+		if got := sanitizeLogName(row.in); got != row.want {
+			t.Errorf("%s: sanitize %q = %q, want %q", row.name, row.in, got, row.want)
+		}
+	}
+}
+
+func TestLogCasualCompletionSkipsGamesWithoutStatLinesSilently(t *testing.T) {
+	buf := &lockedBuffer{}
+	log.SetOutput(buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	sr, err := s.CreateSeries(context.Background(), 0, config.SeriesBO3, alice.ID, bob.ID)
+	if err != nil {
+		t.Fatalf("seed series: %v", err)
+	}
+	base := Game{
+		RedUser: alice.ID, BlueUser: bob.ID, Outcome: OutcomeRed,
+		Moves: []byte{1, 0}, FullTurns: 1,
+	}
+	twoStat, oneStat, noStats := base, base, base
+	twoStat.SeriesID, twoStat.RoomID, twoStat.IdxInSeries, twoStat.StatLines = sr.ID, "ab12", 0, twoLines()
+	oneStat.SeriesID, oneStat.RoomID, oneStat.IdxInSeries, oneStat.StatLines = sr.ID, "cd34", 1, twoLines()[:1]
+	noStats.SeriesID = sr.ID + 424242
+	s.logCasualCompletion(context.Background(), Completion{Games: []Game{twoStat, noStats, oneStat}})
+	if out := buf.String(); out != "" {
+		t.Errorf("log over a game without stat lines = %q, want silence", out)
+	}
+	body := readCasualFile(t, filepath.Join(config.CasualLogRoot,
+		fmt.Sprintf("s%d_%s-vs-%s.txt", sr.ID, "alice", "bob")))
+	if n := strings.Count(body, "game "); n != 2 {
+		t.Errorf("blocks = %d, want the two games with stat lines: %q", n, body)
+	}
+	if !strings.Contains(body, "game 2 room cd34") {
+		t.Errorf("single-stat game missing: %q", body)
+	}
+	if n := strings.Count(body, "M2, Blue, P12, d=9"); n != 2 {
+		t.Errorf("M2 lines = %d, want 2: %q", n, body)
+	}
+}
+
+func TestLogCasualCompletionNumbersASkippedGameByItsSeriesIndex(t *testing.T) {
+	buf := &lockedBuffer{}
+	log.SetOutput(buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	s := mustOpen(t, dbPath(t))
+	defer func() { _ = s.Close() }()
+	alice := seedUser(t, s, "alice")
+	s.logCasualCompletion(context.Background(), Completion{Games: []Game{{
+		SeriesID: 424242, IdxInSeries: 4, RedUser: alice.ID, BlueUser: alice.ID,
+		Outcome: OutcomeRed, Moves: []byte{1, 0}, FullTurns: 1, StatLines: twoLines()[:1],
+	}}})
+	if out := buf.String(); !strings.Contains(out, "series 424242 game 5") {
+		t.Errorf("skip log = %q, want the game numbered 5", out)
+	}
+}
+
 func TestApplyCompletionWritesTheCasualTextFile(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
