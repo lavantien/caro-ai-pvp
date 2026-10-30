@@ -110,6 +110,18 @@ func TestDefendBrokenThreeWindowReplySaves(t *testing.T) {
 	}
 }
 
+func TestDefendUniqueFirstThreatReplySaves(t *testing.T) {
+	stones := []absStone{
+		{11, 10, true}, {12, 11, true}, {13, 12, true}, {14, 12, true}, {13, 10, true},
+		{8, 7, false}, {9, 8, false},
+	}
+	b, _ := buildAbs(t, stones, rules.Blue)
+	s := primeSolver(KindVCT, 7)
+	if r := s.defend(b, cellOf(13, 12, testGeom), 1); r != resFail {
+		t.Fatalf("defend unique first threat reply: result %d want %d", r, resFail)
+	}
+}
+
 func TestForcedBlockFourFramesFillCandidates(t *testing.T) {
 	spec := []placed{
 		x(0, -4), x(0, -3), x(0, -2), x(0, -1),
