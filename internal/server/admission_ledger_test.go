@@ -45,6 +45,40 @@ func TestAdmissionAcquireWaitsForRelease(t *testing.T) {
 	admissionHealthy(t, a)
 }
 
+func TestAdmissionConstructorPinsTheConfiguredWait(t *testing.T) {
+	if got, want := newAdmission().waitMax, time.Duration(config.AdmissionWaitMaxMs)*time.Millisecond; got != want {
+		t.Fatalf("constructor waitMax = %v, want the configured %v", got, want)
+	}
+}
+
+func TestAdmissionZeroDemandSkipsDepletedLedgers(t *testing.T) {
+	a := newTestAdmission(time.Millisecond)
+	a.coresFree = -1
+	a.ttFree = -1
+	if err := a.AcquireCores(0); err != nil {
+		t.Fatalf("zero core acquire over a negative ledger = %v, want the trivial nil", err)
+	}
+	if !a.TryAcquireCores(0) {
+		t.Fatal("zero core try-acquire over a negative ledger = false, want the trivial true")
+	}
+	if err := a.AcquireTT(0); err != nil {
+		t.Fatalf("zero byte tt acquire over a negative ledger = %v, want the trivial nil", err)
+	}
+	if !a.CanAcquireTT(0) {
+		t.Fatal("zero byte tt probe over a negative ledger = false, want the trivial true")
+	}
+}
+
+func TestAdmissionCanAcquireTTRefusesAtZeroFree(t *testing.T) {
+	a := newTestAdmission(time.Millisecond)
+	if err := a.AcquireTT(config.MachineTTBudgetBytes); err != nil {
+		t.Fatalf("drain the tt budget: %v", err)
+	}
+	if a.CanAcquireTT(1) {
+		t.Fatal("one byte tt probe at zero free = true, want the refusal")
+	}
+}
+
 func TestAdmissionAcquireTimesOutLoudly(t *testing.T) {
 	a := newTestAdmission(30 * time.Millisecond)
 	if err := a.AcquireCores(config.MachineCores); err != nil {
