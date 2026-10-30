@@ -176,6 +176,9 @@ func TestNaiveIsLegal(t *testing.T) {
 	if nc.IsLegal(Red, Cell(8*config.BoardStride)) {
 		t.Fatal("out-of-region cell A9 on 8x8 region: want illegal")
 	}
+	if nc.IsLegal(Red, Cell(config.CrossCheckSize)) {
+		t.Fatal("out-of-region cell I1 on 8x8 region: want illegal")
+	}
 	if nc.IsLegal(Red, Cell(config.BoardCells)) {
 		t.Fatal("out-of-bounds cell: want illegal")
 	}
