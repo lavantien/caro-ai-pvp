@@ -14,29 +14,32 @@ import (
 
 type scriptedRunner struct {
 	err error
+	out string
 }
 
-func (r *scriptedRunner) runTest(ctx context.Context, pkg string) error { return r.err }
+func (r *scriptedRunner) runTest(ctx context.Context, pkg string) (string, error) {
+	return r.out, r.err
+}
 
 type greenThenFailRunner struct {
 	calls int
 }
 
-func (r *greenThenFailRunner) runTest(context.Context, string) error {
+func (r *greenThenFailRunner) runTest(context.Context, string) (string, error) {
 	r.calls++
 	if r.calls == 1 {
-		return nil
+		return "", nil
 	}
-	return &exec.ExitError{}
+	return assertionFailOut, &exec.ExitError{}
 }
 
 type suiteNeverRunner struct {
 	t *testing.T
 }
 
-func (r *suiteNeverRunner) runTest(ctx context.Context, pkg string) error {
+func (r *suiteNeverRunner) runTest(ctx context.Context, pkg string) (string, error) {
 	r.t.Error("suite ran on a fully resumed population")
-	return nil
+	return "", nil
 }
 
 func parallelFixture(t *testing.T, n int, src string) ([]string, []mutation) {
@@ -87,7 +90,7 @@ func TestParallelSerialConfirmFlipsLoadLostKills(t *testing.T) {
 		n := invocations[dir]
 		mu.Unlock()
 		if dir == dirs[0] && n > 1 {
-			return &scriptedRunner{err: &exec.ExitError{}}
+			return &scriptedRunner{err: &exec.ExitError{}, out: assertionFailOut}
 		}
 		return &scriptedRunner{}
 	}
@@ -223,10 +226,11 @@ func TestParallelChallengeSerialResolution(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		resolveErr error
+		resolveOut string
 		wantErr    string
 	}{
-		{"serial survive consumes the allowance", nil, ""},
-		{"serial kill demotes the allowance", &exec.ExitError{}, "no longer equivalent"},
+		{"serial survive consumes the allowance", nil, "", ""},
+		{"serial kill demotes the allowance", &exec.ExitError{}, assertionFailOut, "no longer equivalent"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dirs, ms := parallelFixture(t, 2, src)
@@ -242,9 +246,9 @@ func TestParallelChallengeSerialResolution(t *testing.T) {
 					return &scriptedRunner{}
 				}
 				if dir == dirs[0] && n >= 3 {
-					return &scriptedRunner{err: tc.resolveErr}
+					return &scriptedRunner{err: tc.resolveErr, out: tc.resolveOut}
 				}
-				return &scriptedRunner{err: &exec.ExitError{}}
+				return &scriptedRunner{err: &exec.ExitError{}, out: assertionFailOut}
 			}
 			var out strings.Builder
 			res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), t.TempDir(), newRunner, allows, nil, true)
@@ -368,12 +372,52 @@ func TestParallelUnusedAllowFails(t *testing.T) {
 		if dir == dirs[0] && n == 1 {
 			return &scriptedRunner{}
 		}
-		return &scriptedRunner{err: &exec.ExitError{}}
+		return &scriptedRunner{err: &exec.ExitError{}, out: assertionFailOut}
 	}
 	var out strings.Builder
 	_, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), t.TempDir(), newRunner, allows, nil, false)
 	if err == nil || !strings.Contains(err.Error(), "nope.go") {
 		t.Fatalf("runMutationParallel(unused allowance) err = %v, want the unused-allow failure:\n%s", err, out.String())
+	}
+}
+
+func TestParallelRunErrorVoidsPhase(t *testing.T) {
+	src := "package pa\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	dirs, ms := parallelFixture(t, 2, src)
+	if len(ms) < 2 {
+		t.Fatalf("fixture yielded %d mutants, want at least 2", len(ms))
+	}
+	var mu sync.Mutex
+	invocations := map[string]int{}
+	newRunner := func(dir string) runner {
+		mu.Lock()
+		invocations[dir]++
+		n := invocations[dir]
+		mu.Unlock()
+		if dir == dirs[0] && n > 1 {
+			return &scriptedRunner{err: &exec.ExitError{}}
+		}
+		return &scriptedRunner{}
+	}
+	var out strings.Builder
+	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), t.TempDir(), newRunner, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "run error") {
+		t.Fatalf("runMutationParallel(worker run error) err = %v, want the run error\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), " RUN ERROR\n") {
+		t.Errorf("output missing the run error verdict line:\n%s", out.String())
+	}
+	if res.killed != 0 {
+		t.Errorf("killed = %d, want 0: exits without the framework failure marker must not score kills\n%s", res.killed, out.String())
+	}
+}
+
+func TestReverifySeriallyRunErrorVoidsVerdict(t *testing.T) {
+	dir := t.TempDir()
+	_, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{err: &exec.ExitError{}}, nil)
+	if err == nil || !strings.Contains(err.Error(), "run error reverifying") {
+		t.Errorf("reverifySerially(exit without signature) err = %v, want the run error", err)
 	}
 }
 
@@ -397,7 +441,7 @@ func TestParallelChallengeResolveInfraErrorFails(t *testing.T) {
 		if dir == dirs[0] && n >= 3 {
 			return &infraRunner{}
 		}
-		return &scriptedRunner{err: &exec.ExitError{}}
+		return &scriptedRunner{err: &exec.ExitError{}, out: assertionFailOut}
 	}
 	var out strings.Builder
 	_, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), t.TempDir(), newRunner, allows, nil, true)

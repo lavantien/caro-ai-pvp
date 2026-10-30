@@ -202,7 +202,7 @@ func reverifySerially(ctx context.Context, dir string, ms []mutation, r runner, 
 		if werr := os.WriteFile(m.file, mutated, 0o644); werr != nil {
 			return werr
 		}
-		testErr := r.runTest(ctx, m.pkg)
+		testOut, testErr := r.runTest(ctx, m.pkg)
 		if werr := os.WriteFile(m.file, store.orig[m.file], 0o644); werr != nil {
 			return werr
 		}
@@ -212,7 +212,11 @@ func reverifySerially(ctx context.Context, dir string, ms []mutation, r runner, 
 		if isInfraError(testErr) {
 			return fmt.Errorf("infra failure reverifying %s: %v", m.key(dir), testErr)
 		}
-		if classify(testErr) == verdictKilled {
+		verdict := classify(testErr, testOut)
+		if verdict == verdictRunError {
+			return runErrorf("reverifying "+m.key(dir), testErr, testOut)
+		}
+		if verdict == verdictKilled {
 			onKilled(m)
 		}
 	}

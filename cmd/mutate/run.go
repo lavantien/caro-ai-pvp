@@ -21,12 +21,15 @@ const (
 	verdictKilled     = "KILLED"
 	verdictSurvived   = "SURVIVED"
 	verdictChallenged = "CHALLENGED"
+	verdictRunError   = "RUN ERROR"
+	testFailPrefix    = "--- FAIL:"
+	runErrTailBytes   = 512
 )
 
 var errInterrupted = errors.New("interrupted")
 
 type runner interface {
-	runTest(ctx context.Context, pkg string) error
+	runTest(ctx context.Context, pkg string) (string, error)
 }
 
 type execRunner struct {
@@ -55,7 +58,7 @@ func goEnv(cacheDir, tmpDir string) []string {
 	return append(env, "CGO_ENABLED=1", "GOCACHE="+cacheDir, "GOTMPDIR="+tmpDir)
 }
 
-func (r execRunner) runTest(ctx context.Context, pkg string) error {
+func (r execRunner) runTest(ctx context.Context, pkg string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	argv := []string{"go", "test", "-count=1", "-short", "-timeout", (r.timeout - time.Duration(config.MutateTestTimeoutSlack)*time.Millisecond).String(), pkg}
@@ -63,25 +66,54 @@ func (r execRunner) runTest(ctx context.Context, pkg string) error {
 	cmd := exec.CommandContext(ctx, wrapped[0], wrapped[1:]...)
 	cmd.Dir = r.dir
 	cmd.Env = goEnv(r.cacheDir, r.tmpDir)
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
 	if err := cmd.Start(); err != nil {
-		return err
+		return "", err
 	}
 	release, err := capStartedTree(cmd, config.MutateTreeMemCapBytes)
 	if err != nil {
 		_ = cmd.Process.Kill()
-		return err
+		return "", err
 	}
 	defer release()
-	return cmd.Wait()
+	werr := cmd.Wait()
+	return out.String(), werr
 }
 
-func classify(err error) string {
+func classify(err error, out string) string {
 	if err == nil {
 		return verdictSurvived
 	}
-	return verdictKilled
+	if hasTestFailure(out) {
+		return verdictKilled
+	}
+	return verdictRunError
+}
+
+func hasTestFailure(out string) bool {
+	for line := range strings.SplitSeq(out, "\n") {
+		if strings.HasPrefix(line, testFailPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func runErrorf(site string, err error, out string) error {
+	msg := fmt.Sprintf("run error %s: %v (no test failure signature in the suite output; verdicts so far void, rerun the gate)", site, err)
+	if tail := strings.TrimSpace(outputTail(out)); tail != "" {
+		msg += "\nsuite output tail:\n" + tail
+	}
+	return errors.New(msg)
+}
+
+func outputTail(out string) string {
+	if len(out) <= runErrTailBytes {
+		return out
+	}
+	return "..." + out[len(out)-runErrTailBytes:]
 }
 
 func isInfraError(err error) bool {
@@ -113,7 +145,7 @@ func runBaseline(ctx context.Context, out io.Writer, ms []mutation, r runner) er
 			continue
 		}
 		seen[m.pkg] = true
-		if err := r.runTest(ctx, m.pkg); err != nil {
+		if _, err := r.runTest(ctx, m.pkg); err != nil {
 			return fmt.Errorf("baseline suite failed for %s: %v (unmutated suite must be green before scoring mutants)", m.pkg, err)
 		}
 	}
@@ -236,7 +268,7 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		if werr := os.WriteFile(m.file, mutated, 0o644); werr != nil {
 			return res, consumed, survived, challenged, werr
 		}
-		testErr := r.runTest(ctx, m.pkg)
+		testOut, testErr := r.runTest(ctx, m.pkg)
 		res.run++
 		if werr := os.WriteFile(m.file, orig, 0o644); werr != nil {
 			return res, consumed, survived, challenged, werr
@@ -247,13 +279,17 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		if isInfraError(testErr) {
 			return res, consumed, survived, challenged, fmt.Errorf("infra failure at %s: %v (verdicts so far void, rerun the gate)", key, testErr)
 		}
+		verdict := classify(testErr, testOut)
 		switch {
-		case classify(testErr) == verdictKilled && isAllowed:
+		case verdict == verdictKilled && isAllowed:
 			challenged = append(challenged, m)
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictChallenged)
-		case classify(testErr) == verdictKilled:
+		case verdict == verdictKilled:
 			res.killed++
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictKilled)
+		case verdict == verdictRunError:
+			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictRunError)
+			return res, consumed, survived, challenged, runErrorf("at "+key, testErr, testOut)
 		case isAllowed:
 			res.allowed++
 			consumed[key] = reason

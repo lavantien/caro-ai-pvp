@@ -108,7 +108,7 @@ func TestExecuteMutantsAllowSurvivor(t *testing.T) {
 	if err := store.snapshot([]string{pathA, pathB}); err != nil {
 		t.Fatalf("snapshot err = %v", err)
 	}
-	r := &fakeRunner{failPkg: map[string]bool{"pa": true}}
+	r := &fakeRunner{failPkg: map[string]bool{"pa": true}, failOut: assertionFailOut}
 	var out strings.Builder
 	res, _, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, allows, nil, false)
 	if err != nil {

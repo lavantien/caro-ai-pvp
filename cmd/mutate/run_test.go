@@ -13,41 +13,59 @@ import (
 	"time"
 )
 
+const (
+	assertionFailOut = "--- FAIL: TestF (0.00s)\n    a_test.go:7: F(1) = 0, want 2\nFAIL\nFAIL\tprobe\t0.297s\nFAIL\n"
+	panicFailOut     = "--- FAIL: TestPanics (0.00s)\npanic: assignment to entry in nil map [recovered, repanicked]\n\ngoroutine 7 [running]:\nFAIL\tprobe\t0.352s\nFAIL\n"
+	buildFailOut     = "# probe [probe.test]\n.\\a.go:3:32: syntax error: unexpected semicolon, expected expression\nFAIL\tprobe [build failed]\nFAIL\n"
+	timedOutOut      = "panic: test timed out after 1s\n\trunning tests:\n\t\tTestSlow (1s)\nFAIL\tprobe\t1.375s\nFAIL\n"
+	greenSuiteOut    = "ok  probe 0.321s\n"
+)
+
 type fakeRunner struct {
 	failPkg map[string]bool
+	failOut string
 	calls   []string
 	onCall  func(ctx context.Context)
 }
 
-func (r *fakeRunner) runTest(ctx context.Context, pkg string) error {
+func (r *fakeRunner) runTest(ctx context.Context, pkg string) (string, error) {
 	r.calls = append(r.calls, pkg)
 	if r.onCall != nil {
 		r.onCall(ctx)
 	}
 	if r.failPkg[pkg] {
-		return &exec.ExitError{}
+		return r.failOut, &exec.ExitError{}
 	}
-	return nil
+	return "", nil
 }
 
 type infraRunner struct {
 	calls int
 }
 
-func (r *infraRunner) runTest(context.Context, string) error {
+func (r *infraRunner) runTest(context.Context, string) (string, error) {
 	r.calls++
-	return errors.New("exec: sh: not found")
+	return "", errors.New("exec: sh: not found")
 }
 
 func TestClassify(t *testing.T) {
-	if got := classify(nil); got != verdictSurvived {
-		t.Errorf("classify(nil) = %q, want %q", got, verdictSurvived)
-	}
-	if got := classify(errors.New("exit 1")); got != verdictKilled {
-		t.Errorf("classify(fail) = %q, want %q", got, verdictKilled)
-	}
-	if got := classify(context.DeadlineExceeded); got != verdictKilled {
-		t.Errorf("classify(timeout) = %q, want %q", got, verdictKilled)
+	for _, tc := range []struct {
+		name string
+		err  error
+		out  string
+		want string
+	}{
+		{"green suite", nil, greenSuiteOut, verdictSurvived},
+		{"assertion failure", &exec.ExitError{}, assertionFailOut, verdictKilled},
+		{"panicking test carries the framework marker", &exec.ExitError{}, panicFailOut, verdictKilled},
+		{"build failure without a test run", &exec.ExitError{}, buildFailOut, verdictRunError},
+		{"test timeout panic", &exec.ExitError{}, timedOutOut, verdictRunError},
+		{"exit with no output", &exec.ExitError{}, "", verdictRunError},
+		{"deadline with no output", context.DeadlineExceeded, "", verdictRunError},
+	} {
+		if got := classify(tc.err, tc.out); got != tc.want {
+			t.Errorf("%s: classify = %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }
 
@@ -134,7 +152,7 @@ func TestExecuteMutantsClassifiesAndRestores(t *testing.T) {
 	if err := store.snapshot([]string{pathA, pathB}); err != nil {
 		t.Fatalf("snapshot err = %v", err)
 	}
-	r := &fakeRunner{failPkg: map[string]bool{"pa": true}}
+	r := &fakeRunner{failPkg: map[string]bool{"pa": true}, failOut: assertionFailOut}
 	var out strings.Builder
 	res, _, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, nil, false)
 	if err != nil {
@@ -430,7 +448,7 @@ func TestExecRunnerCommandShape(t *testing.T) {
 	r := execRunner{dir: t.TempDir(), timeout: 5 * time.Second}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := r.runTest(ctx, "example.com/p"); err == nil {
+	if _, err := r.runTest(ctx, "example.com/p"); err == nil {
 		t.Error("runTest with canceled ctx err = nil, want error")
 	}
 }
@@ -546,7 +564,7 @@ func TestRunMutationBaselineGuards(t *testing.T) {
 		"go.mod": "module probe\n\ngo 1.27\n",
 		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
 	})
-	r := &fakeRunner{failPkg: map[string]bool{"probe": true}}
+	r := &fakeRunner{failPkg: map[string]bool{"probe": true}, failOut: assertionFailOut}
 	_, err := runMutation(context.Background(), &strings.Builder{}, dir, []string{"."}, t.TempDir(), t.TempDir(), r, nil, nil, false)
 	if err == nil || !strings.Contains(err.Error(), "baseline") {
 		t.Fatalf("runMutation(red baseline) err = %v, want baseline failure", err)
@@ -663,12 +681,78 @@ type baselineThenInfraRunner struct {
 	calls int
 }
 
-func (r *baselineThenInfraRunner) runTest(context.Context, string) error {
+func (r *baselineThenInfraRunner) runTest(context.Context, string) (string, error) {
 	r.calls++
 	if r.calls == 1 {
-		return nil
+		return "", nil
 	}
-	return errors.New("exec: sh: not found")
+	return "", errors.New("exec: sh: not found")
+}
+
+type baselineThenRunErrRunner struct {
+	calls int
+}
+
+func (r *baselineThenRunErrRunner) runTest(context.Context, string) (string, error) {
+	r.calls++
+	if r.calls == 1 {
+		return "", nil
+	}
+	return buildFailOut, &exec.ExitError{}
+}
+
+func TestRunMutationMutantPhaseRunErrorPropagates(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module probe\n\ngo 1.27\n",
+		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
+	})
+	r := &baselineThenRunErrRunner{}
+	var out strings.Builder
+	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), t.TempDir(), r, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "run error") {
+		t.Fatalf("runMutation(run error mid-gate) err = %v, want the run error", err)
+	}
+	if !strings.Contains(err.Error(), "syntax error") {
+		t.Errorf("err = %v, want the suite output tail for diagnosis", err)
+	}
+	if !strings.Contains(out.String(), " RUN ERROR\n") {
+		t.Errorf("stdout missing the run error verdict:\n%s", out.String())
+	}
+	if res.total == 0 || res.run != 1 || res.killed != 0 {
+		t.Errorf("total/run/killed = %d/%d/%d, want the first mutant attempted with no kill scored", res.total, res.run, res.killed)
+	}
+}
+
+func TestExecuteMutantsRunErrorVoidsPhase(t *testing.T) {
+	dir := t.TempDir()
+	src := "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	path, ms := writePkgFile(t, dir, "a.go", "p", src)
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	r := &fakeRunner{failPkg: map[string]bool{"p": true}, failOut: buildFailOut}
+	var out strings.Builder
+	res, _, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "run error") {
+		t.Fatalf("executeMutants(run error) err = %v, want the run error", err)
+	}
+	if res.killed != 0 {
+		t.Errorf("killed = %d, want 0: an exit without a test failure signature must not score a kill", res.killed)
+	}
+	if res.run != 1 {
+		t.Errorf("run = %d, want 1 (the mutant was attempted)", res.run)
+	}
+	s := out.String()
+	if !strings.Contains(s, " RUN ERROR\n") {
+		t.Errorf("output missing the run error verdict line:\n%s", s)
+	}
+	if strings.Contains(s, " KILLED\n") {
+		t.Errorf("output must not score a kill:\n%s", s)
+	}
+	if got, rerr := os.ReadFile(path); rerr != nil || string(got) != src {
+		t.Errorf("file not restored after the run error: %q, err %v", got, rerr)
+	}
 }
 
 func TestRunMutationMutantPhaseInfraErrorPropagates(t *testing.T) {
