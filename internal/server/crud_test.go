@@ -105,7 +105,6 @@ func TestSessionLifecycle(t *testing.T) {
 	if got.UserID != u.ID || got.ExpiresAt != sess.ExpiresAt {
 		t.Errorf("fetch = %+v, want %+v", got, sess)
 	}
-	// Expiry is exclusive: at the deadline the session is already gone.
 	if _, err := s.SessionByToken(sess.Token, sess.ExpiresAt); !errors.Is(err, ErrNotFound) {
 		t.Errorf("fetch at expiry = %v, want ErrNotFound", err)
 	}
@@ -223,7 +222,6 @@ func TestRatingHistoryByUser(t *testing.T) {
 			t.Errorf("append %d = id %d created_at %d, want both nonzero", i, got.ID, got.CreatedAt)
 		}
 	}
-	// Ratings may go negative per the spec, and other users' events never leak in.
 	if _, err := s.AppendRatingEvent(RatingEvent{GameID: game.ID, UserID: bob.ID, Delta: -30, RatingAfter: -30}); err != nil {
 		t.Fatalf("append bob: %v", err)
 	}
@@ -242,7 +240,7 @@ func TestRatingHistoryByUser(t *testing.T) {
 	}
 }
 
-func seedFinishedSeries(t *testing.T, s *Store, tcIdx int, red, blue User, outcomes []string, winner *int64) SeriesRow {
+func seedFinishedSeries(t *testing.T, s *Store, _ int, red, blue User, outcomes []string, winner *int64) SeriesRow {
 	t.Helper()
 	sr := seedSeries(t, s, red, blue)
 	for i, outcome := range outcomes {
@@ -269,9 +267,7 @@ func TestUserStats(t *testing.T) {
 	defer func() { _ = s.Close() }()
 
 	alice, bob, carol := seedUser(t, s, "alice"), seedUser(t, s, "bob"), seedUser(t, s, "carol")
-	// Alice red: wins g0, loses g1, draws g2, takes the series.
 	seedFinishedSeries(t, s, 0, alice, bob, []string{OutcomeRed, OutcomeBlue, OutcomeDraw}, &alice.ID)
-	// Alice blue against carol: one loss, carol takes the series.
 	seedFinishedSeries(t, s, 1, carol, alice, []string{OutcomeRed}, &carol.ID)
 
 	sa, err := s.UserStats(alice.ID)
@@ -303,7 +299,6 @@ func TestMatchHistory(t *testing.T) {
 
 	alice, bob, carol := seedUser(t, s, "alice"), seedUser(t, s, "bob"), seedUser(t, s, "carol")
 	seedFinishedSeries(t, s, 0, alice, bob, []string{OutcomeRed, OutcomeBlue, OutcomeRed}, &alice.ID)
-	// A second series whose first game is a draw: draws carry no won_by tag.
 	drawSeries := seedSeries(t, s, bob, alice)
 	if _, err := s.AppendGame(Game{
 		SeriesID: drawSeries.ID, IdxInSeries: 0, RedUser: bob.ID, BlueUser: alice.ID,
@@ -319,8 +314,6 @@ func TestMatchHistory(t *testing.T) {
 	if len(rows) != 4 {
 		t.Fatalf("rows = %d, want 4", len(rows))
 	}
-	// Newest game first, and each line carries the score line as of that
-	// game plus the full move blob for the caller-side preview.
 	wantWins := [][2]int{{0, 0}, {2, 1}, {1, 1}, {1, 0}}
 	wantMoves := []byte{2}
 	for i, r := range rows {
@@ -328,7 +321,6 @@ func TestMatchHistory(t *testing.T) {
 			t.Errorf("row %d = played_at %d turns %d moves %v, want all set", i, r.PlayedAt, r.FullTurns, r.Moves)
 		}
 		if i == 0 {
-			// The drawn game: alice played blue, score line 0-0, no won_by.
 			if r.Red != "bob" || r.Blue != "alice" || r.WonBy != nil {
 				t.Errorf("draw row = %s vs %s won_by %v, want bob vs alice with nil won_by", r.Red, r.Blue, r.WonBy)
 			}
@@ -356,8 +348,6 @@ func TestMatchHistory(t *testing.T) {
 	}
 }
 
-// seedGame appends one game row with explicit per-game seating, so tests can
-// reproduce the red rotation the loser-takes-red law produces in play.
 func seedGame(t *testing.T, s *Store, sr SeriesRow, idx int, redUser, blueUser int64, outcome string) {
 	t.Helper()
 	if _, err := s.AppendGame(Game{
@@ -368,22 +358,14 @@ func seedGame(t *testing.T, s *Store, sr SeriesRow, idx int, redUser, blueUser i
 	}
 }
 
-// TestMatchHistoryScoreCountsParticipantsNotColors pins the score line
-// semantics: RedWins and BlueWins are the row's red and blue PLAYERS' wins in
-// the series so far. Counting color outcomes instead mixes the two players,
-// because the loser-takes-red law rotates the red seat between games.
 func TestMatchHistoryScoreCountsParticipantsNotColors(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()
 
-	// Distinct users per scenario: history spans every series of a user.
 	alice, bob := seedUser(t, s, "alice"), seedUser(t, s, "bob")
 	carol, dave := seedUser(t, s, "carol"), seedUser(t, s, "dave")
 	erin, frank := seedUser(t, s, "erin"), seedUser(t, s, "frank")
 
-	// Bo3, each player wins one game as red: game 1 alice red, game 2 bob
-	// red. The game-2 row must read 1-1 (bob 1, alice 1); a color count
-	// reads 2-0.
 	swapped := seedSeries(t, s, alice, bob)
 	seedGame(t, s, swapped, 0, alice.ID, bob.ID, OutcomeRed)
 	seedGame(t, s, swapped, 1, bob.ID, alice.ID, OutcomeRed)
@@ -402,9 +384,6 @@ func TestMatchHistoryScoreCountsParticipantsNotColors(t *testing.T) {
 		t.Errorf("game 2 row = %s vs %s %d-%d, want bob vs alice at 1-1 by participant", g2.Red, g2.Blue, g2.RedWins, g2.BlueWins)
 	}
 
-	// A three-game line whose final row reverses the leader under a color
-	// count: dave wins games 1 and 2, carol game 3, so dave leads 2-1. The
-	// game-3 row seats carol on red; a color count reads 2-1 for carol.
 	reversed := seedSeries(t, s, carol, dave)
 	seedGame(t, s, reversed, 0, carol.ID, dave.ID, OutcomeBlue)
 	seedGame(t, s, reversed, 1, dave.ID, carol.ID, OutcomeRed)
@@ -421,8 +400,6 @@ func TestMatchHistoryScoreCountsParticipantsNotColors(t *testing.T) {
 		t.Errorf("final row = %s vs %s %d-%d, want carol vs dave at 1-2: dave leads", final.Red, final.Blue, final.RedWins, final.BlueWins)
 	}
 
-	// Fixed seating, the case a color count already gets right: one red in
-	// every game, so the participant line and the color line coincide.
 	fixed := seedSeries(t, s, erin, frank)
 	seedGame(t, s, fixed, 0, erin.ID, frank.ID, OutcomeRed)
 	seedGame(t, s, fixed, 1, erin.ID, frank.ID, OutcomeBlue)
@@ -439,11 +416,6 @@ func TestMatchHistoryScoreCountsParticipantsNotColors(t *testing.T) {
 	}
 }
 
-// TestStoreMutationsHonorCanceledContext pins the wedged-write ceiling of
-// the write queue: the store mutations that run under the queue's apply
-// context (CreateSeries on join, ApplyCompletion on every game end) thread
-// that context into the driver, so a context already done fails the write
-// instead of hanging past the deadline the queue believed it enforced.
 func TestStoreMutationsHonorCanceledContext(t *testing.T) {
 	s := mustOpen(t, dbPath(t))
 	defer func() { _ = s.Close() }()

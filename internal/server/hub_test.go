@@ -47,11 +47,11 @@ func expectClosed(t *testing.T, ch <-chan Event) {
 
 func publishBurst(t *testing.T, h *Hub, room string, subs []*Subscription, n, start int) {
 	t.Helper()
-	for j := 0; j < n; j++ {
+	for j := range n {
 		h.Publish(room, Event{Kind: "board", Payload: strconv.Itoa(start + j)})
 	}
 	for _, s := range subs {
-		for j := 0; j < n; j++ {
+		for j := range n {
 			expectEvent(t, s.Events(), strconv.Itoa(start+j))
 		}
 	}
@@ -68,7 +68,7 @@ func TestHubFanOutIdenticalOrder(t *testing.T) {
 		}
 		subs[i] = s
 	}
-	for r := 0; r < rounds; r++ {
+	for range rounds {
 		publishBurst(t, h, "room", subs, testBurst, 0)
 	}
 	h.Close()
@@ -125,7 +125,7 @@ func TestHubEvictsSlowSubscriberWhenFull(t *testing.T) {
 		}
 	}
 
-	for j := 0; j < config.HubSubscriberBuffer; j++ {
+	for j := range config.HubSubscriberBuffer {
 		expectEvent(t, slow.Events(), strconv.Itoa(j))
 	}
 	expectClosed(t, slow.Events())
@@ -148,7 +148,7 @@ func TestHubUnsubscribeAfterEvictionIsNoOp(t *testing.T) {
 	if err := s.Err(); !errors.Is(err, ErrSlowConsumer) {
 		t.Fatalf("unsubscribe after eviction Err = %v, want ErrSlowConsumer, the voluntary path must not run", err)
 	}
-	for j := 0; j < config.HubSubscriberBuffer; j++ {
+	for j := range config.HubSubscriberBuffer {
 		expectEvent(t, s.Events(), strconv.Itoa(j))
 	}
 	expectClosed(t, s.Events())
@@ -161,13 +161,13 @@ func TestHubUnsubscribeStopsDelivery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
-	for j := 0; j < 3; j++ {
+	for j := range 3 {
 		h.Publish("room", Event{Kind: "board", Payload: strconv.Itoa(j)})
 	}
 	s.Unsubscribe()
 	s.Unsubscribe()
 	h.Publish("room", Event{Kind: "board", Payload: "after"})
-	for j := 0; j < 3; j++ {
+	for j := range 3 {
 		expectEvent(t, s.Events(), strconv.Itoa(j))
 	}
 	expectClosed(t, s.Events())
@@ -217,7 +217,7 @@ func TestHubUnsubscribeDuringPublish(t *testing.T) {
 
 	const rounds = 8
 	total := 0
-	for r := 0; r < rounds; r++ {
+	for range rounds {
 		publishBurst(t, h, "room", []*Subscription{keeper}, testBurst, total)
 		total += testBurst
 	}
@@ -248,7 +248,7 @@ func TestHubCloseClosesAllSubscribers(t *testing.T) {
 	h := NewHub()
 	subs := make([]*Subscription, 0, 4)
 	for _, room := range []string{"a", "b"} {
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			s, err := h.Subscribe(room)
 			if err != nil {
 				t.Fatalf("subscribe %s %d: %v", room, i, err)
@@ -299,7 +299,7 @@ func TestHubConcurrentPublishersPreservePerPublisherOrder(t *testing.T) {
 	}
 
 	streams := make([][]Event, subscribers)
-	for r := 0; r < rounds; r++ {
+	for r := range rounds {
 		var wg sync.WaitGroup
 		for p := 0; p < publishers; p++ {
 			wg.Add(1)

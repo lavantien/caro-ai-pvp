@@ -233,8 +233,8 @@ func TestTourneyTierSegmentsRenderTight(t *testing.T) {
 
 func TestTourneyRunIDsRenderInBaseTen(t *testing.T) {
 	runs := &fakeTourney{runSummaries: []TourneyRunSummary{{
-		TourneyRunInfo: TourneyRunInfo{ID: 10, CreatedAt: 1790970000, TCIdx: 1,
-			BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating, Finished: true},
+		ID: 10, CreatedAt: 1790970000, TCIdx: 1,
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating, Finished: true,
 		Seats: []TourneySeat{{Slot: 0, Name: "easy-1"}, {Slot: 1, Name: "hard-1"}},
 	}}}
 	srv, _ := tourneySrv(t, runs)

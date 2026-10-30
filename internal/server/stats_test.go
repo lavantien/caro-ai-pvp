@@ -254,7 +254,7 @@ func TestScoreFormatting(t *testing.T) {
 
 func TestStatsCellNameMatchesCodec(t *testing.T) {
 	var buf []byte
-	for cell := 0; cell < config.BoardCells; cell++ {
+	for cell := range config.BoardCells {
 		want, err := rules.CellName(rules.Cell(cell))
 		if err != nil {
 			t.Fatalf("cell %d: %v", cell, err)

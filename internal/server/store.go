@@ -451,7 +451,7 @@ func (s *Store) ApplyCompletion(ctx context.Context, c Completion) error {
 	return nil
 }
 
-func (s *Store) logCasualCompletion(ctx context.Context, c Completion) {
+func (s *Store) logCasualCompletion(_ context.Context, c Completion) {
 	if s.casual == nil {
 		return
 	}

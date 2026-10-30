@@ -17,7 +17,7 @@ func TestHexBoardViewGoldenGeometry(t *testing.T) {
 	unit, rad, pad := 10.0, 10.0*(1-0.045), 2.5
 
 	pts := make([]string, 0, 6)
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		a := (60*float64(i) - 30) * (math.Pi / 180)
 		pts = append(pts, goldenFmt2(rad*math.Cos(a))+" "+goldenFmt2(rad*math.Sin(a)))
 	}

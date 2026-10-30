@@ -195,7 +195,8 @@ func explainDetail(t *testing.T, s *Store, query string, args ...any) string {
 		if err := rows.Scan(&id, &parent, &notused, &detail); err != nil {
 			t.Fatalf("explain scan %q: %v", query, err)
 		}
-		b.WriteString(detail + "; ")
+		b.WriteString(detail)
+		b.WriteString("; ")
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatalf("explain rows %q: %v", query, err)

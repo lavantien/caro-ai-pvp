@@ -13,7 +13,7 @@ func pidAlive(pid int) bool {
 	if err != nil {
 		return errors.Is(err, windows.ERROR_ACCESS_DENIED)
 	}
-	defer windows.CloseHandle(h)
 	event, werr := windows.WaitForSingleObject(h, 0)
+	_ = windows.CloseHandle(h)
 	return werr != nil || event == uint32(windows.WAIT_TIMEOUT)
 }

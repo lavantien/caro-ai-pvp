@@ -354,7 +354,7 @@ func writeSSEFrame(w io.Writer, ev Event) bool {
 	b.WriteString("event: ")
 	b.WriteString(ev.Kind)
 	b.WriteByte('\n')
-	for _, line := range strings.Split(ev.Payload, "\n") {
+	for line := range strings.SplitSeq(ev.Payload, "\n") {
 		b.WriteString("data: ")
 		b.WriteString(line)
 		b.WriteByte('\n')

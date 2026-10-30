@@ -421,8 +421,8 @@ func (p *TournamentPages) handleStart(w http.ResponseWriter, r *http.Request) {
 		Seats: seats, TCIdx: tcIdx, BOLen: boLen, StartRating: rating, Parallel: parallel, Variant: variant,
 	})
 	if err != nil {
-		var blocked *TourneyBlockedError
-		if errors.As(err, &blocked) {
+		blocked, blockedOk := errors.AsType[*TourneyBlockedError](err)
+		if blockedOk {
 			p.renderSetup(w, http.StatusConflict, me, state, blocked.Error(), p.bestEffortRuns(r))
 			return
 		}

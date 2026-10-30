@@ -640,7 +640,7 @@ func TestForfeitAfterALiveGameKeepsOneCasualFile(t *testing.T) {
 		t.Errorf("headers carrying the room id = %d, want 2: %q", n, body)
 	}
 	textLines := 0
-	for _, row := range strings.Split(body, "\n") {
+	for row := range strings.SplitSeq(body, "\n") {
 		if strings.HasPrefix(row, "M") {
 			textLines++
 		}
@@ -860,7 +860,7 @@ func TestCasualRoomSweepRecordsBothStorageSides(t *testing.T) {
 		t.Fatalf("persisted games = %d, want 2", len(ids))
 	}
 	textLines := 0
-	for _, row := range strings.Split(body, "\n") {
+	for row := range strings.SplitSeq(body, "\n") {
 		if strings.HasPrefix(row, "M") {
 			textLines++
 		}

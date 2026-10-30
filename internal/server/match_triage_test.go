@@ -215,7 +215,7 @@ func TestBotTurnSearchPanicReleasesMachineCores(t *testing.T) {
 
 func injectFailingRebuildBot(t *testing.T, r *Room) {
 	t.Helper()
-	var calls int32
+	var calls atomic.Int32
 	var filler []string
 	for i, name := range hostWinsRed {
 		if i%2 == 1 {
@@ -224,7 +224,7 @@ func injectFailingRebuildBot(t *testing.T, r *Room) {
 	}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher {
-		if atomic.AddInt32(&calls, 1) > 1 {
+		if calls.Add(1) > 1 {
 			panic("bot test: second game engine construction refused")
 		}
 		return &scriptedBot{script: movesOf(t, filler), stats: fakeStats()}
