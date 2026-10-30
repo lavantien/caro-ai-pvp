@@ -114,6 +114,218 @@ func ponderRoomTier(t *testing.T, s *stack, name string, bot *ponderBot, tier co
 	return alice, r
 }
 
+func TestPonderLaneAbortReleasesASingleCoreGrant(t *testing.T) {
+	adm := newAdmission()
+	lane := newPonderLane()
+	done := make(chan struct{})
+	go func() {
+		lane.run()
+		close(done)
+	}()
+	bot := &panicStartBot{}
+	lane.start(bot, rules.Red, rules.NewBoard(), 0, 0, adm, 1)
+	<-done
+	if got := adm.LiveCores(); got != 0 {
+		t.Fatalf("cores after the single-core abort = %d, want 0: the abort leaked the ponder grant", got)
+	}
+	lane.close()
+}
+
+func TestPonderLaneDrainReleasesASingleCoreGrant(t *testing.T) {
+	adm := newAdmission()
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	eng := &recordingInner{}
+	lane.start(eng, rules.Red, rules.NewBoard(), 0, 0, adm, 1)
+	waitFor(t, func() bool {
+		eng.mu.Lock()
+		defer eng.mu.Unlock()
+		return eng.starts == 1
+	})
+	if got := adm.LiveCores(); got != 1 {
+		t.Fatalf("cores while ponding = %d, want the 1-core grant held", got)
+	}
+	lane.drain()
+	if got := adm.LiveCores(); got != 0 {
+		t.Fatalf("cores after the drain = %d, want 0: the drain leaked the single-core ponder grant", got)
+	}
+	lane.close()
+	<-exited
+}
+
+func TestPonderLaneDrainSkipsAdmissionFreeArms(t *testing.T) {
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	eng := &recordingInner{}
+	lane.start(eng, rules.Red, rules.NewBoard(), 0, 0, nil, 1)
+	waitFor(t, func() bool {
+		eng.mu.Lock()
+		defer eng.mu.Unlock()
+		return eng.starts == 1
+	})
+	lane.drain()
+	lane.mu.Lock()
+	active := lane.active[rules.Red]
+	lane.mu.Unlock()
+	if active != nil {
+		t.Fatal("drain must clear the armed seat without touching the nil admission")
+	}
+	lane.close()
+	<-exited
+}
+
+func TestPonderLaneHaltSkipsAdmissionFreeArms(t *testing.T) {
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	eng := &recordingInner{}
+	lane.start(eng, rules.Red, rules.NewBoard(), 0, 0, nil, 1)
+	waitFor(t, func() bool {
+		eng.mu.Lock()
+		defer eng.mu.Unlock()
+		return eng.starts == 1
+	})
+	if res := lane.stop(rules.Red); !res.active {
+		t.Fatal("stop after an admission-free arm must report the drained ponder")
+	}
+	lane.close()
+	<-exited
+}
+
+func TestCollectPonderWithoutALaneReturnsNothing(t *testing.T) {
+	r := &Room{}
+	if mv, _, _, ok := r.collectPonder(rules.Blue, 1, time.Now()); ok || mv != 0 {
+		t.Fatalf("laneless collect = move %d ok %t, want no move and rejection", mv, ok)
+	}
+}
+
+func TestCollectPonderIdleLaneReturnsNoMove(t *testing.T) {
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	defer func() {
+		lane.close()
+		<-exited
+	}()
+	r := &Room{ponder: lane}
+	if mv, _, _, ok := r.collectPonder(rules.Blue, 1, time.Now()); ok || mv != 0 {
+		t.Fatalf("idle collect = move %d ok %t, want no move and rejection", mv, ok)
+	}
+}
+
+func TestCollectPonderRejectedGateReturnsNoMove(t *testing.T) {
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	defer func() {
+		lane.close()
+		<-exited
+	}()
+	h8 := rules.Move(mustCellT(t, "H8"))
+	k10 := rules.Move(mustCellT(t, "K10"))
+	other := rules.Move(mustCellT(t, "L9"))
+	bot := &ponderBot{}
+	bot.stopMove = k10
+	bot.stopStats = adoptableStopStats(k10, 12, int64(10*time.Millisecond))
+	bot.stopStats.RootMoves[config.PonderStableIters-1] = other
+	lane.start(bot, rules.Blue, rules.NewBoard(), h8, 0, nil, 0)
+	b := rules.NewBoard()
+	b.Make(rules.Cell(h8))
+	r := &Room{ponder: lane}
+	r.mu.Lock()
+	r.board = b
+	r.moves = []rules.Move{h8}
+	r.mu.Unlock()
+	if mv, _, _, ok := r.collectPonder(rules.Blue, int64(time.Millisecond), time.Now()); ok || mv != 0 {
+		t.Fatalf("gate-rejected collect = move %d ok %t, want no move and rejection", mv, ok)
+	}
+}
+
+func TestCollectPonderBoardlessRoomRejectsAdoptableStats(t *testing.T) {
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	defer func() {
+		lane.close()
+		<-exited
+	}()
+	k10 := rules.Move(mustCellT(t, "K10"))
+	bot := &ponderBot{}
+	bot.stopMove = k10
+	bot.stopStats = adoptableStopStats(k10, 12, int64(10*time.Millisecond))
+	lane.start(bot, rules.Blue, rules.NewBoard(), 0, 0, nil, 0)
+	r := &Room{ponder: lane}
+	if mv, _, _, ok := r.collectPonder(rules.Blue, int64(time.Millisecond), time.Now()); ok || mv != 0 {
+		t.Fatalf("boardless collect = move %d ok %t, want rejection despite adoptable stats", mv, ok)
+	}
+}
+
+func refutedClaimPonderRoom(t *testing.T, tag string) (*Room, *ponderBot) {
+	t.Helper()
+	lane := newPonderLane()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		lane.run()
+	}()
+	t.Cleanup(func() {
+		lane.close()
+		<-exited
+	})
+	b := blueFourBoard(t)
+	slow := rules.Move(mustCellT(t, "E5"))
+	bot := &ponderBot{}
+	bot.stopMove = slow
+	bot.stopStats = adoptableStopStats(slow, 12, int64(10*time.Millisecond))
+	bot.stopStats.Score = config.EvalMateMax - 5*config.EvalMateScoreStep
+	bot.mu.Lock()
+	bot.stopTag = tag
+	bot.mu.Unlock()
+	ms := movesOf(t, []string{"J9", "K9", "L9", "M9", "F12", "G12"})
+	r := &Room{ponder: lane}
+	r.mu.Lock()
+	r.board = b
+	r.moves = ms
+	r.mu.Unlock()
+	lane.start(bot, rules.Blue, b, ms[len(ms)-1], b.MoveCount-1, nil, 0)
+	return r, bot
+}
+
+func TestCollectPonderRefutedClaimRejectsUntagged(t *testing.T) {
+	r, _ := refutedClaimPonderRoom(t, "")
+	if mv, _, _, ok := r.collectPonder(rules.Blue, int64(time.Millisecond), time.Now()); ok || mv != 0 {
+		t.Fatalf("refuted untagged collect = move %d ok %t, want the audited claim rejected", mv, ok)
+	}
+}
+
+func TestCollectPonderTaggedProofSkipsTheRefutationAudit(t *testing.T) {
+	r, bot := refutedClaimPonderRoom(t, config.BotLogTagVCF)
+	mv, _, tag, ok := r.collectPonder(rules.Blue, int64(time.Millisecond), time.Now())
+	if !ok || mv != bot.stopMove || tag != config.BotLogTagVCF {
+		t.Fatalf("tagged collect = move %d tag %q ok %t, want the refuted-but-proven claim adopted un-audited", mv, tag, ok)
+	}
+}
+
 func TestPonderArmTierThreadMatrix(t *testing.T) {
 	s := newStack(t)
 	ms := movesOf(t, []string{"D4", "H8", "P16", "J10"})
