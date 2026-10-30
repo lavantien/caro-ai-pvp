@@ -415,9 +415,24 @@ func TestParallelRunErrorVoidsPhase(t *testing.T) {
 func TestReverifySeriallyRunErrorVoidsVerdict(t *testing.T) {
 	dir := t.TempDir()
 	_, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
-	err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{err: &exec.ExitError{}}, nil)
+	err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{err: &exec.ExitError{}}, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "run error reverifying") {
 		t.Errorf("reverifySerially(exit without signature) err = %v, want the run error", err)
+	}
+}
+
+func TestReverifySeriallyStillbornScoresKilled(t *testing.T) {
+	dir := t.TempDir()
+	_, ms := writePkgFile(t, dir, "a.go", "probe", "package probe\n\nfunc Greet(name string) string {\n\treturn \"hi \" + name\n}\n")
+	killed := 0
+	err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{err: &exec.ExitError{}, out: buildFailOut}, map[string]bool{"probe": true}, func(mutation) {
+		killed++
+	})
+	if err != nil {
+		t.Fatalf("reverifySerially(stillborn) err = %v, want the build failure scored killed", err)
+	}
+	if len(ms) != 1 || killed != 1 {
+		t.Errorf("killed %d of %d mutants, want the single stillborn scored killed", killed, len(ms))
 	}
 }
 
@@ -485,7 +500,7 @@ func TestParallelChallengeResolveInfraErrorFails(t *testing.T) {
 func TestReverifySeriallySnapshotFailure(t *testing.T) {
 	dir := t.TempDir()
 	ms := []mutation{{file: filepath.Join(dir, "missing.go"), pkg: "p", line: 1, col: 1, desc: "d", edits: []edit{{start: 0, end: 1, repl: "x"}}}}
-	if err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil); err == nil {
+	if err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil, nil); err == nil {
 		t.Error("reverifySerially(missing file) err = nil, want the snapshot failure")
 	}
 }
@@ -495,7 +510,7 @@ func TestReverifySeriallyInterruptedBeforeLoop(t *testing.T) {
 	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := reverifySerially(ctx, dir, ms, &scriptedRunner{}, nil)
+	err := reverifySerially(ctx, dir, ms, &scriptedRunner{}, nil, nil)
 	if err == nil || !errors.Is(err, errInterrupted) {
 		t.Errorf("reverifySerially(dead ctx) err = %v, want interrupted", err)
 	}
@@ -508,7 +523,7 @@ func TestReverifySeriallyBadEdits(t *testing.T) {
 	dir := t.TempDir()
 	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
 	ms[0].edits = []edit{{start: 99, end: 100, repl: "x"}}
-	err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil)
+	err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "bad or overlapping edit") {
 		t.Errorf("reverifySerially(bad edits) err = %v, want the edit failure", err)
 	}
@@ -524,7 +539,7 @@ func TestReverifySeriallyMutantWriteFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
-	if err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil); err == nil {
+	if err := reverifySerially(context.Background(), dir, ms, &scriptedRunner{}, nil, nil); err == nil {
 		t.Error("reverifySerially(read-only target) err = nil, want the mutant write failure")
 	}
 }
@@ -540,7 +555,7 @@ func TestReverifySeriallyRestoreWriteFails(t *testing.T) {
 			t.Errorf("Mkdir err = %v", err)
 		}
 	}}
-	if err := reverifySerially(context.Background(), dir, ms, r, nil); err == nil {
+	if err := reverifySerially(context.Background(), dir, ms, r, nil, nil); err == nil {
 		t.Error("reverifySerially(restore unwritable) err = nil, want the write failure")
 	}
 }
@@ -550,7 +565,7 @@ func TestReverifySeriallyInterruptAfterTest(t *testing.T) {
 	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &fakeRunner{onCall: func(context.Context) { cancel() }}
-	err := reverifySerially(ctx, dir, ms, r, nil)
+	err := reverifySerially(ctx, dir, ms, r, nil, nil)
 	if err == nil || !errors.Is(err, errInterrupted) {
 		t.Errorf("reverifySerially(cancel after test) err = %v, want interrupted", err)
 	}
@@ -562,7 +577,7 @@ func TestReverifySeriallyInterruptAfterTest(t *testing.T) {
 func TestReverifySeriallyInfraErrorVoidsVerdict(t *testing.T) {
 	dir := t.TempDir()
 	_, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
-	err := reverifySerially(context.Background(), dir, ms, &infraRunner{}, nil)
+	err := reverifySerially(context.Background(), dir, ms, &infraRunner{}, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "infra failure reverifying") {
 		t.Errorf("reverifySerially(infra runner) err = %v, want the infra failure", err)
 	}

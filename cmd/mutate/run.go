@@ -23,6 +23,7 @@ const (
 	verdictChallenged = "CHALLENGED"
 	verdictRunError   = "RUN ERROR"
 	testFailPrefix    = "--- FAIL:"
+	buildFailedSuffix = " [build failed]"
 	runErrTailBytes   = 512
 )
 
@@ -82,11 +83,14 @@ func (r execRunner) runTest(ctx context.Context, pkg string) (string, error) {
 	return out.String(), werr
 }
 
-func classify(err error, out string) string {
+func classify(err error, out, pkg string, baseline map[string]bool) string {
 	if err == nil {
 		return verdictSurvived
 	}
 	if hasTestFailure(out) {
+		return verdictKilled
+	}
+	if baseline[pkg] && hasBuildFailure(out, pkg) {
 		return verdictKilled
 	}
 	return verdictRunError
@@ -101,8 +105,48 @@ func hasTestFailure(out string) bool {
 	return false
 }
 
+func hasBuildFailure(out, pkg string) bool {
+	marker := false
+	ownedHeader := false
+	diagnostic := false
+	for line := range strings.SplitSeq(out, "\n") {
+		switch {
+		case line == "FAIL\t"+pkg+buildFailedSuffix:
+			marker = true
+		case line == "# "+pkg || strings.HasPrefix(line, "# "+pkg+" ") || line == "# ["+pkg+"]":
+			ownedHeader = true
+		case isCompileDiagnostic(line):
+			diagnostic = true
+		}
+	}
+	return marker && ownedHeader && diagnostic
+}
+
+func isCompileDiagnostic(line string) bool {
+	at := strings.LastIndex(line, ".go:")
+	if at < 0 {
+		return false
+	}
+	rest := line[at+len(".go:"):]
+	lineNo, rest, ok := strings.Cut(rest, ":")
+	colNo, _, _ := strings.Cut(rest, ":")
+	return ok && isDigits(lineNo) && isDigits(colNo)
+}
+
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func runErrorf(site string, err error, out string) error {
-	msg := fmt.Sprintf("run error %s: %v (no test failure signature in the suite output; verdicts so far void, rerun the gate)", site, err)
+	msg := fmt.Sprintf("run error %s: %v (no test failure signature and no build failure of the mutated package in the suite output; verdicts so far void, rerun the gate)", site, err)
 	if tail := strings.TrimSpace(outputTail(out)); tail != "" {
 		msg += "\nsuite output tail:\n" + tail
 	}
@@ -138,21 +182,23 @@ func hasRunnableMutants(ms []mutation, workDir string, resumeKilled map[string]b
 	return false
 }
 
-func runBaseline(ctx context.Context, out io.Writer, ms []mutation, r runner) error {
+func runBaseline(ctx context.Context, out io.Writer, ms []mutation, r runner) (map[string]bool, error) {
 	seen := map[string]bool{}
+	green := map[string]bool{}
 	for _, m := range ms {
 		if seen[m.pkg] {
 			continue
 		}
 		seen[m.pkg] = true
 		if _, err := r.runTest(ctx, m.pkg); err != nil {
-			return fmt.Errorf("baseline suite failed for %s: %v (unmutated suite must be green before scoring mutants)", m.pkg, err)
+			return nil, fmt.Errorf("baseline suite failed for %s: %v (unmutated suite must be green before scoring mutants)", m.pkg, err)
 		}
+		green[m.pkg] = true
 	}
 	if len(seen) > 0 {
 		_, _ = fmt.Fprintf(out, "mutate: baseline green for %d package(s)\n", len(seen))
 	}
-	return nil
+	return green, nil
 }
 
 type fileStore struct {
@@ -230,7 +276,7 @@ func loadResumeLog(r io.Reader) (map[string]bool, error) {
 	return resumed, nil
 }
 
-func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (res result, consumed allowlist, survived []mutation, challenged []mutation, err error) {
+func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mutation, store *fileStore, r runner, baseline map[string]bool, allows allowlist, resumeKilled map[string]bool, challenge bool) (res result, consumed allowlist, survived []mutation, challenged []mutation, err error) {
 	res.total = len(ms)
 	consumed = allowlist{}
 	defer func() {
@@ -286,7 +332,7 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		if isInfraError(testErr) {
 			return res, consumed, survived, challenged, fmt.Errorf("infra failure at %s: %v (verdicts so far void, rerun the gate)", key, testErr)
 		}
-		verdict := classify(testErr, testOut)
+		verdict := classify(testErr, testOut, m.pkg, baseline)
 		switch {
 		case verdict == verdictKilled && isAllowed:
 			challenged = append(challenged, m)
@@ -320,16 +366,19 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	if err != nil {
 		return result{}, err
 	}
+	var baseline map[string]bool
 	if hasRunnableMutants(ms, workDir, resumeKilled, allows, challenge) {
-		if berr := runBaseline(ctx, out, ms, r); berr != nil {
+		green, berr := runBaseline(ctx, out, ms, r)
+		if berr != nil {
 			return result{}, berr
 		}
+		baseline = green
 	}
 	store := newFileStore()
 	if err := store.snapshot(paths); err != nil {
 		return result{}, err
 	}
-	res, consumed, _, challenged, err := executeMutants(ctx, out, workDir, ms, store, r, allows, resumeKilled, challenge)
+	res, consumed, _, challenged, err := executeMutants(ctx, out, workDir, ms, store, r, baseline, allows, resumeKilled, challenge)
 	if err != nil {
 		return res, err
 	}

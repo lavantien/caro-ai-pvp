@@ -38,10 +38,13 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 	if err != nil {
 		return result{}, err
 	}
+	var baseline map[string]bool
 	if hasRunnableMutants(ms, dirs[0], resumeKilled, allows, challenge) {
-		if berr := runBaseline(ctx, out, ms, newRunner(dirs[0])); berr != nil {
+		green, berr := runBaseline(ctx, out, ms, newRunner(dirs[0]))
+		if berr != nil {
 			return result{}, berr
 		}
+		baseline = green
 	}
 	byKey := make(map[string]mutation, len(ms))
 	for _, m := range ms {
@@ -84,7 +87,7 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 				cancel()
 				return
 			}
-			res, consumed, survived, challenged, rerr := executeMutants(ctx, log, dirs[w], mine, store, newRunner(dirs[w]), allows, resumeKilled, challenge)
+			res, consumed, survived, challenged, rerr := executeMutants(ctx, log, dirs[w], mine, store, newRunner(dirs[w]), baseline, allows, resumeKilled, challenge)
 			wo.res, wo.consumed, wo.survived, wo.challenged, wo.err = res, consumed, survived, challenged, rerr
 			if rerr != nil {
 				cancel()
@@ -124,10 +127,10 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 	if firstErr != nil {
 		return res, firstErr
 	}
-	if serr := confirmSurvivorsSerially(ctx, out, dirs[0], survivors, newRunner(dirs[0]), &res); serr != nil {
+	if serr := confirmSurvivorsSerially(ctx, out, dirs[0], survivors, newRunner(dirs[0]), baseline, &res); serr != nil {
 		return res, serr
 	}
-	if cerr := resolveChallengedSerially(ctx, out, dirs[0], challengedAll, newRunner(dirs[0]), allows, &res, consumedUnion); cerr != nil {
+	if cerr := resolveChallengedSerially(ctx, out, dirs[0], challengedAll, newRunner(dirs[0]), baseline, allows, &res, consumedUnion); cerr != nil {
 		return res, cerr
 	}
 	if uerr := unusedAllowError(unconsumed(allows, consumedUnion)); uerr != nil {
@@ -136,12 +139,12 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 	return res, nil
 }
 
-func resolveChallengedSerially(ctx context.Context, out io.Writer, dir string, challenged []mutation, r runner, allows allowlist, res *result, consumed allowlist) error {
+func resolveChallengedSerially(ctx context.Context, out io.Writer, dir string, challenged []mutation, r runner, baseline map[string]bool, allows allowlist, res *result, consumed allowlist) error {
 	if len(challenged) == 0 {
 		return nil
 	}
 	demoted := map[string]bool{}
-	if rerr := reverifySerially(ctx, dir, challenged, r, func(m mutation) {
+	if rerr := reverifySerially(ctx, dir, challenged, r, baseline, func(m mutation) {
 		demoted[m.key(dir)] = true
 	}); rerr != nil {
 		return rerr
@@ -165,16 +168,16 @@ func resolveChallengedSerially(ctx context.Context, out io.Writer, dir string, c
 	return demotedError(keys)
 }
 
-func confirmSurvivorsSerially(ctx context.Context, out io.Writer, dir string, survivors []mutation, r runner, res *result) error {
+func confirmSurvivorsSerially(ctx context.Context, out io.Writer, dir string, survivors []mutation, r runner, baseline map[string]bool, res *result) error {
 	onKilled := func(m mutation) {
 		res.survived--
 		res.killed++
 		_, _ = fmt.Fprintf(out, "%s %s\n", m.key(dir), verdictKilled)
 	}
-	return reverifySerially(ctx, dir, survivors, r, onKilled)
+	return reverifySerially(ctx, dir, survivors, r, baseline, onKilled)
 }
 
-func reverifySerially(ctx context.Context, dir string, ms []mutation, r runner, onKilled func(m mutation)) error {
+func reverifySerially(ctx context.Context, dir string, ms []mutation, r runner, baseline map[string]bool, onKilled func(m mutation)) error {
 	if len(ms) == 0 {
 		return nil
 	}
@@ -212,7 +215,7 @@ func reverifySerially(ctx context.Context, dir string, ms []mutation, r runner, 
 		if isInfraError(testErr) {
 			return fmt.Errorf("infra failure reverifying %s: %v", m.key(dir), testErr)
 		}
-		verdict := classify(testErr, testOut)
+		verdict := classify(testErr, testOut, m.pkg, baseline)
 		if verdict == verdictRunError {
 			return runErrorf("reverifying "+m.key(dir), testErr, testOut)
 		}

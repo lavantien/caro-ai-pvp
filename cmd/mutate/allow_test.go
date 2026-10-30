@@ -110,7 +110,7 @@ func TestExecuteMutantsAllowSurvivor(t *testing.T) {
 	}
 	r := &fakeRunner{failPkg: map[string]bool{"pa": true}, failOut: assertionFailOut}
 	var out strings.Builder
-	res, _, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, allows, nil, false)
+	res, _, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, nil, allows, nil, false)
 	if err != nil {
 		t.Fatalf("executeMutants err = %v", err)
 	}

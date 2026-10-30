@@ -56,6 +56,64 @@ func TestEndToEndFixtureModule(t *testing.T) {
 	}
 }
 
+func TestEndToEndStillbornBuildFailureKills(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"go.mod":      "module stillborn\n\ngo 1.27\n",
+		"greet.go":    "package stillborn\n\nfunc Greet(name string) string {\n\treturn \"hi \" + name\n}\n",
+		"add.go":      "package stillborn\n\nfunc Add(a, b int) int {\n\treturn a + b\n}\n",
+		"add_test.go": "package stillborn\n\nimport \"testing\"\n\nfunc TestAdd(t *testing.T) {\n\tif Add(2, 3) != 5 {\n\t\tt.Fatal(\"Add(2, 3) differs from 5\")\n\t}\n}\n",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatalf("WriteFile(%s) err = %v", name, err)
+		}
+	}
+	var out, errOut strings.Builder
+	code := runCLI([]string{"-pkgs", ".", "-timeout", "60s"}, &out, &errOut, dir)
+	s := out.String()
+	if code != 0 {
+		t.Fatalf("runCLI code = %d, want 0 (the stillborn and the real kill both score killed, no allow entry needed)\nstdout:\n%s\nstderr:\n%s", code, s, errOut.String())
+	}
+	if !strings.Contains(s, "greet.go:4:15 replace + with - KILLED\n") {
+		t.Errorf("output missing the stillborn kill line:\n%s", s)
+	}
+	if !strings.Contains(s, "add.go:4:11 replace + with - KILLED\n") {
+		t.Errorf("output missing the real kill line:\n%s", s)
+	}
+	if strings.Contains(s, " RUN ERROR\n") || strings.Contains(s, " ALLOWED ") {
+		t.Errorf("a fresh run needs no allowance and must not void:\n%s", s)
+	}
+	if got := mustRead(t, filepath.Join(dir, "greet.go")); got != files["greet.go"] {
+		t.Errorf("greet.go not restored byte-for-byte:\n%s", got)
+	}
+
+	allowPath := filepath.Join(t.TempDir(), "mutate-allow")
+	entry := "greet.go:4:15 replace + with - # interim compile-fail entry"
+	if err := os.WriteFile(allowPath, []byte(entry+"\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(allow) err = %v", err)
+	}
+	out.Reset()
+	errOut.Reset()
+	code = runCLI([]string{"-pkgs", ".", "-timeout", "60s", "-allow", allowPath, "-challenge"}, &out, &errOut, dir)
+	s = out.String()
+	if code != 1 {
+		t.Fatalf("runCLI(challenge) code = %d, want 1 (the killed entry demotes)\nstdout:\n%s\nstderr:\n%s", code, s, errOut.String())
+	}
+	if !strings.Contains(s, "greet.go:4:15 replace + with - CHALLENGED\n") {
+		t.Errorf("output missing the challenged stillborn verdict:\n%s", s)
+	}
+	if !strings.Contains(errOut.String(), "no longer equivalent") {
+		t.Errorf("stderr missing the demotion failure: %q", errOut.String())
+	}
+	if strings.Contains(s, " RUN ERROR\n") {
+		t.Errorf("the challenge run must score the stillborn killed instead of erroring:\n%s", s)
+	}
+	if got := mustRead(t, filepath.Join(dir, "greet.go")); got != files["greet.go"] {
+		t.Errorf("greet.go not restored byte-for-byte after the challenge:\n%s", got)
+	}
+}
+
 func TestEndToEndAllowlistGreensGate(t *testing.T) {
 	dir := t.TempDir()
 	src := "package probe\n\nfunc Clip(a, b int) int {\n\tif a < b {\n\t\treturn a + 1\n\t}\n\treturn b - 1\n}\n"
