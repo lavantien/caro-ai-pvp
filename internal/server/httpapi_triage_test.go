@@ -48,6 +48,35 @@ func TestHTTPLoginBodySizeBoundary(t *testing.T) {
 	}
 }
 
+func TestHTTPLoginBodyLimitHoldsAt64KiB(t *testing.T) {
+	s := newStack(t)
+	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
+	defer srv.Close()
+	c := srv.Client()
+
+	prefix := `{"username":"alice","password":"p","pad":"`
+	bodyOfExactSize := func(total int) json.RawMessage {
+		pad := total - len(prefix) - 2
+		if pad < 0 {
+			t.Fatalf("login size %d under the %d-byte skeleton", total, len(prefix)+2)
+		}
+		return json.RawMessage(prefix + strings.Repeat("x", pad) + `"}`)
+	}
+	for _, tc := range []struct {
+		size   int
+		status int
+	}{
+		{65_536, http.StatusOK},
+		{65_537, http.StatusBadRequest},
+	} {
+		got := doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "", bodyOfExactSize(tc.size))
+		if got.status != tc.status {
+			t.Errorf("login with a %d-byte body: status %d body %s, want %d",
+				tc.size, got.status, got.body, tc.status)
+		}
+	}
+}
+
 func TestHTTPLogoutCookieExpiresExactly(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
