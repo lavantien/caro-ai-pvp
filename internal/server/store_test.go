@@ -320,6 +320,10 @@ func TestUserWLDsCountsBothSeatOrdersAndDecisiveOutcomes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed the win series: %v", err)
 	}
+	blueWinSeries, err := s.CreateSeries(ctx, 0, config.SeriesBO3, bob.ID, alice.ID)
+	if err != nil {
+		t.Fatalf("seed the blue win series: %v", err)
+	}
 	unit := Game{Outcome: OutcomeRed, Moves: []byte{1, 0}, FullTurns: 1}
 	unit.SeriesID, unit.IdxInSeries, unit.RedUser, unit.BlueUser = lossSeries.ID, 0, carol.ID, alice.ID
 	if _, err := insertGameRow(ctx, s.db, unit); err != nil {
@@ -329,13 +333,22 @@ func TestUserWLDsCountsBothSeatOrdersAndDecisiveOutcomes(t *testing.T) {
 	if _, err := insertGameRow(ctx, s.db, unit); err != nil {
 		t.Fatalf("seed the win game: %v", err)
 	}
-	recs, err := s.userWLDs([]int64{alice.ID})
+	unit.Outcome = OutcomeBlue
+	unit.SeriesID, unit.RedUser, unit.BlueUser = blueWinSeries.ID, bob.ID, alice.ID
+	if _, err := insertGameRow(ctx, s.db, unit); err != nil {
+		t.Fatalf("seed the blue win game: %v", err)
+	}
+	recs, err := s.userWLDs([]int64{alice.ID, bob.ID})
 	if err != nil {
 		t.Fatalf("wlds: %v", err)
 	}
 	rec, ok := recs[alice.ID]
-	if !ok || rec.Wins != 1 || rec.Losses != 1 || rec.Draws != 0 {
-		t.Errorf("alice record = (%d, %d, %d) ok %t, want (1, 1, 0)", rec.Wins, rec.Losses, rec.Draws, ok)
+	if !ok || rec.Wins != 2 || rec.Losses != 1 || rec.Draws != 0 {
+		t.Errorf("alice record = (%d, %d, %d) ok %t, want (2, 1, 0)", rec.Wins, rec.Losses, rec.Draws, ok)
+	}
+	bobRec, ok := recs[bob.ID]
+	if !ok || bobRec.Wins != 0 || bobRec.Losses != 2 || bobRec.Draws != 0 {
+		t.Errorf("bob record = (%d, %d, %d) ok %t, want (0, 2, 0)", bobRec.Wins, bobRec.Losses, bobRec.Draws, ok)
 	}
 	if empty, err := s.userWLDs(nil); err != nil || len(empty) != 0 {
 		t.Errorf("wlds of no ids = (%d entries, %v), want an empty map and nil", len(empty), err)
