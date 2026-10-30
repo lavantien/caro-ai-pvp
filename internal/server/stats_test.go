@@ -194,6 +194,7 @@ func TestCompactNumberTable(t *testing.T) {
 		{999, "999"},
 		{1_000, "1k"},
 		{1_050, "1.05k"},
+		{1_085, "1.09k"},
 		{1_500, "1.5k"},
 		{45_000, "45k"},
 		{45_500, "45.5k"},
@@ -305,6 +306,20 @@ func TestAppendMLineHexPVNamesRideTheGeometry(t *testing.T) {
 	}
 	if strings.Contains(line, "I17") {
 		t.Errorf("hex pv rendered a square-modulus name: %q", line)
+	}
+}
+
+func TestAppendMLineClampsPVLenToTheArray(t *testing.T) {
+	st := &engine.SearchStats{Depth: 2}
+	move := mustMove(t, "H8")
+	for i := range st.PV {
+		st.PV[i] = move
+	}
+	st.PVLen = len(st.PV) + 1
+	line := string(AppendMLine(make([]byte, 0, mLineCap), geom.Default(), 5, rules.Red, move, st, ""))
+	want := "pv=" + strings.TrimSuffix(strings.Repeat("H8 ", len(st.PV)), " ")
+	if !strings.HasSuffix(line, want) {
+		t.Errorf("overshot PVLen line tail = %q, want %q", line, want)
 	}
 }
 
