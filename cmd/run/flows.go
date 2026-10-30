@@ -192,6 +192,7 @@ func registerFuzz() {
 }
 
 var mutateVerdictRe = regexp.MustCompile(`(?m)^mutate: [0-9][0-9]*/[0-9]* run`)
+var mutateRunErrorRe = regexp.MustCompile(`(?m) RUN ERROR$`)
 
 func hasMutateVerdict(logPath string) bool {
 	b, err := os.ReadFile(logPath)
@@ -199,6 +200,30 @@ func hasMutateVerdict(logPath string) bool {
 		return false
 	}
 	return mutateVerdictRe.Match(b)
+}
+
+func hasMutateRunError(logPath string) bool {
+	b, err := os.ReadFile(logPath)
+	if err != nil {
+		return false
+	}
+	return mutateRunErrorRe.Match(b)
+}
+
+func mutateLogFailure(name, log string) error {
+	if hasMutateVerdict(log) {
+		for _, l := range tailLines(log, 2) {
+			fmt.Println(l)
+		}
+		return fmt.Errorf("%s: verdict failure in %s", name, log)
+	}
+	if hasMutateRunError(log) {
+		for _, l := range tailLines(log, 2) {
+			fmt.Println(l)
+		}
+		return fmt.Errorf("%s: run error in %s", name, log)
+	}
+	return nil
 }
 
 func tailLines(path string, n int) []string {
@@ -237,15 +262,12 @@ func registerMutateFlows() {
 			if err != nil {
 				return err
 			}
-			s := step{name: "mutate-resume", path: "go", args: mArgs, env: r.mutateEnv(v)}
+			s := step{name: "mutate-resume", path: "go", args: mArgs, env: r.mutateEnv(v), logTo: log}
 			if err := r.run(s); err == nil {
 				return nil
 			}
-			if hasMutateVerdict(log) {
-				for _, l := range tailLines(log, 2) {
-					fmt.Println(l)
-				}
-				return fmt.Errorf("mutate-resume: verdict failure in %s", log)
+			if ferr := mutateLogFailure("mutate-resume", log); ferr != nil {
+				return ferr
 			}
 			fmt.Printf("mutate-resume: attempt %d crashed host-side, resuming from %s\n", attempt, log)
 		}
@@ -268,11 +290,8 @@ func registerMutateFlows() {
 			if err := r.run(s); err == nil {
 				return nil
 			}
-			if hasMutateVerdict(log) {
-				for _, l := range tailLines(log, 2) {
-					fmt.Println(l)
-				}
-				return fmt.Errorf("mutate-full: verdict failure in %s", log)
+			if ferr := mutateLogFailure("mutate-full", log); ferr != nil {
+				return ferr
 			}
 			fmt.Printf("mutate-full: attempt %d crashed host-side, resuming from %s\n", attempt, log)
 		}

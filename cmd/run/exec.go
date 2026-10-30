@@ -17,7 +17,7 @@ type exitCoder struct {
 func (e *exitCoder) Error() string { return e.err.Error() }
 func (e *exitCoder) Unwrap() error { return e.err }
 
-func execStep(s step, env []string) (int, error) {
+var execStep = func(s step, env []string) (int, error) {
 	cmd := exec.Command(s.path, s.args...)
 	cmd.Env = env
 	cmd.Dir = s.dir

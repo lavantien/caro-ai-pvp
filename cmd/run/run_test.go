@@ -256,6 +256,137 @@ func TestTailLines(t *testing.T) {
 	}
 }
 
+func TestHasMutateRunError(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "m.log")
+	if err := os.WriteFile(p, []byte("internal/server/boardview.go:91:57 replace + with - RUN ERROR\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !hasMutateRunError(p) {
+		t.Fatal("run error verdict line present but not detected")
+	}
+	if err := os.WriteFile(p, []byte("mutate: run error at internal/server/boardview.go:91:57: exit status 1 (no test failure signature in the suite output; verdicts so far void, rerun the gate)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if hasMutateRunError(p) {
+		t.Fatal("stderr run error prose without a trailing verdict token detected")
+	}
+	if hasMutateRunError(filepath.Join(dir, "missing.log")) {
+		t.Fatal("missing log detected as a run error")
+	}
+}
+
+func stubExecStep(t *testing.T, fn func(s step, env []string) (int, error)) {
+	t.Helper()
+	old := execStep
+	execStep = fn
+	t.Cleanup(func() { execStep = old })
+}
+
+func appendLog(t *testing.T, path, text string) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(text); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mutateFlowRunner(t *testing.T) *runner {
+	t.Helper()
+	dir := t.TempDir()
+	return &runner{target: "test", root: dir, goExe: ".exe", base: map[string]string{"CGO_ENABLED": "1", "GOTMPDIR": filepath.Join(dir, "gotmp")}}
+}
+
+func TestMutateResumeRunErrorFailsWithoutRetry(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "m.log")
+	if err := os.WriteFile(log, []byte("mutate: plan 2600 mutants over 1 package(s)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	stubExecStep(t, func(s step, env []string) (int, error) {
+		calls++
+		if s.logTo != log {
+			t.Errorf("resume step logTo = %q, want the resumed log %q so the verdict reaches the wrapper", s.logTo, log)
+		}
+		appendLog(t, s.logTo, "internal/server/boardview.go:91:57 replace + with - RUN ERROR\n")
+		return 1, nil
+	})
+	err := flows["mutate-resume"](mutateFlowRunner(t), vars{"LOG": log})
+	if calls != 1 {
+		t.Fatalf("attempts = %d, want 1 with no retry on a run error", calls)
+	}
+	if err == nil || !strings.Contains(err.Error(), "run error") {
+		t.Fatalf("resume over a run error = %v, want the definitive run error failure", err)
+	}
+}
+
+func TestMutateResumeCrashStillRetries(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "m.log")
+	if err := os.WriteFile(log, []byte("mutate: plan 2600 mutants over 1 package(s)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	stubExecStep(t, func(s step, env []string) (int, error) {
+		calls++
+		appendLog(t, s.logTo, "signal: killed\n")
+		return 1, nil
+	})
+	err := flows["mutate-resume"](mutateFlowRunner(t), vars{"LOG": log})
+	if calls != 5 {
+		t.Fatalf("attempts = %d, want all 5 attempts on a host crash", calls)
+	}
+	if err == nil || !strings.Contains(err.Error(), "no definitive verdict") {
+		t.Fatalf("resume over repeated crashes = %v, want the exhausted verdict", err)
+	}
+}
+
+func TestMutateResumeVerdictFailureStillDefinitive(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "m.log")
+	if err := os.WriteFile(log, []byte("mutate: resuming, 2295 prior kills replayed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	stubExecStep(t, func(s step, env []string) (int, error) {
+		calls++
+		appendLog(t, s.logTo, "mutate: 2600/2600 run, 2595 killed, 5 survived, 0 allowed\n")
+		return 1, nil
+	})
+	err := flows["mutate-resume"](mutateFlowRunner(t), vars{"LOG": log})
+	if calls != 1 {
+		t.Fatalf("attempts = %d, want 1 with no retry on a verdict failure", calls)
+	}
+	if err == nil || !strings.Contains(err.Error(), "verdict failure") {
+		t.Fatalf("resume over a verdict failure = %v, want the verdict failure", err)
+	}
+}
+
+func TestMutateFullRunErrorFailsWithoutRetry(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	calls := 0
+	stubExecStep(t, func(s step, env []string) (int, error) {
+		calls++
+		appendLog(t, s.logTo, "internal/server/web.go:35:38 replace + with - RUN ERROR\n")
+		return 1, nil
+	})
+	err := flows["mutate-full"](mutateFlowRunner(t), vars{"LABEL": "runerr"})
+	if calls != 1 {
+		t.Fatalf("attempts = %d, want 1 with no retry on a run error", calls)
+	}
+	if err == nil || !strings.Contains(err.Error(), "run error") {
+		t.Fatalf("full over a run error = %v, want the definitive run error failure", err)
+	}
+}
+
 func TestGoVersionScore(t *testing.T) {
 	cases := map[string]struct {
 		want int
