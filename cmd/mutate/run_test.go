@@ -256,6 +256,82 @@ func TestExecuteMutantsResumesKilledOnly(t *testing.T) {
 	}
 }
 
+func TestExecuteMutantsResumeKillConsumesAllowEntry(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	if len(ms) < 3 {
+		t.Fatalf("need >= 3 mutants, got %d", len(ms))
+	}
+	replay := ms[0].key(dir)
+	fresh := ms[1].key(dir)
+	allows := allowlist{replay: "triaged equivalence proof", fresh: "second proof"}
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	r := &fakeRunner{}
+	var out strings.Builder
+	res, consumed, _, _, err := executeMutants(context.Background(), &out, dir, ms, store, r, allows, map[string]bool{replay: true}, false)
+	if err != nil {
+		t.Fatalf("executeMutants err = %v", err)
+	}
+	if _, ok := consumed[replay]; !ok {
+		t.Errorf("replayed kill did not consume its allow entry, consumed = %v", consumed)
+	}
+	if _, ok := consumed[fresh]; !ok {
+		t.Errorf("fresh allowance not consumed, consumed = %v", consumed)
+	}
+	if res.killed != 1 || res.allowed != 1 || res.survived != len(ms)-2 {
+		t.Errorf("killed/allowed/survived = %d/%d/%d, want 1/1/%d", res.killed, res.allowed, res.survived, len(ms)-2)
+	}
+	if len(r.calls) != len(ms)-2 {
+		t.Errorf("runner calls = %d, want %d: replayed and allowed mutants must not re-run", len(r.calls), len(ms)-2)
+	}
+	if !strings.Contains(out.String(), replay+" KILLED\n") {
+		t.Errorf("output missing the replayed kill line:\n%s", out.String())
+	}
+}
+
+func TestRunMutationResumeConsumesAndReportsOnlyStale(t *testing.T) {
+	dir := writeModule(t, map[string]string{"go.mod": "module probe\n\ngo 1.27\n"})
+	_, ms := writePkgFile(t, dir, "a.go", "probe", "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	if len(ms) < 3 {
+		t.Fatalf("need >= 3 mutants, got %d", len(ms))
+	}
+	replay := ms[0].key(dir)
+	fresh := ms[1].key(dir)
+	stale := "a.go:99:9 replace 9 with 8"
+	resume, lerr := loadResumeLog(strings.NewReader(replay + " KILLED\n" + fresh + " SURVIVED\n" + "garbage line\n"))
+	if lerr != nil {
+		t.Fatalf("loadResumeLog err = %v", lerr)
+	}
+	var out strings.Builder
+	_, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), t.TempDir(), &fakeRunner{},
+		allowlist{replay: "triaged proof", fresh: "fresh proof", stale: "stale proof"}, resume, false)
+	if err == nil || !strings.Contains(err.Error(), "1 unused allow entries") || !strings.Contains(err.Error(), stale) {
+		t.Fatalf("err = %v, want exactly the stale entry reported unused", err)
+	}
+	if strings.Contains(err.Error(), replay) || strings.Contains(err.Error(), fresh) {
+		t.Fatalf("err = %v, replayed and freshly judged entries must not be reported unused", err)
+	}
+	s := out.String()
+	if !strings.Contains(s, replay+" KILLED\n") {
+		t.Errorf("output missing the replayed kill line:\n%s", s)
+	}
+	if !strings.Contains(s, fresh+" ALLOWED # fresh proof\n") {
+		t.Errorf("output missing the fresh allowed line:\n%s", s)
+	}
+	out.Reset()
+	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), t.TempDir(), &fakeRunner{},
+		allowlist{replay: "triaged proof", fresh: "fresh proof"}, resume, false)
+	if err != nil {
+		t.Fatalf("runMutation(consumed entries) err = %v, want clean pass\n%s", err, out.String())
+	}
+	if res.killed != 1 || res.allowed != 1 || res.survived != len(ms)-2 {
+		t.Errorf("killed/allowed/survived = %d/%d/%d, want 1/1/%d", res.killed, res.allowed, res.survived, len(ms)-2)
+	}
+}
+
 func TestDisplayPath(t *testing.T) {
 	dir := t.TempDir()
 	if got := displayPath(dir, filepath.Join(dir, "a.go")); got != "a.go" {

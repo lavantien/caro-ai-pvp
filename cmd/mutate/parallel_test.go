@@ -116,13 +116,14 @@ func TestParallelResumeReplaysWithoutRunning(t *testing.T) {
 	for _, m := range ms {
 		resume[m.key(dirs[0])] = true
 	}
+	allows := allowlist{ms[0].key(dirs[0]): "triaged proof for a replayed kill"}
 	newRunner := func(dir string) runner {
 		return &suiteNeverRunner{t: t}
 	}
 	var out strings.Builder
-	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), t.TempDir(), newRunner, nil, resume, false)
+	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), t.TempDir(), newRunner, allows, resume, false)
 	if err != nil {
-		t.Fatalf("runMutationParallel err = %v", err)
+		t.Fatalf("runMutationParallel err = %v: a replayed kill must consume its in-scope allow entry", err)
 	}
 	if res.killed != len(ms) || res.survived != 0 || res.run != len(ms) {
 		t.Errorf("res = %+v, want all %d replayed as killed", res, len(ms))

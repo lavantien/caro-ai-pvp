@@ -214,6 +214,9 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		if resumeKilled[key] {
 			res.run++
 			res.killed++
+			if reason, ok := allows[key]; ok {
+				consumed[key] = reason
+			}
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictKilled)
 			continue
 		}
