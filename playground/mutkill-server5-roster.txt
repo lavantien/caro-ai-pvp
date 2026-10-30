@@ -1,0 +1,357 @@
+OK    clean-tree-TestBotAccountIDFailuresReturnAZeroID
+OK    clean-tree-TestCasualSeatNameClassifiesBotAndHumanSeats
+OK    clean-tree-TestHexBoardViewGoldenGeometry
+KILLED internal/server/boardview.go:45:39#rep1 -->+ (--- FAIL: TestHexBoardViewGoldenGeometry (0.00s))
+KILLED internal/server/boardview.go:45:39#rep2 -->+ (--- FAIL: TestHexBoardViewGoldenGeometry (0.00s))
+KILLED internal/server/boardview.go:52:61#rep1 2->1 (--- FAIL: TestHexBoardViewGoldenGeometry (0.00s))
+KILLED internal/server/boardview.go:52:61#rep2 2->1 (--- FAIL: TestHexBoardViewGoldenGeometry (0.00s))
+KILLED internal/server/boardview.go:88:14#rep1 *->/ (--- FAIL: TestHexBoardViewGoldenGeometry (0.00s))
+KILLED internal/server/boardview.go:88:14#rep2 *->/ (--- FAIL: TestHexBoardViewGoldenGeometry (0.00s))
+KILLED internal/server/boardview.go:89:10#rep1 +->- (--- FAIL: TestHexBoardViewGoldenGeometry (0.00s))
+KILLED internal/server/boardview.go:89:10#rep2 +->- (--- FAIL: TestHexBoardViewGoldenGeometry (0.00s))
+KILLED internal/server/store.go:262:10#rep1 0->1 (--- FAIL: TestBotAccountIDFailuresReturnAZeroID (0.04s))
+KILLED internal/server/store.go:262:10#rep2 0->1 (--- FAIL: TestBotAccountIDFailuresReturnAZeroID (0.04s))
+OK    clean-build
+NUMERIC internal/server/auth.go:89:62
+COMPILEFAIL internal/server/boardview.go:46:48 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\boardview.L46C48.go:46:21: invalid operation: operator - not defined on hexFmt(rad * math.Cos(a)) + " " (value of type string)
+COMPILEFAIL internal/server/boardview.go:46:44 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\boardview.L46C44.go:46:21: invalid operation: operator - not defined on hexFmt(rad * math.Cos(a)) (value of type string)
+NUMERIC internal/server/boardview.go:52:48
+NUMERIC internal/server/boardview.go:89:10
+NUMERIC internal/server/boardview.go:89:28
+COMPILEFAIL internal/server/boardview.go:91:87 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\boardview.L91C87.go:91:44: invalid operation: operator - not defined on "translate(" + hexFmt(x) + " " + hexFmt(y) (value of type string)
+COMPILEFAIL internal/server/boardview.go:91:75 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\boardview.L91C75.go:91:44: invalid operation: operator - not defined on "translate(" + hexFmt(x) + " " (value of type string)
+COMPILEFAIL internal/server/boardview.go:91:69 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\boardview.L91C69.go:91:44: invalid operation: operator - not defined on "translate(" + hexFmt(x) (value of type string)
+COMPILEFAIL internal/server/boardview.go:91:57 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\boardview.L91C57.go:91:44: invalid operation: operator - not defined on "translate(" (constant of type string)
+NUMERIC internal/server/boardview.go:102:14
+NUMERIC internal/server/boardview.go:102:34
+COMPILEFAIL internal/server/booksearcher.go:74:44 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\booksearcher.L74C44.go:74:14: invalid operation: operator - not defined on detail + "; executable tree " (value of type string)
+COMPILEFAIL internal/server/booksearcher.go:74:21 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\booksearcher.L74C21.go:74:14: invalid operation: operator - not defined on detail (variable of type string)
+NUMERIC internal/server/casuallog.go:143:33
+NUMERIC internal/server/casuallog.go:143:22
+COMPILEFAIL internal/server/httpapi.go:259:76 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\httpapi.L259C76.go:259:57: invalid operation: operator - not defined on "unknown bot tier " (constant of type string)
+COMPILEFAIL internal/server/match.go:194:20 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\match.L194C20.go:194:9: invalid operation: operator - not defined on name + "-" (value of type string)
+COMPILEFAIL internal/server/match.go:194:14 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\match.L194C14.go:194:9: invalid operation: operator - not defined on name (variable of type string)
+NUMERIC internal/server/match.go:230:51
+NUMERIC internal/server/match.go:308:47
+NUMERIC internal/server/match.go:637:87
+NUMERIC internal/server/migrate.go:37:31
+NUMERIC internal/server/movepair.go:19:30
+NUMERIC internal/server/ponder.go:23:19
+NUMERIC internal/server/ponder.go:32:27
+NUMERIC internal/server/ponder.go:290:31
+NUMERIC internal/server/rating.go:47:22
+NUMERIC internal/server/rating.go:50:33
+COMPILEFAIL internal/server/rating.go:52:36 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\rating.L52C36.go:52:9: invalid operation: operator - not defined on "server: invalid Outcome " (constant of type string)
+NUMERIC internal/server/rating.go:63:43
+COMPILEFAIL internal/server/room.go:483:41 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\room.L483C41.go:483:9: invalid operation: operator - not defined on "server: crypto/rand room id: " (constant of type string)
+COMPILEFAIL internal/server/room.go:490:49 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\room.L490C49.go:490:9: invalid operation: operator - not defined on "server: crypto/rand bot instance id: " (constant of type string)
+COMPILEFAIL internal/server/schema.go:170:118 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\schema.L170C118.go:170:9: invalid operation: operator - not defined on "INSERT OR IGNORE INTO users (username, argon2_time, argon2_memory, argon2_parallelism, salt, hash) VALUES " (constant "INSERT OR IGNORE INTO users (username, argon2_time, argon2_memory, a... of type string)
+COMPILEFAIL internal/server/schema.go:185:70 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\schema.L185C70.go:182:18: invalid operation: operator - not defined on `
+COMPILEFAIL internal/server/schema.go:185:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\schema.L185C39.go:182:18: invalid operation: operator - not defined on `
+COMPILEFAIL internal/server/schema.go:217:74 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\schema.L217C74.go:217:30: invalid operation: operator - not defined on "caro admin seed " + config.AdminName + " " (untyped string constant "caro admin seed admin ")
+COMPILEFAIL internal/server/schema.go:217:68 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\schema.L217C68.go:217:30: invalid operation: operator - not defined on "caro admin seed " + config.AdminName (untyped string constant "caro admin seed admin")
+COMPILEFAIL internal/server/schema.go:217:49 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\schema.L217C49.go:217:30: invalid operation: operator - not defined on "caro admin seed " (untyped string constant)
+COMPILEFAIL internal/server/schema.go:234:66 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\schema.L234C66.go:234:57: invalid operation: operator - not defined on schemaV4 (constant "\nCREATE TABLE IF NOT EXISTS game_stats (\n\tgame_id INTEGER NOT NUL... of type string)
+NUMERIC internal/server/series.go:195:30
+NUMERIC internal/server/series.go:238:20
+NUMERIC internal/server/series.go:299:19
+COMPILEFAIL internal/server/stats.go:18:22 :: internal\server\match.go:745:45: invalid argument: index mLineCap (constant -96 of type int) must not be negative
+NUMERIC internal/server/stats.go:107:22
+NUMERIC internal/server/stats.go:123:58
+NUMERIC internal/server/stats.go:132:19
+COMPILEFAIL internal/server/store.go:127:38 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L127C38.go:127:9: invalid operation: operator - not defined on filepath.ToSlash(path) + "?" (value of type string)
+COMPILEFAIL internal/server/store.go:127:32 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L127C32.go:127:9: invalid operation: operator - not defined on filepath.ToSlash(path) (value of type string)
+COMPILEFAIL internal/server/store.go:258:49 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L258C49.go:258:3: invalid operation: operator - not defined on `SELECT id FROM users WHERE username = ? AND ` (untyped string constant "SELECT id FROM users WHERE username = ? AND ")
+NUMERIC internal/server/store.go:465:95
+NUMERIC internal/server/store.go:502:25
+COMPILEFAIL internal/server/store.go:513:42 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L513C42.go:513:3: invalid operation: operator - not defined on `SELECT 1 FROM users WHERE id = ? AND ` (untyped string constant "SELECT 1 FROM users WHERE id = ? AND ")
+COMPILEFAIL internal/server/store.go:551:43 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L551C43.go:551:4: invalid operation: operator - not defined on `SELECT 1 FROM users WHERE id = ? AND ` (untyped string constant "SELECT 1 FROM users WHERE id = ? AND ")
+COMPILEFAIL internal/server/store.go:805:59 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L805C59.go:804:26: invalid operation: operator - not defined on `SELECT g.red_user, g.blue_user, g.outcome FROM games g
+COMPILEFAIL internal/server/store.go:805:53 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L805C53.go:804:26: invalid operation: operator - not defined on `SELECT g.red_user, g.blue_user, g.outcome FROM games g
+COMPILEFAIL internal/server/store.go:805:29 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L805C29.go:804:26: invalid operation: operator - not defined on `SELECT g.red_user, g.blue_user, g.outcome FROM games g
+COMPILEFAIL internal/server/store.go:805:23 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\store.L805C23.go:804:26: invalid operation: operator - not defined on `SELECT g.red_user, g.blue_user, g.outcome FROM games g
+COMPILEFAIL internal/server/ui_lobby.go:117:30 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_lobby.L117C30.go:117:26: invalid operation: operator - not defined on "#" (constant of type string)
+COMPILEFAIL internal/server/ui_lobby.go:200:29 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_lobby.L200C29.go:200:17: invalid operation: operator - not defined on "/players/" (constant of type string)
+COMPILEFAIL internal/server/ui_lobby.go:204:27 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_lobby.L204C27.go:204:15: invalid operation: operator - not defined on "/players/" (constant of type string)
+COMPILEFAIL internal/server/ui_lobby.go:226:21 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_lobby.L226C21.go:226:16: invalid operation: operator - not defined on "bo" (constant of type string)
+COMPILEFAIL internal/server/ui_lobby.go:306:31 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_lobby.L306C31.go:306:22: invalid operation: operator - not defined on "/rooms/" (constant of type string)
+COMPILEFAIL internal/server/ui_profile.go:134:53 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_profile.L134C53.go:134:41: invalid operation: operator - not defined on "/players/" (constant of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:93 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_profile.L203C93.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) + "W-" + strconv.Itoa(v.Losses) + "L-" + strconv.Itoa(v.Draws) (value of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:69 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_profile.L203C69.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) + "W-" + strconv.Itoa(v.Losses) + "L-" (value of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:62 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_profile.L203C62.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) + "W-" + strconv.Itoa(v.Losses) (value of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:37 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_profile.L203C37.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) + "W-" (value of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:30 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_profile.L203C30.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) (value of type string)
+COMPILEFAIL internal/server/ui_pwa.go:35:23 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_pwa.L35C23.go:35:17: invalid operation: operator - not defined on "GET " (untyped string constant)
+COMPILEFAIL internal/server/ui_pwa.go:36:23 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_pwa.L36C23.go:36:17: invalid operation: operator - not defined on "GET " (untyped string constant)
+COMPILEFAIL internal/server/ui_pwa.go:37:23 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_pwa.L37C23.go:37:17: invalid operation: operator - not defined on "GET " (untyped string constant)
+COMPILEFAIL internal/server/ui_pwa.go:45:42 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_pwa.L45C42.go:45:31: invalid operation: operator - not defined on "web/pwa/" (constant of type string)
+COMPILEFAIL internal/server/ui_room.go:148:14 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_room.L148C14.go:148:10: invalid operation: operator - not defined on "+" (constant of type string)
+COMPILEFAIL internal/server/ui_room.go:182:13 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_room.L182C13.go:182:3: invalid operation: operator - not defined on "rating " (constant of type string)
+COMPILEFAIL internal/server/ui_room.go:183:13 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_room.L183C13.go:183:3: invalid operation: operator - not defined on "record " (constant of type string)
+COMPILEFAIL internal/server/ui_room.go:184:13 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_room.L184C13.go:184:3: invalid operation: operator - not defined on "level +" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:36:26 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L36C26.go:36:11: invalid operation: operator - not defined on id[:shortIDEdge] (value of type string)
+NUMERIC internal/server/ui_shell.go:41:30
+COMPILEFAIL internal/server/ui_shell.go:44:20 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L44C20.go:44:13: invalid operation: operator - not defined on name[:i + 1] (value of type string)
+NUMERIC internal/server/ui_shell.go:44:16
+NUMERIC internal/server/ui_shell.go:44:36
+COMPILEFAIL internal/server/ui_shell.go:60:47 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L60C47.go:60:31: invalid operation: operator - not defined on "web/templates/" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:75 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L109C75.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) + "W-" + strconv.Itoa(l) + "L-" + strconv.Itoa(d) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:57 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L109C57.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) + "W-" + strconv.Itoa(l) + "L-" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:50 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L109C50.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) + "W-" + strconv.Itoa(l) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:32 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L109C32.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) + "W-" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:25 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L109C25.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:243:47 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L243C47.go:243:42: invalid operation: operator - not defined on "bo" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:252:46 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L252C46.go:252:40: invalid operation: operator - not defined on "AI " (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:271:21 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L271C21.go:271:10: invalid operation: operator - not defined on "hexagon " (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:273:51 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L273C51.go:273:9: invalid operation: operator - not defined on "square " + strconv.Itoa(spec.Size) + "x" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:273:45 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L273C45.go:273:9: invalid operation: operator - not defined on "square " + strconv.Itoa(spec.Size) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:273:19 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L273C19.go:273:9: invalid operation: operator - not defined on "square " (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:295:38 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L295C38.go:295:33: invalid operation: operator - not defined on "bo" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:312:48 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L312C48.go:312:14: invalid operation: operator - not defined on strconv.Itoa(info.HostWins) + "-" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:312:42 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L312C42.go:312:14: invalid operation: operator - not defined on strconv.Itoa(info.HostWins) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:323:14 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L323C14.go:323:10: invalid operation: operator - not defined on "#" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:439:76 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L439C76.go:439:10: invalid operation: operator - not defined on "invalid username: 1 to " + strconv.Itoa(config.UsernameMaxBytes) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:439:36 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L439C36.go:439:10: invalid operation: operator - not defined on "invalid username: 1 to " (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:523:57 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L523C57.go:503:26: invalid operation: operator - not defined on `
+COMPILEFAIL internal/server/ui_shell.go:523:43 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L523C43.go:503:26: invalid operation: operator - not defined on `
+COMPILEFAIL internal/server/ui_shell.go:630:45 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L630C45.go:630:15: invalid operation: operator - not defined on strconv.Itoa(e.RedWins) + "-" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:630:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L630C39.go:630:15: invalid operation: operator - not defined on strconv.Itoa(e.RedWins) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:729:31 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_shell.L729C31.go:729:22: invalid operation: operator - not defined on "/rooms/" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:20:19 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L20C19.go:20:3: invalid operation: operator - not defined on "web/templates/" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:110:49 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L110C49.go:110:9: invalid operation: operator - not defined on "run " + strconv.FormatInt(e.RunID, 10) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:110:16 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L110C16.go:110:9: invalid operation: operator - not defined on "run " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:185:25 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L185C25.go:185:19: invalid operation: operator - not defined on "tier" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:240:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L240C39.go:240:34: invalid operation: operator - not defined on "bo" (constant of type string)
+NUMERIC internal/server/ui_tourney.go:271:14
+COMPILEFAIL internal/server/ui_tourney.go:353:82 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L353C82.go:353:54: invalid operation: operator - not defined on "invalid tournament setup: " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:367:90 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L367C90.go:367:7: invalid operation: operator - not defined on "start rating must sit within " + strconv.Itoa(config.TournamentStartRatingAbsMax) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:367:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L367C39.go:367:7: invalid operation: operator - not defined on "start rating must sit within " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:374:42 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L374C42.go:374:7: invalid operation: operator - not defined on "parallel must sit between 1 and " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:379:46 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L379C46.go:379:7: invalid operation: operator - not defined on "participants must sit between 2 and " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:393:35 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L393C35.go:393:8: invalid operation: operator - not defined on "bot " + strconv.Itoa(i + 1) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:393:15 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L393C15.go:393:8: invalid operation: operator - not defined on "bot " (constant of type string)
+NUMERIC internal/server/ui_tourney.go:393:31
+COMPILEFAIL internal/server/ui_tourney.go:397:79 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L397C79.go:397:8: invalid operation: operator - not defined on "bot names stay within " + strconv.Itoa(config.TournamentNameMaxBytes) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:397:33 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L397C33.go:397:8: invalid operation: operator - not defined on "bot names stay within " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:401:27 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L401C27.go:401:8: invalid operation: operator - not defined on "bot name " + name (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:401:20 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L401C20.go:401:8: invalid operation: operator - not defined on "bot name " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:407:35 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L407C35.go:407:8: invalid operation: operator - not defined on "bot " + strconv.Itoa(i + 1) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:407:15 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L407C15.go:407:8: invalid operation: operator - not defined on "bot " (constant of type string)
+NUMERIC internal/server/ui_tourney.go:407:31
+COMPILEFAIL internal/server/ui_tourney.go:417:37 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L417C37.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) + " live-search cores each need " + strconv.Itoa(need) + " cores, the machine budget is " (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:416:57 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L416C57.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) + " live-search cores each need " + strconv.Itoa(need) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:416:36 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L416C36.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) + " live-search cores each need " (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:415:80 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L415C80.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:415:54 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L415C54.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:415:30 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L415C30.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:432:37 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L432C37.go:432:22: invalid operation: operator - not defined on "/tourney/run/" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:438:35 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L438C35.go:438:28: invalid operation: operator - not defined on prefix (variable of type string)
+COMPILEFAIL internal/server/ui_tourney.go:501:45 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L501C45.go:501:15: invalid operation: operator - not defined on strconv.Itoa(b.RedWins) + "-" (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:501:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L501C39.go:501:15: invalid operation: operator - not defined on strconv.Itoa(b.RedWins) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:594:37 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L594C37.go:594:22: invalid operation: operator - not defined on "/tourney/run/" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:651:38 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L651C38.go:651:33: invalid operation: operator - not defined on "bo" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:664:18 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L664C18.go:664:10: invalid operation: operator - not defined on "slot " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:671:52 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L671C52.go:671:14: invalid operation: operator - not defined on strconv.Itoa(line.RedFirstWins) + "-" (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:671:46 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L671C46.go:671:14: invalid operation: operator - not defined on strconv.Itoa(line.RedFirstWins) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:680:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\ui_tourney.L680C39.go:680:16: invalid operation: operator - not defined on name(*line.WinnerSlot) (value of type string)
+NUMERIC internal/server/ui_tourney.go:688:12
+COMPILEFAIL internal/server/web.go:35:38 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\web.L35C38.go:35:9: invalid operation: operator - not defined on "server: static asset dir: " (constant of type string)
+COMPILEFAIL internal/geom/geom.go:45:54 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-813a44e7fe154f45a38938e7a6eeb3d2\geom.L45C54.go:45:45: invalid operation: operator - not defined on "geom: " (constant of type string)
+NUMERIC internal/geom/geom.go:47:45
+NUMERIC internal/geom/geom.go:75:48
+NUMERIC internal/geom/geom.go:105:31
+NUMERIC internal/geom/geom.go:112:23
+NUMERIC internal/geom/geom.go:113:16
+NUMERIC internal/geom/geom.go:132:23
+NUMERIC internal/geom/geom.go:132:19
+NUMERIC internal/geom/geom.go:141:19
+NUMERIC internal/geom/geom.go:147:46
+NUMERIC internal/geom/geom.go:148:21
+NUMERIC internal/geom/geom.go:150:13
+NUMERIC internal/geom/geom.go:178:23
+NUMERIC internal/geom/geom.go:211:29
+NUMERIC internal/geom/geom.go:211:19
+NUMERIC internal/geom/geom.go:211:37
+NUMERIC internal/geom/geom.go:233:24
+NUMERIC internal/geom/geom.go:234:53
+NUMERIC internal/geom/geom.go:236:28
+NUMERIC internal/geom/geom.go:237:52
+NUMERIC internal/geom/geom.go:249:57
+NUMERIC internal/geom/geom.go:256:16
+NUMERIC internal/geom/geom.go:264:27
+OK    clean-tree-TestAdmissionZeroDemandSkipsDepletedLedgers
+OK    clean-tree-TestBotAccountIDFailuresReturnAZeroID
+OK    clean-tree-TestCasualSeatNameClassifiesBotAndHumanSeats
+OK    clean-tree-TestHexBoardViewGoldenGeometry
+KILLED internal/server/store.go:520:6#rep1 err != nil->!(err != nil) (--- FAIL: TestCasualSeatNameClassifiesBotAndHumanSeats (0.04s))
+KILLED internal/server/store.go:520:6#rep2 err != nil->!(err != nil) (--- FAIL: TestCasualSeatNameClassifiesBotAndHumanSeats (0.04s))
+KILLED internal/server/admission.go:33:7#rep1 <=->< (--- FAIL: TestAdmissionZeroDemandSkipsDepletedLedgers (0.00s))
+KILLED internal/server/admission.go:33:7#rep2 <=->< (--- FAIL: TestAdmissionZeroDemandSkipsDepletedLedgers (0.00s))
+OK    clean-build
+NUMERIC internal/server/auth.go:89:62
+COMPILEFAIL internal/server/boardview.go:46:48 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\boardview.L46C48.go:46:21: invalid operation: operator - not defined on hexFmt(rad * math.Cos(a)) + " " (value of type string)
+COMPILEFAIL internal/server/boardview.go:46:44 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\boardview.L46C44.go:46:21: invalid operation: operator - not defined on hexFmt(rad * math.Cos(a)) (value of type string)
+NUMERIC internal/server/boardview.go:52:48
+NUMERIC internal/server/boardview.go:89:10
+NUMERIC internal/server/boardview.go:89:28
+COMPILEFAIL internal/server/boardview.go:91:87 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\boardview.L91C87.go:91:44: invalid operation: operator - not defined on "translate(" + hexFmt(x) + " " + hexFmt(y) (value of type string)
+COMPILEFAIL internal/server/boardview.go:91:75 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\boardview.L91C75.go:91:44: invalid operation: operator - not defined on "translate(" + hexFmt(x) + " " (value of type string)
+COMPILEFAIL internal/server/boardview.go:91:69 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\boardview.L91C69.go:91:44: invalid operation: operator - not defined on "translate(" + hexFmt(x) (value of type string)
+COMPILEFAIL internal/server/boardview.go:91:57 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\boardview.L91C57.go:91:44: invalid operation: operator - not defined on "translate(" (constant of type string)
+NUMERIC internal/server/boardview.go:102:14
+NUMERIC internal/server/boardview.go:102:34
+COMPILEFAIL internal/server/booksearcher.go:74:44 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\booksearcher.L74C44.go:74:14: invalid operation: operator - not defined on detail + "; executable tree " (value of type string)
+COMPILEFAIL internal/server/booksearcher.go:74:21 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\booksearcher.L74C21.go:74:14: invalid operation: operator - not defined on detail (variable of type string)
+NUMERIC internal/server/casuallog.go:143:33
+NUMERIC internal/server/casuallog.go:143:22
+COMPILEFAIL internal/server/httpapi.go:259:76 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\httpapi.L259C76.go:259:57: invalid operation: operator - not defined on "unknown bot tier " (constant of type string)
+COMPILEFAIL internal/server/match.go:194:20 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\match.L194C20.go:194:9: invalid operation: operator - not defined on name + "-" (value of type string)
+COMPILEFAIL internal/server/match.go:194:14 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\match.L194C14.go:194:9: invalid operation: operator - not defined on name (variable of type string)
+NUMERIC internal/server/match.go:230:51
+NUMERIC internal/server/match.go:308:47
+NUMERIC internal/server/match.go:637:87
+NUMERIC internal/server/migrate.go:37:31
+NUMERIC internal/server/movepair.go:19:30
+NUMERIC internal/server/ponder.go:23:19
+NUMERIC internal/server/ponder.go:32:27
+NUMERIC internal/server/ponder.go:290:31
+NUMERIC internal/server/rating.go:47:22
+NUMERIC internal/server/rating.go:50:33
+COMPILEFAIL internal/server/rating.go:52:36 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\rating.L52C36.go:52:9: invalid operation: operator - not defined on "server: invalid Outcome " (constant of type string)
+NUMERIC internal/server/rating.go:63:43
+COMPILEFAIL internal/server/room.go:483:41 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\room.L483C41.go:483:9: invalid operation: operator - not defined on "server: crypto/rand room id: " (constant of type string)
+COMPILEFAIL internal/server/room.go:490:49 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\room.L490C49.go:490:9: invalid operation: operator - not defined on "server: crypto/rand bot instance id: " (constant of type string)
+COMPILEFAIL internal/server/schema.go:170:118 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\schema.L170C118.go:170:9: invalid operation: operator - not defined on "INSERT OR IGNORE INTO users (username, argon2_time, argon2_memory, argon2_parallelism, salt, hash) VALUES " (constant "INSERT OR IGNORE INTO users (username, argon2_time, argon2_memory, a... of type string)
+COMPILEFAIL internal/server/schema.go:185:70 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\schema.L185C70.go:182:18: invalid operation: operator - not defined on `
+COMPILEFAIL internal/server/schema.go:185:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\schema.L185C39.go:182:18: invalid operation: operator - not defined on `
+COMPILEFAIL internal/server/schema.go:217:74 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\schema.L217C74.go:217:30: invalid operation: operator - not defined on "caro admin seed " + config.AdminName + " " (untyped string constant "caro admin seed admin ")
+COMPILEFAIL internal/server/schema.go:217:68 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\schema.L217C68.go:217:30: invalid operation: operator - not defined on "caro admin seed " + config.AdminName (untyped string constant "caro admin seed admin")
+COMPILEFAIL internal/server/schema.go:217:49 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\schema.L217C49.go:217:30: invalid operation: operator - not defined on "caro admin seed " (untyped string constant)
+COMPILEFAIL internal/server/schema.go:234:66 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\schema.L234C66.go:234:57: invalid operation: operator - not defined on schemaV4 (constant "\nCREATE TABLE IF NOT EXISTS game_stats (\n\tgame_id INTEGER NOT NUL... of type string)
+NUMERIC internal/server/series.go:195:30
+NUMERIC internal/server/series.go:238:20
+NUMERIC internal/server/series.go:299:19
+COMPILEFAIL internal/server/stats.go:18:22 :: internal\server\match.go:745:45: invalid argument: index mLineCap (constant -96 of type int) must not be negative
+NUMERIC internal/server/stats.go:107:22
+NUMERIC internal/server/stats.go:123:58
+NUMERIC internal/server/stats.go:132:19
+COMPILEFAIL internal/server/store.go:127:38 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L127C38.go:127:9: invalid operation: operator - not defined on filepath.ToSlash(path) + "?" (value of type string)
+COMPILEFAIL internal/server/store.go:127:32 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L127C32.go:127:9: invalid operation: operator - not defined on filepath.ToSlash(path) (value of type string)
+COMPILEFAIL internal/server/store.go:258:49 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L258C49.go:258:3: invalid operation: operator - not defined on `SELECT id FROM users WHERE username = ? AND ` (untyped string constant "SELECT id FROM users WHERE username = ? AND ")
+NUMERIC internal/server/store.go:465:95
+NUMERIC internal/server/store.go:502:25
+COMPILEFAIL internal/server/store.go:513:42 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L513C42.go:513:3: invalid operation: operator - not defined on `SELECT 1 FROM users WHERE id = ? AND ` (untyped string constant "SELECT 1 FROM users WHERE id = ? AND ")
+COMPILEFAIL internal/server/store.go:551:43 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L551C43.go:551:4: invalid operation: operator - not defined on `SELECT 1 FROM users WHERE id = ? AND ` (untyped string constant "SELECT 1 FROM users WHERE id = ? AND ")
+COMPILEFAIL internal/server/store.go:805:59 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L805C59.go:804:26: invalid operation: operator - not defined on `SELECT g.red_user, g.blue_user, g.outcome FROM games g
+COMPILEFAIL internal/server/store.go:805:53 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L805C53.go:804:26: invalid operation: operator - not defined on `SELECT g.red_user, g.blue_user, g.outcome FROM games g
+COMPILEFAIL internal/server/store.go:805:29 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L805C29.go:804:26: invalid operation: operator - not defined on `SELECT g.red_user, g.blue_user, g.outcome FROM games g
+COMPILEFAIL internal/server/store.go:805:23 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\store.L805C23.go:804:26: invalid operation: operator - not defined on `SELECT g.red_user, g.blue_user, g.outcome FROM games g
+COMPILEFAIL internal/server/ui_lobby.go:117:30 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_lobby.L117C30.go:117:26: invalid operation: operator - not defined on "#" (constant of type string)
+COMPILEFAIL internal/server/ui_lobby.go:200:29 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_lobby.L200C29.go:200:17: invalid operation: operator - not defined on "/players/" (constant of type string)
+COMPILEFAIL internal/server/ui_lobby.go:204:27 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_lobby.L204C27.go:204:15: invalid operation: operator - not defined on "/players/" (constant of type string)
+COMPILEFAIL internal/server/ui_lobby.go:226:21 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_lobby.L226C21.go:226:16: invalid operation: operator - not defined on "bo" (constant of type string)
+COMPILEFAIL internal/server/ui_lobby.go:306:31 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_lobby.L306C31.go:306:22: invalid operation: operator - not defined on "/rooms/" (constant of type string)
+COMPILEFAIL internal/server/ui_profile.go:134:53 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_profile.L134C53.go:134:41: invalid operation: operator - not defined on "/players/" (constant of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:93 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_profile.L203C93.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) + "W-" + strconv.Itoa(v.Losses) + "L-" + strconv.Itoa(v.Draws) (value of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:69 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_profile.L203C69.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) + "W-" + strconv.Itoa(v.Losses) + "L-" (value of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:62 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_profile.L203C62.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) + "W-" + strconv.Itoa(v.Losses) (value of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:37 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_profile.L203C37.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) + "W-" (value of type string)
+COMPILEFAIL internal/server/ui_profile.go:203:30 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_profile.L203C30.go:203:9: invalid operation: operator - not defined on strconv.Itoa(v.Wins) (value of type string)
+COMPILEFAIL internal/server/ui_pwa.go:35:23 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_pwa.L35C23.go:35:17: invalid operation: operator - not defined on "GET " (untyped string constant)
+COMPILEFAIL internal/server/ui_pwa.go:36:23 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_pwa.L36C23.go:36:17: invalid operation: operator - not defined on "GET " (untyped string constant)
+COMPILEFAIL internal/server/ui_pwa.go:37:23 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_pwa.L37C23.go:37:17: invalid operation: operator - not defined on "GET " (untyped string constant)
+COMPILEFAIL internal/server/ui_pwa.go:45:42 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_pwa.L45C42.go:45:31: invalid operation: operator - not defined on "web/pwa/" (constant of type string)
+COMPILEFAIL internal/server/ui_room.go:148:14 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_room.L148C14.go:148:10: invalid operation: operator - not defined on "+" (constant of type string)
+COMPILEFAIL internal/server/ui_room.go:182:13 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_room.L182C13.go:182:3: invalid operation: operator - not defined on "rating " (constant of type string)
+COMPILEFAIL internal/server/ui_room.go:183:13 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_room.L183C13.go:183:3: invalid operation: operator - not defined on "record " (constant of type string)
+COMPILEFAIL internal/server/ui_room.go:184:13 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_room.L184C13.go:184:3: invalid operation: operator - not defined on "level +" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:36:26 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L36C26.go:36:11: invalid operation: operator - not defined on id[:shortIDEdge] (value of type string)
+NUMERIC internal/server/ui_shell.go:41:30
+COMPILEFAIL internal/server/ui_shell.go:44:20 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L44C20.go:44:13: invalid operation: operator - not defined on name[:i + 1] (value of type string)
+NUMERIC internal/server/ui_shell.go:44:16
+NUMERIC internal/server/ui_shell.go:44:36
+COMPILEFAIL internal/server/ui_shell.go:60:47 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L60C47.go:60:31: invalid operation: operator - not defined on "web/templates/" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:75 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L109C75.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) + "W-" + strconv.Itoa(l) + "L-" + strconv.Itoa(d) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:57 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L109C57.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) + "W-" + strconv.Itoa(l) + "L-" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:50 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L109C50.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) + "W-" + strconv.Itoa(l) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:32 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L109C32.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) + "W-" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:109:25 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L109C25.go:109:9: invalid operation: operator - not defined on strconv.Itoa(w) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:243:47 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L243C47.go:243:42: invalid operation: operator - not defined on "bo" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:252:46 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L252C46.go:252:40: invalid operation: operator - not defined on "AI " (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:271:21 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L271C21.go:271:10: invalid operation: operator - not defined on "hexagon " (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:273:51 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L273C51.go:273:9: invalid operation: operator - not defined on "square " + strconv.Itoa(spec.Size) + "x" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:273:45 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L273C45.go:273:9: invalid operation: operator - not defined on "square " + strconv.Itoa(spec.Size) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:273:19 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L273C19.go:273:9: invalid operation: operator - not defined on "square " (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:295:38 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L295C38.go:295:33: invalid operation: operator - not defined on "bo" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:312:48 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L312C48.go:312:14: invalid operation: operator - not defined on strconv.Itoa(info.HostWins) + "-" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:312:42 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L312C42.go:312:14: invalid operation: operator - not defined on strconv.Itoa(info.HostWins) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:323:14 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L323C14.go:323:10: invalid operation: operator - not defined on "#" (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:439:76 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L439C76.go:439:10: invalid operation: operator - not defined on "invalid username: 1 to " + strconv.Itoa(config.UsernameMaxBytes) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:439:36 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L439C36.go:439:10: invalid operation: operator - not defined on "invalid username: 1 to " (constant of type string)
+COMPILEFAIL internal/server/ui_shell.go:523:57 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L523C57.go:503:26: invalid operation: operator - not defined on `
+COMPILEFAIL internal/server/ui_shell.go:523:43 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L523C43.go:503:26: invalid operation: operator - not defined on `
+COMPILEFAIL internal/server/ui_shell.go:630:45 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L630C45.go:630:15: invalid operation: operator - not defined on strconv.Itoa(e.RedWins) + "-" (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:630:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L630C39.go:630:15: invalid operation: operator - not defined on strconv.Itoa(e.RedWins) (value of type string)
+COMPILEFAIL internal/server/ui_shell.go:729:31 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_shell.L729C31.go:729:22: invalid operation: operator - not defined on "/rooms/" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:20:19 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L20C19.go:20:3: invalid operation: operator - not defined on "web/templates/" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:110:49 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L110C49.go:110:9: invalid operation: operator - not defined on "run " + strconv.FormatInt(e.RunID, 10) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:110:16 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L110C16.go:110:9: invalid operation: operator - not defined on "run " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:185:25 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L185C25.go:185:19: invalid operation: operator - not defined on "tier" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:240:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L240C39.go:240:34: invalid operation: operator - not defined on "bo" (constant of type string)
+NUMERIC internal/server/ui_tourney.go:271:14
+COMPILEFAIL internal/server/ui_tourney.go:353:82 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L353C82.go:353:54: invalid operation: operator - not defined on "invalid tournament setup: " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:367:90 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L367C90.go:367:7: invalid operation: operator - not defined on "start rating must sit within " + strconv.Itoa(config.TournamentStartRatingAbsMax) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:367:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L367C39.go:367:7: invalid operation: operator - not defined on "start rating must sit within " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:374:42 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L374C42.go:374:7: invalid operation: operator - not defined on "parallel must sit between 1 and " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:379:46 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L379C46.go:379:7: invalid operation: operator - not defined on "participants must sit between 2 and " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:393:35 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L393C35.go:393:8: invalid operation: operator - not defined on "bot " + strconv.Itoa(i + 1) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:393:15 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L393C15.go:393:8: invalid operation: operator - not defined on "bot " (constant of type string)
+NUMERIC internal/server/ui_tourney.go:393:31
+COMPILEFAIL internal/server/ui_tourney.go:397:79 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L397C79.go:397:8: invalid operation: operator - not defined on "bot names stay within " + strconv.Itoa(config.TournamentNameMaxBytes) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:397:33 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L397C33.go:397:8: invalid operation: operator - not defined on "bot names stay within " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:401:27 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L401C27.go:401:8: invalid operation: operator - not defined on "bot name " + name (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:401:20 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L401C20.go:401:8: invalid operation: operator - not defined on "bot name " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:407:35 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L407C35.go:407:8: invalid operation: operator - not defined on "bot " + strconv.Itoa(i + 1) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:407:15 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L407C15.go:407:8: invalid operation: operator - not defined on "bot " (constant of type string)
+NUMERIC internal/server/ui_tourney.go:407:31
+COMPILEFAIL internal/server/ui_tourney.go:417:37 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L417C37.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) + " live-search cores each need " + strconv.Itoa(need) + " cores, the machine budget is " (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:416:57 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L416C57.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) + " live-search cores each need " + strconv.Itoa(need) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:416:36 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L416C36.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) + " live-search cores each need " (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:415:80 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L415C80.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " + strconv.Itoa(worstRoom) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:415:54 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L415C54.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) + " parallel rooms at " (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:415:30 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L415C30.go:415:7: invalid operation: operator - not defined on strconv.Itoa(parallel) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:432:37 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L432C37.go:432:22: invalid operation: operator - not defined on "/tourney/run/" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:438:35 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L438C35.go:438:28: invalid operation: operator - not defined on prefix (variable of type string)
+COMPILEFAIL internal/server/ui_tourney.go:501:45 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L501C45.go:501:15: invalid operation: operator - not defined on strconv.Itoa(b.RedWins) + "-" (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:501:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L501C39.go:501:15: invalid operation: operator - not defined on strconv.Itoa(b.RedWins) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:594:37 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L594C37.go:594:22: invalid operation: operator - not defined on "/tourney/run/" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:651:38 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L651C38.go:651:33: invalid operation: operator - not defined on "bo" (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:664:18 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L664C18.go:664:10: invalid operation: operator - not defined on "slot " (constant of type string)
+COMPILEFAIL internal/server/ui_tourney.go:671:52 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L671C52.go:671:14: invalid operation: operator - not defined on strconv.Itoa(line.RedFirstWins) + "-" (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:671:46 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L671C46.go:671:14: invalid operation: operator - not defined on strconv.Itoa(line.RedFirstWins) (value of type string)
+COMPILEFAIL internal/server/ui_tourney.go:680:39 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\ui_tourney.L680C39.go:680:16: invalid operation: operator - not defined on name(*line.WinnerSlot) (value of type string)
+NUMERIC internal/server/ui_tourney.go:688:12
+COMPILEFAIL internal/server/web.go:35:38 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\web.L35C38.go:35:9: invalid operation: operator - not defined on "server: static asset dir: " (constant of type string)
+COMPILEFAIL internal/geom/geom.go:45:54 :: C:\Users\LAVANT~1\AppData\Local\Temp\mutkill-server5-95c8c30960cc4e199ef226bf9ad98bf3\geom.L45C54.go:45:45: invalid operation: operator - not defined on "geom: " (constant of type string)
+NUMERIC internal/geom/geom.go:47:45
+NUMERIC internal/geom/geom.go:75:48
+NUMERIC internal/geom/geom.go:105:31
+NUMERIC internal/geom/geom.go:112:23
+NUMERIC internal/geom/geom.go:113:16
+NUMERIC internal/geom/geom.go:132:23
+NUMERIC internal/geom/geom.go:132:19
+NUMERIC internal/geom/geom.go:141:19
+NUMERIC internal/geom/geom.go:147:46
+NUMERIC internal/geom/geom.go:148:21
+NUMERIC internal/geom/geom.go:150:13
+NUMERIC internal/geom/geom.go:178:23
+NUMERIC internal/geom/geom.go:211:29
+NUMERIC internal/geom/geom.go:211:19
+NUMERIC internal/geom/geom.go:211:37
+NUMERIC internal/geom/geom.go:233:24
+NUMERIC internal/geom/geom.go:234:53
+NUMERIC internal/geom/geom.go:236:28
+NUMERIC internal/geom/geom.go:237:52
+NUMERIC internal/geom/geom.go:249:57
+NUMERIC internal/geom/geom.go:256:16
+NUMERIC internal/geom/geom.go:264:27
