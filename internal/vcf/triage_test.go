@@ -66,6 +66,17 @@ func TestForcedBlockCapWins(t *testing.T) {
 	}
 }
 
+func TestForcedBlockDeadFrameOccupiedEnd(t *testing.T) {
+	stones := []absStone{
+		{4, 8, true}, {10, 8, true}, {10, 4, true}, {10, 5, true}, {10, 6, true},
+		{5, 8, false}, {6, 8, false}, {7, 8, false}, {9, 8, false},
+		{8, 5, false}, {8, 6, false}, {8, 7, false}, {8, 9, false},
+		{10, 3, false}, {10, 9, false},
+	}
+	b, _ := buildAbs(t, stones, rules.Red)
+	mustNotFound(t, b, KindVCF, config.SolverNodeBudget)
+}
+
 func TestDefendFirstReplySaves(t *testing.T) {
 	stones := []absStone{{0, 1, true}, {0, 2, true}, {0, 3, true}, {0, 4, true}, {0, 5, false}}
 	b, _ := buildAbs(t, stones, rules.Blue)
@@ -75,22 +86,28 @@ func TestDefendFirstReplySaves(t *testing.T) {
 	}
 }
 
-func TestForcedBlockEastWrapGuard(t *testing.T) {
+func TestDefendSingleDefenderWinRefutes(t *testing.T) {
 	stones := []absStone{
-		{8, 11, false}, {8, 12, false}, {8, 13, false}, {8, 14, false}, {9, 4, false},
-		{8, 10, true}, {9, 0, true}, {9, 1, true}, {9, 2, true}, {9, 3, true},
+		{8, 4, true}, {8, 5, true}, {8, 6, true}, {8, 7, true}, {2, 9, true},
+		{2, 10, false}, {2, 11, false}, {2, 12, false}, {2, 13, false},
 	}
-	b, _ := buildAbs(t, stones, rules.Red)
-	mustNotFound(t, b, KindVCF, config.SolverNodeBudget)
+	b, _ := buildAbs(t, stones, rules.Blue)
+	s := primeSolver(KindVCF, 9)
+	if r := s.defend(b, cellOf(8, 7, testGeom), 1); r != resFail {
+		t.Fatalf("defend single defender win: result %d want %d", r, resFail)
+	}
 }
 
-func TestForcedBlockNorthWrapGuard(t *testing.T) {
+func TestDefendBrokenThreeWindowReplySaves(t *testing.T) {
 	stones := []absStone{
-		{1, 5, false}, {2, 5, false}, {3, 5, false}, {4, 5, false},
-		{5, 5, true},
+		{1, 8, true}, {2, 8, true}, {3, 8, true},
+		{5, 8, false},
 	}
-	b, _ := buildAbs(t, stones, rules.Red)
-	mustNotFound(t, b, KindVCF, config.SolverNodeBudget)
+	b, _ := buildAbs(t, stones, rules.Blue)
+	s := primeSolver(KindVCT, 9)
+	if r := s.defend(b, cellOf(3, 8, testGeom), 1); r != resFail {
+		t.Fatalf("defend broken three window reply: result %d want %d", r, resFail)
+	}
 }
 
 func TestForcedBlockFourFramesFillCandidates(t *testing.T) {
@@ -502,7 +519,7 @@ func hexDilateBoard(t *testing.T, coords [][2]int) (map[rules.Cell]bool, map[rul
 }
 
 func TestHexDilateRimWrapGuards(t *testing.T) {
-	west := [][2]int{{11, 0}, {1, 17}, {8, 8}, {5, 21}, {21, 10}, {22, 6}, {22, 11}}
+	west := [][2]int{{11, 0}, {1, 17}, {2, 17}, {8, 8}, {5, 21}, {21, 10}, {22, 6}, {22, 11}}
 	got, want := hexDilateBoard(t, west)
 	for cell := range want {
 		if !got[cell] {
