@@ -244,9 +244,16 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 		}
 		key := m.key(workDir)
 		if resumeKilled[key] {
+			reason, isAllowed := allows[key]
+			if isAllowed && challenge {
+				res.run++
+				challenged = append(challenged, m)
+				_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictChallenged)
+				continue
+			}
 			res.run++
 			res.killed++
-			if reason, ok := allows[key]; ok {
+			if isAllowed {
 				consumed[key] = reason
 			}
 			_, _ = fmt.Fprintf(out, "%s %s\n", key, verdictKilled)

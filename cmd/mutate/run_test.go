@@ -350,6 +350,62 @@ func TestRunMutationResumeConsumesAndReportsOnlyStale(t *testing.T) {
 	}
 }
 
+func TestExecuteMutantsChallengeResumeOverlapIsChallenged(t *testing.T) {
+	dir := t.TempDir()
+	path, ms := writePkgFile(t, dir, "a.go", "p", "package p\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	if len(ms) < 2 {
+		t.Fatalf("need >= 2 mutants, got %d", len(ms))
+	}
+	overlapped := ms[0].key(dir)
+	allows := allowlist{overlapped: "proof under audit"}
+	store := newFileStore()
+	if err := store.snapshot([]string{path}); err != nil {
+		t.Fatalf("snapshot err = %v", err)
+	}
+	var out strings.Builder
+	res, consumed, _, challenged, err := executeMutants(context.Background(), &out, dir, ms, store, &fakeRunner{}, allows, map[string]bool{overlapped: true}, true)
+	if err != nil {
+		t.Fatalf("executeMutants err = %v", err)
+	}
+	if len(challenged) != 1 || challenged[0].key(dir) != overlapped {
+		t.Errorf("challenged = %v, want exactly the overlapped key", challenged)
+	}
+	if len(consumed) != 0 {
+		t.Errorf("consumed = %v, want none: a challenge audit must not consume the entry on replay", consumed)
+	}
+	if res.killed != 0 || res.run != len(ms) {
+		t.Errorf("killed/run = %d/%d, want 0/%d", res.killed, res.run, len(ms))
+	}
+	if !strings.Contains(out.String(), overlapped+" CHALLENGED\n") {
+		t.Errorf("output missing the challenged verdict for the replayed kill:\n%s", out.String())
+	}
+}
+
+func TestRunMutationChallengeResumeOverlapDemotes(t *testing.T) {
+	dir := writeModule(t, map[string]string{"go.mod": "module probe\n\ngo 1.27\n"})
+	_, ms := writePkgFile(t, dir, "a.go", "probe", "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n")
+	if len(ms) < 2 {
+		t.Fatalf("need >= 2 mutants, got %d", len(ms))
+	}
+	overlapped := ms[0].key(dir)
+	resume, lerr := loadResumeLog(strings.NewReader(overlapped + " KILLED\n"))
+	if lerr != nil {
+		t.Fatalf("loadResumeLog err = %v", lerr)
+	}
+	var out strings.Builder
+	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), t.TempDir(), &fakeRunner{},
+		allowlist{overlapped: "proof a prior pass killed"}, resume, true)
+	if err == nil || !strings.Contains(err.Error(), "no longer equivalent") {
+		t.Fatalf("err = %v, want the demotion: a serial challenge must not trust the replayed kill\n%s", err, out.String())
+	}
+	if res.allowed != 0 {
+		t.Errorf("allowed = %d, want 0", res.allowed)
+	}
+	if !strings.Contains(out.String(), overlapped+" CHALLENGED\n") {
+		t.Errorf("output missing the challenged verdict:\n%s", out.String())
+	}
+}
+
 func TestDisplayPath(t *testing.T) {
 	dir := t.TempDir()
 	if got := displayPath(dir, filepath.Join(dir, "a.go")); got != "a.go" {

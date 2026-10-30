@@ -421,6 +421,35 @@ func TestReverifySeriallyRunErrorVoidsVerdict(t *testing.T) {
 	}
 }
 
+func TestParallelChallengeResumeOverlapReverifies(t *testing.T) {
+	src := "package pa\n\nfunc F(a int) int {\n\treturn a + 1\n}\n"
+	dirs, ms := parallelFixture(t, 2, src)
+	if len(ms) < 2 {
+		t.Fatalf("fixture yielded %d mutants, want at least 2", len(ms))
+	}
+	overlapped := ms[0].key(dirs[0])
+	allows := allowlist{overlapped: "proof under audit"}
+	resume := map[string]bool{overlapped: true}
+	newRunner := func(dir string) runner {
+		return &scriptedRunner{}
+	}
+	var out strings.Builder
+	res, err := runMutationParallel(context.Background(), &out, dirs, []string{"./..."}, t.TempDir(), t.TempDir(), newRunner, allows, resume, true)
+	if err != nil {
+		t.Fatalf("runMutationParallel err = %v, want the serial reverify to clear the replayed kill\n%s", err, out.String())
+	}
+	if res.allowed != 1 {
+		t.Errorf("allowed = %d, want 1\n%s", res.allowed, out.String())
+	}
+	s := out.String()
+	if !strings.Contains(s, overlapped+" CHALLENGED\n") {
+		t.Errorf("output missing the challenged verdict:\n%s", s)
+	}
+	if !strings.Contains(s, overlapped+" ALLOWED # proof under audit\n") {
+		t.Errorf("output missing the post-reverify allowed line:\n%s", s)
+	}
+}
+
 func TestParallelChallengeResolveInfraErrorFails(t *testing.T) {
 	src := "package pa\n\nfunc F() bool {\n\treturn true\n}\n"
 	dirs, ms := parallelFixture(t, 2, src)
