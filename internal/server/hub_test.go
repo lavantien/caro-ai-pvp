@@ -177,6 +177,19 @@ func TestHubUnsubscribeStopsDelivery(t *testing.T) {
 	h.Close()
 }
 
+func TestHubUnsubscribeDropsTheEmptyRoomSet(t *testing.T) {
+	h := NewHub()
+	s, err := h.Subscribe("room")
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	s.Unsubscribe()
+	if len(h.rooms) != 0 {
+		t.Fatalf("hub room sets after the last unsubscribe = %d, want 0", len(h.rooms))
+	}
+	h.Close()
+}
+
 func TestHubUnsubscribeDuringPublish(t *testing.T) {
 	h := NewHub()
 	victim, err := h.Subscribe("room")
