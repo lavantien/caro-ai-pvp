@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 var isolateDirs = [...]string{"internal", "cmd"}
 
 func isolateModule(src string) (string, error) {
-	dst, err := os.MkdirTemp("", "caro-mutate-")
+	dst, err := os.MkdirTemp("", "caro-mutate-"+procTag()+"-")
 	if err != nil {
 		return "", err
 	}
@@ -115,14 +116,15 @@ func treeHash(root string) (map[string]string, error) {
 	return out, nil
 }
 func sweepStaleTemp(root string) {
-	for _, pattern := range [...]string{"caro-mutate-*", "go-build*"} {
-		stale, err := filepath.Glob(filepath.Join(root, pattern))
-		if err != nil {
-			return
+	stale, err := filepath.Glob(filepath.Join(root, "caro-mutate-*"))
+	if err != nil {
+		return
+	}
+	for _, p := range stale {
+		if ownedByLiveMutate(filepath.Base(p)) {
+			continue
 		}
-		for _, p := range stale {
-			_ = os.RemoveAll(p)
-		}
+		_ = os.RemoveAll(p)
 	}
 }
 func removeAllRetried(dir string) {
@@ -143,6 +145,9 @@ func residueCheck(root string) error {
 	}
 	var pinned []string
 	for _, p := range left {
+		if ownedByLiveMutate(filepath.Base(p)) {
+			continue
+		}
 		removeAllRetried(p)
 		if _, err := os.Stat(p); err == nil {
 			pinned = append(pinned, p)
@@ -152,6 +157,23 @@ func residueCheck(root string) error {
 		return nil
 	}
 	return fmt.Errorf("%d caro-mutate-* entries survived the run (a child process pinned them): %s", len(pinned), strings.Join(pinned, "; "))
+}
+func procTag() string {
+	return "p" + strconv.Itoa(os.Getpid())
+}
+func ownedByLiveMutate(name string) bool {
+	s := strings.TrimPrefix(name, "caro-mutate-")
+	s = strings.TrimPrefix(s, "cache-")
+	s = strings.TrimPrefix(s, "tmp-")
+	if !strings.HasPrefix(s, "p") {
+		return false
+	}
+	digits, _, _ := strings.Cut(s[1:], "-")
+	pid, err := strconv.Atoi(digits)
+	if err != nil || pid <= 0 || pid == os.Getpid() {
+		return false
+	}
+	return pidAlive(pid)
 }
 func fileHash(path string) (string, error) {
 	data, err := os.ReadFile(path)

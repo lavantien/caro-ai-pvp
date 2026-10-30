@@ -105,6 +105,12 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 		return 2
 	}
 	defer func() { removeAllRetried(cacheDir) }()
+	tmpDir, terr := newRunTmp()
+	if terr != nil {
+		_, _ = fmt.Fprintln(stderr, "mutate:", terr)
+		return 2
+	}
+	defer func() { removeAllRetried(tmpDir) }()
 	_, _ = fmt.Fprintf(stdout, "mutate: memory cap %d MiB per tree, %d workers, worst case %d MiB\n", config.MutateTreeMemCapBytes>>20, *parallel, int64(*parallel)*config.MutateTreeMemCapBytes>>20)
 	var res result
 	var err error
@@ -128,11 +134,11 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 				removeAllRetried(d)
 			}
 		}()
-		res, err = runMutationParallel(ctx, stdout, dirs, patterns, cacheDir, func(dir string) runner {
-			return execRunner{dir: dir, cacheDir: cacheDir, timeout: *timeout}
+		res, err = runMutationParallel(ctx, stdout, dirs, patterns, cacheDir, tmpDir, func(dir string) runner {
+			return execRunner{dir: dir, cacheDir: cacheDir, tmpDir: tmpDir, timeout: *timeout}
 		}, allows, resumeKilled, *challenge)
 	} else {
-		res, err = runMutation(ctx, stdout, workDir, patterns, cacheDir, execRunner{dir: workDir, cacheDir: cacheDir, timeout: *timeout}, allows, resumeKilled, *challenge)
+		res, err = runMutation(ctx, stdout, workDir, patterns, cacheDir, tmpDir, execRunner{dir: workDir, cacheDir: cacheDir, tmpDir: tmpDir, timeout: *timeout}, allows, resumeKilled, *challenge)
 	}
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "mutate:", err)

@@ -32,22 +32,27 @@ type runner interface {
 type execRunner struct {
 	dir      string
 	cacheDir string
+	tmpDir   string
 	timeout  time.Duration
 }
 
 func newRunCache() (string, error) {
-	return os.MkdirTemp("", "caro-mutate-cache-")
+	return os.MkdirTemp("", "caro-mutate-cache-"+procTag()+"-")
 }
 
-func goEnv(cacheDir string) []string {
-	env := make([]string, 0, len(os.Environ())+2)
+func newRunTmp() (string, error) {
+	return os.MkdirTemp("", "caro-mutate-tmp-"+procTag()+"-")
+}
+
+func goEnv(cacheDir, tmpDir string) []string {
+	env := make([]string, 0, len(os.Environ())+3)
 	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "CGO_ENABLED=") || strings.HasPrefix(e, "GOCACHE=") {
+		if strings.HasPrefix(e, "CGO_ENABLED=") || strings.HasPrefix(e, "GOCACHE=") || strings.HasPrefix(e, "GOTMPDIR=") {
 			continue
 		}
 		env = append(env, e)
 	}
-	return append(env, "CGO_ENABLED=1", "GOCACHE="+cacheDir)
+	return append(env, "CGO_ENABLED=1", "GOCACHE="+cacheDir, "GOTMPDIR="+tmpDir)
 }
 
 func (r execRunner) runTest(ctx context.Context, pkg string) error {
@@ -57,7 +62,7 @@ func (r execRunner) runTest(ctx context.Context, pkg string) error {
 	wrapped := cappedArgv(argv, config.MutateTreeMemCapBytes)
 	cmd := exec.CommandContext(ctx, wrapped[0], wrapped[1:]...)
 	cmd.Dir = r.dir
-	cmd.Env = goEnv(r.cacheDir)
+	cmd.Env = goEnv(r.cacheDir, r.tmpDir)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	if err := cmd.Start(); err != nil {
@@ -264,8 +269,8 @@ func demotedError(keys []string) error {
 	return fmt.Errorf("%d allow entries no longer equivalent (suite killed the mutant; prune or re-prove): %s", len(keys), strings.Join(keys, "; "))
 }
 
-func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, cacheDir string, r runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
-	ms, paths, err := discoverMutants(ctx, out, workDir, patterns, cacheDir)
+func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []string, cacheDir, tmpDir string, r runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
+	ms, paths, err := discoverMutants(ctx, out, workDir, patterns, cacheDir, tmpDir)
 	if err != nil {
 		return result{}, err
 	}
@@ -295,7 +300,7 @@ func runMutation(ctx context.Context, out io.Writer, workDir string, patterns []
 	return res, nil
 }
 
-func discoverMutants(ctx context.Context, out io.Writer, workDir string, patterns []string, cacheDir string) ([]mutation, []string, error) {
+func discoverMutants(ctx context.Context, out io.Writer, workDir string, patterns []string, cacheDir, tmpDir string) ([]mutation, []string, error) {
 	present := patterns[:0]
 	for _, p := range patterns {
 		if strings.HasPrefix(p, "./") {
@@ -306,7 +311,7 @@ func discoverMutants(ctx context.Context, out io.Writer, workDir string, pattern
 		}
 		present = append(present, p)
 	}
-	targets, err := discover(ctx, workDir, present, cacheDir)
+	targets, err := discover(ctx, workDir, present, cacheDir, tmpDir)
 	if err != nil {
 		return nil, nil, err
 	}

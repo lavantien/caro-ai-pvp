@@ -33,8 +33,8 @@ func rewriteMutants(ms []mutation, from, to string) []mutation {
 	return out
 }
 
-func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patterns []string, cacheDir string, newRunner func(dir string) runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
-	ms, paths, err := discoverMutants(ctx, out, dirs[0], patterns, cacheDir)
+func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patterns []string, cacheDir, tmpDir string, newRunner func(dir string) runner, allows allowlist, resumeKilled map[string]bool, challenge bool) (result, error) {
+	ms, paths, err := discoverMutants(ctx, out, dirs[0], patterns, cacheDir, tmpDir)
 	if err != nil {
 		return result{}, err
 	}

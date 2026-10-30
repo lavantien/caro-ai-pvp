@@ -397,23 +397,23 @@ func writeModule(t *testing.T, files map[string]string) string {
 
 func TestDiscoverErrors(t *testing.T) {
 	dir := writeModule(t, map[string]string{"go.mod": "module probe\n\ngo 1.27\n"})
-	if _, err := discover(context.Background(), dir, []string{"./nope"}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "go list") {
+	if _, err := discover(context.Background(), dir, []string{"./nope"}, t.TempDir(), t.TempDir()); err == nil || !strings.Contains(err.Error(), "go list") {
 		t.Errorf("discover(missing) err = %v, want go list error", err)
 	}
 	dir = writeModule(t, map[string]string{"go.mod": "module probe\nbroken {\n"})
-	if _, err := discover(context.Background(), dir, []string{"."}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "go list") {
+	if _, err := discover(context.Background(), dir, []string{"."}, t.TempDir(), t.TempDir()); err == nil || !strings.Contains(err.Error(), "go list") {
 		t.Errorf("discover(broken go.mod) err = %v, want go list error", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := discover(ctx, dir, []string{"."}, t.TempDir()); err == nil || strings.Contains(err.Error(), "go list") {
+	if _, err := discover(ctx, dir, []string{"."}, t.TempDir(), t.TempDir()); err == nil || strings.Contains(err.Error(), "go list") {
 		t.Errorf("discover(canceled ctx) err = %v, want raw exec error", err)
 	}
 }
 
 func TestDiscoverNoGoFiles(t *testing.T) {
 	dir := writeModule(t, map[string]string{"go.mod": "module probe\n\ngo 1.27\n"})
-	if _, err := discover(context.Background(), dir, []string{"."}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "no Go files") {
+	if _, err := discover(context.Background(), dir, []string{"."}, t.TempDir(), t.TempDir()); err == nil || !strings.Contains(err.Error(), "no Go files") {
 		t.Errorf("discover(no go files) err = %v, want no Go files error", err)
 	}
 }
@@ -445,7 +445,7 @@ func TestRunMutationPrintsPlanLineBeforeVerdicts(t *testing.T) {
 		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
 	})
 	var out strings.Builder
-	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), &fakeRunner{}, nil, nil, false)
+	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), t.TempDir(), &fakeRunner{}, nil, nil, false)
 	if err != nil {
 		t.Fatalf("runMutation err = %v", err)
 	}
@@ -471,12 +471,12 @@ func TestRunMutationBaselineGuards(t *testing.T) {
 		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
 	})
 	r := &fakeRunner{failPkg: map[string]bool{"probe": true}}
-	_, err := runMutation(context.Background(), &strings.Builder{}, dir, []string{"."}, t.TempDir(), r, nil, nil, false)
+	_, err := runMutation(context.Background(), &strings.Builder{}, dir, []string{"."}, t.TempDir(), t.TempDir(), r, nil, nil, false)
 	if err == nil || !strings.Contains(err.Error(), "baseline") {
 		t.Fatalf("runMutation(red baseline) err = %v, want baseline failure", err)
 	}
 	var out strings.Builder
-	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), &fakeRunner{}, nil, nil, false)
+	res, err := runMutation(context.Background(), &out, dir, []string{"."}, t.TempDir(), t.TempDir(), &fakeRunner{}, nil, nil, false)
 	if err != nil {
 		t.Fatalf("runMutation(green baseline) err = %v", err)
 	}
@@ -514,11 +514,13 @@ func TestRunCLINoMutantsFails(t *testing.T) {
 }
 
 func TestGoEnvOverrides(t *testing.T) {
+	cache := t.TempDir()
+	tmp := t.TempDir()
 	t.Setenv("CGO_ENABLED", "0")
 	t.Setenv("GOCACHE", "stale-shared-cache")
-	cache := t.TempDir()
-	env := goEnv(cache)
-	var cgo, gocache []string
+	t.Setenv("GOTMPDIR", "stale-shared-tmp")
+	env := goEnv(cache, tmp)
+	var cgo, gocache, gotmp []string
 	for _, e := range env {
 		if strings.HasPrefix(e, "CGO_ENABLED=") {
 			cgo = append(cgo, e)
@@ -526,12 +528,18 @@ func TestGoEnvOverrides(t *testing.T) {
 		if strings.HasPrefix(e, "GOCACHE=") {
 			gocache = append(gocache, e)
 		}
+		if strings.HasPrefix(e, "GOTMPDIR=") {
+			gotmp = append(gotmp, e)
+		}
 	}
 	if len(cgo) != 1 || cgo[0] != "CGO_ENABLED=1" {
 		t.Errorf("CGO_ENABLED entries = %v, want exactly [CGO_ENABLED=1]", cgo)
 	}
 	if len(gocache) != 1 || gocache[0] != "GOCACHE="+cache {
 		t.Errorf("GOCACHE entries = %v, want exactly [GOCACHE=%s]", gocache, cache)
+	}
+	if len(gotmp) != 1 || gotmp[0] != "GOTMPDIR="+tmp {
+		t.Errorf("GOTMPDIR entries = %v, want exactly [GOTMPDIR=%s]", gotmp, tmp)
 	}
 }
 
@@ -593,7 +601,7 @@ func TestRunMutationMutantPhaseInfraErrorPropagates(t *testing.T) {
 		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
 	})
 	r := &baselineThenInfraRunner{}
-	res, err := runMutation(context.Background(), &strings.Builder{}, dir, []string{"."}, t.TempDir(), r, nil, nil, false)
+	res, err := runMutation(context.Background(), &strings.Builder{}, dir, []string{"."}, t.TempDir(), t.TempDir(), r, nil, nil, false)
 	if err == nil || !strings.Contains(err.Error(), "infra failure") {
 		t.Fatalf("runMutation(infra mid-gate) err = %v, want the infra failure", err)
 	}
@@ -607,7 +615,7 @@ func TestDiscoverDeduplicatesRepeatedPattern(t *testing.T) {
 		"go.mod": "module probe\n\ngo 1.27\n",
 		"a.go":   "package probe\n\nfunc F(a int) int {\n\treturn a + 1\n}\n",
 	})
-	targets, err := discover(context.Background(), dir, []string{"./...", "."}, t.TempDir())
+	targets, err := discover(context.Background(), dir, []string{"./...", "."}, t.TempDir(), t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -616,16 +624,16 @@ func TestDiscoverDeduplicatesRepeatedPattern(t *testing.T) {
 	}
 }
 
-func TestRunCLIRemovesPrivateCache(t *testing.T) {
-	before := len(cacheDirs(t))
+func TestRunCLIRemovesPrivateDirs(t *testing.T) {
+	before := len(cacheDirs(t)) + len(tmpDirs(t))
 	dir := writeModule(t, map[string]string{
 		"go.mod":  "module probe\n\ngo 1.27\n",
 		"decl.go": "package probe\n\ntype T struct {\n\tA int\n\tB string\n}\n",
 	})
 	var out, errOut strings.Builder
 	runCLI([]string{"-pkgs", ".", "-timeout", "10s"}, &out, &errOut, dir)
-	if after := len(cacheDirs(t)); after != before {
-		t.Errorf("private build cache dirs: before %d, after %d, want equal (run-private cache must not outlive the run)", before, after)
+	if after := len(cacheDirs(t)) + len(tmpDirs(t)); after != before {
+		t.Errorf("private run dirs: before %d, after %d, want equal (run-private cache and tmp must not outlive the run)", before, after)
 	}
 }
 
@@ -634,6 +642,15 @@ func cacheDirs(t *testing.T) []string {
 	dirs, err := filepath.Glob(filepath.Join(os.TempDir(), "caro-mutate-cache-*"))
 	if err != nil {
 		t.Fatalf("glob cache dirs: %v", err)
+	}
+	return dirs
+}
+
+func tmpDirs(t *testing.T) []string {
+	t.Helper()
+	dirs, err := filepath.Glob(filepath.Join(os.TempDir(), "caro-mutate-tmp-*"))
+	if err != nil {
+		t.Fatalf("glob tmp dirs: %v", err)
 	}
 	return dirs
 }

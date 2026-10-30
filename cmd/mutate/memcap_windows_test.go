@@ -76,7 +76,7 @@ func TestTreeCapExitedProcessFailsClosed(t *testing.T) {
 	if werr := cmd.Wait(); werr != nil {
 		t.Fatalf("helper Wait err = %v", werr)
 	}
-	if _, err := capStartedTree(cmd, config.MutateTreeMemCapBytes); err == nil || !strings.Contains(err.Error(), "open pid") {
-		t.Fatalf("capStartedTree(exited process) err = %v, want the open failure", err)
+	if _, err := capStartedTree(cmd, config.MutateTreeMemCapBytes); err == nil || !(strings.Contains(err.Error(), "open pid") || strings.Contains(err.Error(), "assign pid")) {
+		t.Fatalf("capStartedTree(exited process) err = %v, want the exited-process refusal at open or assign", err)
 	}
 }
