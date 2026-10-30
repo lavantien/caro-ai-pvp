@@ -56,6 +56,59 @@ func TestOpponentRefutesPassesAWonBoard(t *testing.T) {
 	}
 }
 
+func TestOpponentRefutesPassesAPlayedCell(t *testing.T) {
+	b := blueFourBoard(t)
+	var played rules.Cell
+	for c := range b.Geom.Cells {
+		if b.At(rules.Cell(c)) != rules.Empty {
+			played = rules.Cell(c)
+			break
+		}
+	}
+	claim := config.EvalMateMax - 5*config.EvalMateScoreStep
+	if opponentRefutes(b, rules.Move(played), claim, config.RefAuditNodeBudget, nil) {
+		t.Fatal("an already-played cell must never be audited as a claim candidate")
+	}
+}
+
+func TestOpponentRefutesStillAuditsTheFloorClaim(t *testing.T) {
+	b := blueFourBoard(t)
+	slow := rules.Move(mustCellT(t, "E5"))
+	if !opponentRefutes(b, slow, config.EvalMateFloor, config.RefAuditNodeBudget, nil) {
+		t.Fatal("the floor claim is a real mate claim and the fast kill must refute it")
+	}
+}
+
+type exceededCountDeadline struct {
+	calls int
+}
+
+func (d *exceededCountDeadline) Exceeded() bool {
+	d.calls++
+	return true
+}
+
+func (d *exceededCountDeadline) Stop() {}
+
+func TestOpponentRefutesAuditsClaimsOfAtLeastOnePly(t *testing.T) {
+	b := blueFourBoard(t)
+	slow := rules.Move(mustCellT(t, "E5"))
+	one := &exceededCountDeadline{}
+	if opponentRefutes(b, slow, config.EvalMateMax-config.EvalMateScoreStep, config.RefAuditNodeBudget, one) {
+		t.Fatal("a mate in 1 claim must keep the claim against a one ply refutation")
+	}
+	if one.calls == 0 {
+		t.Fatal("the mate in 1 claim skipped the solver audit, want the solvers consulted")
+	}
+	zero := &exceededCountDeadline{}
+	if opponentRefutes(b, slow, config.EvalMateMax, config.RefAuditNodeBudget, zero) {
+		t.Fatal("a mate in 0 score must not count as a refutable claim")
+	}
+	if zero.calls != 0 {
+		t.Fatal("the sub-claim score consulted the solvers, want the claim floor to skip the audit")
+	}
+}
+
 type refAuditBot struct {
 	mu        sync.Mutex
 	searches  int
