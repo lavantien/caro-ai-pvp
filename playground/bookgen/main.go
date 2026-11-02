@@ -51,13 +51,14 @@ func flagWasSet(fs *flag.FlagSet, name string) bool {
 }
 
 func main() {
-	phase := flag.String("phase", "", "corpus, tree, overlay, emit, merge, or stats")
+	phase := flag.String("phase", "", "corpus, tree, branch, overlay, emit, merge, or stats")
 	games := flag.Int("games", config.BookCorpusGames, "corpus game target")
 	tcIdx := flag.Int("tc", config.BookCorpusTCIndex, "time control index into config.TimeControls")
 	tierName := flag.String("tier", config.TierMaster.Name, "corpus seat tier")
 	corpusPath := flag.String("corpus", config.BookCorpusPath, "append-only corpus file")
 	overlayPath := flag.String("overlay", config.BookOverlayPath, "solver overlay file")
 	treeLogPath := flag.String("tree-log", config.BookTreeLogPath, "append-only tree expansion log")
+	fromPath := flag.String("from", "", "trunk tree log the branch phase seeds from")
 	reverify := flag.Bool("reverify", false, "run the 8-thread reverify pass after the tree build")
 	floor := flag.Int("floor", config.BookVisitFloor, "majority visit floor")
 	budget := flag.Int("solver-budget", config.BookSolverNodeBudget, "solver node budget per pass")
@@ -85,6 +86,14 @@ func main() {
 		fatal(validateTreeArgs(*tierName))
 		o := treeOptsFromFlags(*tierName, *treeLogPath, *outPath, *statsPath, flag.Args(), *reverify)
 		_, err := runTree(o, nil, nil, os.Stdout)
+		fatal(err)
+	case "branch":
+		if *fromPath == "" {
+			fatal(fmt.Errorf("bookgen: -phase branch requires -from pointing at the trunk tree log"))
+		}
+		fatal(validateTreeArgs(*tierName))
+		o := branchOptsFromFlags(*tierName, *fromPath, *treeLogPath, *outPath, *statsPath, flag.Args())
+		_, err := runBranch(o, nil, nil, os.Stdout)
 		fatal(err)
 	case "overlay":
 		fatal(validateFloor(*floor))
@@ -139,7 +148,7 @@ func main() {
 			flag.Usage()
 			os.Exit(1)
 		}
-		fatal(fmt.Errorf("bookgen: -phase %q must be corpus, tree, overlay, emit, merge, or stats", *phase))
+		fatal(fmt.Errorf("bookgen: -phase %q must be corpus, tree, branch, overlay, emit, merge, or stats", *phase))
 	}
 }
 

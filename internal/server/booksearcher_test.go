@@ -373,6 +373,72 @@ func TestRoomMasterOpensFromTheBookThenSearches(t *testing.T) {
 	}
 }
 
+func TestMasterBlueSeatOpensFromTheBookLowerTiersNeverDo(t *testing.T) {
+	stageBookArtifact(t, buildBookArtifact(t, []bookRow{{moves: []string{"H8"}, reply: "I7"}}))
+	for _, tier := range []config.Tier{config.TierMaster, config.TierEasy, config.TierMedium, config.TierHard} {
+		t.Run(tier.Name, func(t *testing.T) {
+			s := newStack(t)
+			alice, r := botRoom(t, s, tier)
+			defer r.Close()
+			if err := r.Ready(alice.ID); err != nil {
+				t.Fatalf("ready: %v", err)
+			}
+			waitFor(t, func() bool { return humanTurn(r, alice.ID) })
+			if err := r.PlayMove(alice.ID, mustCellT(t, "H8")); err != nil {
+				t.Fatalf("human opening H8: %v", err)
+			}
+			waitFor(t, func() bool {
+				r.mu.Lock()
+				defer r.mu.Unlock()
+				return len(r.mlines) == 1
+			})
+			r.mu.Lock()
+			line := r.mlines[0]
+			r.mu.Unlock()
+			if line.MoveNo != 2 {
+				t.Fatalf("first bot M-line move number = %d, want 2", line.MoveNo)
+			}
+			if tier.Book {
+				prefix := fmt.Sprintf("M2, Blue, I7, d=0, n=0, nps=0, ebf=0.0, tt=0%%, hf=0%%, fh1=0%%, s=+0, thr=%d, ", tier.Cores)
+				if !strings.HasPrefix(line.Line, prefix) {
+					t.Fatalf("master blue opening line:\n got %q\nwant prefix %q", line.Line, prefix)
+				}
+				if !strings.Contains(line.Line, ", [BOOK], pv=I7") {
+					t.Fatalf("master blue opening line %q lacks the booked I7 tag", line.Line)
+				}
+			} else {
+				if strings.Contains(line.Line, "[BOOK]") {
+					t.Fatalf("%s blue opening line %q hit the book, only the book tiers probe", tier.Name, line.Line)
+				}
+				if strings.Contains(line.Line, ", d=0, n=0, nps=0, ebf=0.0") {
+					t.Fatalf("%s blue opening line %q carries the zero-cost book shape, want a real search", tier.Name, line.Line)
+				}
+			}
+			if err := r.Forfeit(alice.ID); err != nil {
+				t.Fatalf("forfeit: %v", err)
+			}
+		})
+	}
+}
+
+func TestBookPlyBoundHoldsForBlueSideRows(t *testing.T) {
+	rows := []bookRow{{moves: []string{"D4"}, reply: "E5"}}
+	bk, err := book.Load(bytes.NewReader(buildBookArtifact(t, rows)))
+	if err != nil {
+		t.Fatalf("load staged artifact: %v", err)
+	}
+	tight := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats()}, book: bk, maxPly: 1, cores: 1}
+	mv, _, tag := tight.Search(bookBoard(t, "D4"), engine.NewFixedBudget(time.Second))
+	if tag == config.BotLogTagBook || mv != mustMove(t, "A1") {
+		t.Fatalf("blue row under a maxPly-1 bound = (%s, %q), want the inward A1 untagged", cellName(rules.Cell(mv)), tag)
+	}
+	wide := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats()}, book: bk, maxPly: 8, cores: 1}
+	mv, _, tag = wide.Search(bookBoard(t, "D4"), engine.NewFixedBudget(time.Second))
+	if tag != config.BotLogTagBook || mv != mustMove(t, "E5") {
+		t.Fatalf("blue row under a maxPly-8 bound = (%s, %q), want the booked E5", cellName(rules.Cell(mv)), tag)
+	}
+}
+
 type lifecycleRecorder struct {
 	searcher
 	started, stopped, closed int

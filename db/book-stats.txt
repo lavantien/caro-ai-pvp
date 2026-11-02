@@ -1,0 +1,12 @@
+generator bookgen-tree
+canonical_entries 8
+emitted_entries 49
+solver_proofs 0
+stable_frozen 1
+bound_frozen 0
+loss_frozen 0
+frontier_at_stop 4
+frontier_held 0
+total_nodes 369099264
+reverify_flips 0
+priors_games 0

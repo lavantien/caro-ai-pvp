@@ -90,31 +90,52 @@ func TestTreeEmitSolverSourceWinsOverAnalysis(t *testing.T) {
 	}
 }
 
-func TestTreeEmitOwnerOnlyRedNodes(t *testing.T) {
+func TestTreeEmitCoversBothOwners(t *testing.T) {
 	bt, _ := newTestTree(t, (&stubAnalyst{score: 200}).analyze, (&stubSolver{nodes: 10}).probe)
 	redNode := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(72)))
 	blueNode := canonicalBoardKey(boardWithMoves(t, rules.Cell(119)))
-	bt.log.analyses[redNode] = []leafRec{{budget: 100, score: 50, best: 10, nodes: 100}}
-	bt.log.analyses[blueNode] = []leafRec{{budget: 100, score: 50, best: 10, nodes: 100}}
+	redBest := legalNear(boardWithMoves(t, rules.Cell(119), rules.Cell(72)))
+	blueBest := legalNear(boardWithMoves(t, rules.Cell(119)))
+	bt.log.analyses[redNode] = []leafRec{{budget: 100, score: 50, best: redBest, nodes: 100}}
+	bt.log.analyses[blueNode] = []leafRec{{budget: 100, score: 50, best: blueBest, nodes: 100}}
 	entries, _, err := bt.emitEntries()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, e := range entries {
-		for _, v := range variantPairs(blueNode) {
-			if e.key == v.key {
-				t.Fatal("blue-to-move node emitted, the book advises red only")
-			}
-		}
-	}
-	redSeen := false
+	redSeen, blueSeen := false, false
 	for _, e := range entries {
 		if e.key == redNode {
 			redSeen = true
+			if e.move != redBest {
+				t.Errorf("red entry move = %d, want the analysis best %d", e.move, redBest)
+			}
+		}
+		if e.key == blueNode {
+			blueSeen = true
+			if e.move != blueBest {
+				t.Errorf("blue entry move = %d, want the analysis best %d", e.move, blueBest)
+			}
 		}
 	}
 	if !redSeen {
 		t.Fatal("red owner node missing from emission")
+	}
+	if !blueSeen {
+		t.Fatal("blue owner node missing from emission: the blue seat must probe the trunk")
+	}
+	lostBlue := canonicalBoardKey(boardWithMoves(t, rules.Cell(119), rules.Cell(87), rules.Cell(71)))
+	bt.log.frozen[lostBlue] = freezeRec{reason: "loss", score: -config.EvalMateMax}
+	bt.log.analyses[lostBlue] = []leafRec{{budget: 100, score: -config.EvalMateMax, best: blueBest, nodes: 100}}
+	entries, _, err = bt.emitEntries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		for _, v := range variantPairs(lostBlue) {
+			if e.key == v.key {
+				t.Fatal("loss-frozen blue node emitted, a proven lost position must not advise")
+			}
+		}
 	}
 }
 

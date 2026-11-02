@@ -389,6 +389,64 @@ func TestLoadThroughCallerBufio(t *testing.T) {
 	}
 }
 
+func TestLoadRoundTripsBlueSideEntries(t *testing.T) {
+	blueOpen := playedBoard(t, "H8")
+	blueMove4a := playedBoard(t, "H8", "H6", "H5")
+	blueMove4b := playedBoard(t, "H8", "I7", "H5")
+	redRow := playedBoard(t, "H8", "H6")
+	type row struct {
+		board *rules.Board
+		move  rules.Move
+	}
+	rows := []row{
+		{blueOpen, rules.Move(mustCell(t, "I7"))},
+		{blueMove4a, rules.Move(mustCell(t, "J6"))},
+		{blueMove4b, rules.Move(mustCell(t, "G6"))},
+		{redRow, rules.Move(mustCell(t, "F9"))},
+	}
+	type entry struct {
+		key [config.BookKeyBytes]byte
+		raw []byte
+	}
+	entries := make([]entry, 0, len(rows))
+	for _, r := range rows {
+		k := specKey(r.board)
+		entries = append(entries, entry{key: k, raw: specEntry(k, r.move, uint32(config.BookVisitFloor), config.BookSourceMajority)})
+	}
+	slices.SortFunc(entries, func(a, b entry) int {
+		return bytes.Compare(a.key[:], b.key[:])
+	})
+	raw := make([][]byte, 0, len(entries))
+	for _, e := range entries {
+		raw = append(raw, e.raw)
+	}
+	bk := mustLoad(t, specBook(specMetaLine(config.BookFormatVersion), raw...))
+	if bk.Len() != len(rows) {
+		t.Fatalf("Len = %d, want %d", bk.Len(), len(rows))
+	}
+	for _, r := range rows {
+		first, ok := bk.Probe(r.board)
+		if !ok {
+			t.Errorf("blue-side probe of a %d-stone board missed", r.board.MoveCount)
+			continue
+		}
+		if first != r.move {
+			t.Errorf("probe move = %d, want %d", uint16(first), uint16(r.move))
+		}
+		second, _ := bk.Probe(r.board)
+		if second != first {
+			t.Errorf("repeat probe = %d then %d, probes must be deterministic", uint16(first), uint16(second))
+		}
+	}
+	maskBuilt := rules.NewBoard()
+	maskBuilt.Red[119/64] |= 1 << uint(119%64)
+	maskBuilt.Red[71/64] |= 1 << uint(71%64)
+	maskBuilt.Blue[87/64] |= 1 << uint(87%64)
+	if mv, ok := bk.Probe(maskBuilt); !ok || mv != rows[1].move {
+		t.Errorf("mask-built probe = (%d, %t), want (%d, true): the key is the mask, not the replay order", uint16(mv), ok, uint16(rows[1].move))
+	}
+}
+
 func TestProbeIsOrderIndependentAndIgnoresHash(t *testing.T) {
 	var k [config.BookKeyBytes]byte
 	binary.LittleEndian.PutUint64(k[:], 1)

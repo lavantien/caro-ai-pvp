@@ -61,12 +61,8 @@ func (bt *bookTree) emitEntries() ([]bookEntry, treeStats, error) {
 		if len(recs) == 0 {
 			continue
 		}
-		b, err := boardFromKey(key)
-		if err != nil {
+		if _, err := boardFromKey(key); err != nil {
 			return nil, st, fmt.Errorf("bookgen: emit position: %w", err)
-		}
-		if b.Side != rules.Red {
-			continue
 		}
 		if f, frozen := bt.log.frozen[key]; frozen && f.reason == "loss" {
 			continue
@@ -93,12 +89,8 @@ func (bt *bookTree) emitEntries() ([]bookEntry, treeStats, error) {
 		if _, analyzed := plans[key]; analyzed {
 			continue
 		}
-		b, err := boardFromKey(key)
-		if err != nil {
+		if _, err := boardFromKey(key); err != nil {
 			return nil, st, fmt.Errorf("bookgen: emit proof position: %w", err)
-		}
-		if b.Side != rules.Red {
-			continue
 		}
 		s := bt.log.solver[key]
 		if err := merge(key, ownerPlan{move: s.move, visits: uint32(config.BookTreeVisitScale), source: config.BookSourceSolver}); err != nil {
