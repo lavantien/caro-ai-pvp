@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/geom"
 )
 
@@ -42,6 +43,7 @@ type artifactData struct {
 	W               [5]float64
 	WInt            [5]int64
 	IntDrift        float64
+	CleanWeight     int
 	S               float64
 	BestRestart     int
 	TrainLossGD     float64
@@ -78,6 +80,7 @@ func writeArtifact(path string, a artifactData) error {
 	w("series %d %d", a.TrainSeries, a.ValSeries)
 	w("weights %d %d %d %d %d", a.WInt[0], a.WInt[1], a.WInt[2], a.WInt[3], a.WInt[4])
 	w("weights-exact %s %s %s %s %s", fmtF(a.W[0]), fmtF(a.W[1]), fmtF(a.W[2]), fmtF(a.W[3]), fmtF(a.W[4]))
+	w("clean-window-weight %d", a.CleanWeight)
 	w("weights-int-drift %s", fmtF(a.IntDrift))
 	w("scale %s", fmtF(a.S))
 	w("best-restart %d", a.BestRestart)
@@ -216,6 +219,12 @@ func parseArtifact(path string) (artifactData, error) {
 			for i := range a.W {
 				a.W[i] = fs[i]
 			}
+		case "clean-window-weight":
+			ns, err := ints(1)
+			if err != nil {
+				return artifactData{}, err
+			}
+			a.CleanWeight = int(ns[0])
 		case "weights-int-drift":
 			fs, err := floats(1)
 			if err != nil {
@@ -291,6 +300,10 @@ func verifyArtifact(a artifactData, samples []sample) error {
 		if a.WInt[i-1] >= a.WInt[i] {
 			return fmt.Errorf("evalfit: integer weights %v are not strictly ascending", a.WInt)
 		}
+	}
+	if a.CleanWeight != config.EvalCleanWindowWeight(artifactGeometry(a.Geometry)) {
+		return fmt.Errorf("evalfit: recorded clean window weight %d does not match the %s constant %d",
+			a.CleanWeight, artifactGeometry(a.Geometry), config.EvalCleanWindowWeight(artifactGeometry(a.Geometry)))
 	}
 	drift := maxIntDrift(a.W, a.WInt)
 	if math.Abs(drift-a.IntDrift) > 1e-9*(1+math.Abs(a.IntDrift)) {

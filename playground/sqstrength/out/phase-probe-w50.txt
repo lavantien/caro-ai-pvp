@@ -1,0 +1,10 @@
+m2 after H8 d=6 picks F8 score=-1050
+m2 after H8 d=8 picks F6 score=-1050
+m2 after H8 d=10 picks J8 score=-300
+m4 after H8 H6 H5 d=6 picks G5 score=-950
+m4 after H8 H6 H5 d=8 picks J6 score=-650
+m4 after H8 H6 H5 d=10 picks J8 score=-300
+m6 board H8 H6 H5 I6 K6 d=6 picks G6 score=-750
+m6 board H8 H6 H5 I6 K6 d=8 picks G6 score=1300
+m6 board H8 H6 H5 I6 K6 d=10 picks G6 score=1300
+m6 board H8 H6 H5 G6 E6 d=6 picks I6 score=-750

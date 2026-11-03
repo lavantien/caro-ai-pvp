@@ -1,0 +1,24 @@
+g2-easy-tc1 M10 blue to move (lost: played J9) side=1 ply=9 staticBlue=0 staticRed=500 net=-500
+  engine d=8 picks J9 score=2850 pv=[137 138 103 154 106 105]
+  cand J9 childStatic blue=1200 red=0 net=1200 replyScoreForBlue=2850 pv0=K9
+  cand L7 childStatic blue=400 red=0 net=400 replyScoreForBlue=-3200 pv0=K7
+  cand K10 childStatic blue=500 red=500 net=0 replyScoreForBlue=-2750 pv0=H7
+  cand K6 childStatic blue=1000 red=500 net=500 replyScoreForBlue=-7600 pv0=H11
+  cand J10 childStatic blue=0 red=500 net=-500 replyScoreForBlue=-5150 pv0=H11
+g2-easy-tc1 M16 blue to move, red open three K7-K9 (lost: played H9) side=1 ply=15 staticBlue=4100 staticRed=13300 net=-9200
+  engine d=8 picks H9 score=-1073741728 pv=[135 134 90 89 55 140]
+  cand H9 childStatic blue=22700 red=13300 net=9400 replyScoreForBlue=-1073741744 pv0=G9
+  cand K6 childStatic blue=5100 red=8800 net=-3700 replyScoreForBlue=-1073741776 pv0=J6
+  cand K10 childStatic blue=10500 red=8800 net=1700 replyScoreForBlue=-1073741776 pv0=J6
+  cand J6 childStatic blue=6800 red=7400 net=-600 replyScoreForBlue=-1073741776 pv0=K6
+g8-easy-tc1 M10 same board (won: played L7) side=1 ply=9 staticBlue=0 staticRed=500 net=-500
+  engine d=8 picks J9 score=2850 pv=[137 138 103 154 106 105]
+  cand J9 childStatic blue=1200 red=0 net=1200 replyScoreForBlue=2850 pv0=K9
+  cand L7 childStatic blue=400 red=0 net=400 replyScoreForBlue=-3200 pv0=K7
+g24-hard-tc1 M10 blue to move (lost: played F9) side=1 ply=9 staticBlue=0 staticRed=500 net=-500
+  engine d=8 picks F9 score=2850 pv=[133 132 103 148 100 101]
+  cand F9 childStatic blue=1200 red=0 net=1200 replyScoreForBlue=2850 pv0=E9
+  cand E10 childStatic blue=500 red=500 net=0 replyScoreForBlue=-2850 pv0=H7
+  cand E9 childStatic blue=1000 red=500 net=500 replyScoreForBlue=-6700 pv0=F9
+  cand F8 childStatic blue=1200 red=500 net=700 replyScoreForBlue=-5750 pv0=H11
+  cand E11 childStatic blue=0 red=500 net=-500 replyScoreForBlue=-3900 pv0=H11

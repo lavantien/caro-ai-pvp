@@ -1,0 +1,56 @@
+pos square-hard-tc1 g34 m6 pool=W cell=F5 inGameScore=900
+  blueTotal=600 redTotal=0 netBlue=600
+  blueClasses=[1018 6 0 0 0 0] redClasses=[1024 0 0 0 0 0]
+  blueClean own1=53(0) own2=9(600) own3+0(0)
+  redClean  own1=67(0) own2=0(0) own3+0(0)
+  blueWin: F3/d1=c1 F4/d1=c1 F5/d1=c1 F6/d1=c1 F7/d1=c1 F8/d1=c1
+  redWin:  
+pos square-hard-tc2 g20 m6 pool=W cell=G4 inGameScore=500
+  blueTotal=600 redTotal=0 netBlue=600
+  blueClasses=[1018 6 0 0 0 0] redClasses=[1024 0 0 0 0 0]
+  blueClean own1=56(0) own2=8(600) own3+0(0)
+  redClean  own1=66(0) own2=0(0) own3+0(0)
+  blueWin: E2/d2=c1 F3/d2=c1 G4/d2=c1 H5/d2=c1 I6/d2=c1 J7/d2=c1
+  redWin:  
+pos square-medium-tc1 g10 m6 pool=W cell=G9 inGameScore=3100
+  blueTotal=800 redTotal=0 netBlue=800
+  blueClasses=[1016 8 0 0 0 0] redClasses=[1024 0 0 0 0 0]
+  blueClean own1=54(0) own2=8(500) own3+0(0)
+  redClean  own1=62(0) own2=1(0) own3+0(0)
+  blueWin: E6/d0=c1 F6/d0=c1 G6/d0=c1 G6/d1=c1 G7/d1=c1 G8/d1=c1 G9/d1=c1 H6/d0=c1
+  redWin:  
+pos square-medium-tc1 g10 m8 pool=W cell=G7 inGameScore=1900
+  blueTotal=6500 redTotal=0 netBlue=6500
+  blueClasses=[1011 7 2 4 0 0] redClasses=[1024 0 0 0 0 0]
+  blueClean own1=52(0) own2=11(700) own3+6(5800)
+  redClean  own1=74(0) own2=1(0) own3+0(0)
+  blueWin: G6/d1=c3 G7/d1=c3 G8/d1=c3 G9/d1=c3 G10/d1=c2 G5/d1=c2 E9/d3=c1 F8/d3=c1 G4/d1=c1 G7/d3=c1 H6/d3=c1 I5/d3=c1 J4/d3=c1
+  redWin:  
+pos square-medium-tc2 g10 m6 pool=W cell=G6 inGameScore=2600
+  blueTotal=5800 redTotal=0 netBlue=5800
+  blueClasses=[1018 0 2 4 0 0] redClasses=[1024 0 0 0 0 0]
+  blueClean own1=57(0) own2=1(0) own3+2(1700)
+  redClean  own1=70(0) own2=0(0) own3+0(0)
+  blueWin: F6/d0=c3 G6/d0=c3 H6/d0=c3 I6/d0=c3 E6/d0=c2 J6/d0=c2
+  redWin:  
+pos square-medium-tc2 g12 m8 pool=W cell=F6 inGameScore=5900
+  blueTotal=8000 redTotal=0 netBlue=8000
+  blueClasses=[1022 0 0 0 2 0] redClasses=[1024 0 0 0 0 0]
+  blueClean own1=76(0) own2=0(0) own3+0(0)
+  redClean  own1=91(0) own2=0(0) own3+0(0)
+  blueWin: F6/d0=c4 J6/d0=c4
+  redWin:  
+pos square-easy-tc1 g8 m6 pool=W cell=I7 inGameScore=3400
+  blueTotal=5800 redTotal=0 netBlue=5800
+  blueClasses=[1018 0 2 4 0 0] redClasses=[1024 0 0 0 0 0]
+  blueClean own1=57(0) own2=1(0) own3+2(1700)
+  redClean  own1=70(0) own2=0(0) own3+0(0)
+  blueWin: I6/d1=c3 I7/d1=c3 I8/d1=c3 I9/d1=c3 I10/d1=c2 I5/d1=c2
+  redWin:  
+pos square-easy-tc2 g6 m6 pool=W cell=F9 inGameScore=3400
+  blueTotal=5800 redTotal=0 netBlue=5800
+  blueClasses=[1018 0 2 4 0 0] redClasses=[1024 0 0 0 0 0]
+  blueClean own1=57(0) own2=1(0) own3+2(1700)
+  redClean  own1=70(0) own2=0(0) own3+0(0)
+  blueWin: F10/d1=c3 F7/d1=c3 F8/d1=c3 F9/d1=c3 F11/d1=c2 F6/d1=c2
+  redWin:  

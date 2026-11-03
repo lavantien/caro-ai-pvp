@@ -13,6 +13,7 @@ import (
 type sample struct {
 	Series string
 	F      [5]int32
+	Term   int32
 	Y      float64
 }
 
@@ -71,6 +72,43 @@ func featureVector(b *rules.Board, mover rules.Color) [5]int32 {
 	return f
 }
 
+func cleanTerm(b *rules.Board, mover rules.Color) int32 {
+	weight := int32(config.EvalCleanWindowWeight(b.Geom.Name))
+	if weight == 0 {
+		return 0
+	}
+	var red, blue int32
+	for d := range len(b.Geom.Dirs) {
+		for cell := range b.Geom.Cells {
+			c := rules.Cell(cell)
+			for side := range 2 {
+				idx := pattern.Index(b, c, d, rules.Color(side))
+				var hasOwn, hasOpp bool
+				for _, s := range pattern.Unpack(idx) {
+					switch s {
+					case config.PatternStateOwn:
+						hasOwn = true
+					case config.PatternStateOpp:
+						hasOpp = true
+					}
+				}
+				if hasOwn == hasOpp {
+					continue
+				}
+				if side == int(rules.Red) {
+					red++
+				} else {
+					blue++
+				}
+			}
+		}
+	}
+	if mover == rules.Blue {
+		return weight * (blue - red)
+	}
+	return weight * (red - blue)
+}
+
 func regionCells(g *geom.Geometry) int {
 	n := 0
 	for w := range g.Words {
@@ -101,7 +139,7 @@ func reconstructGame(g parsedGame, series string, geo *geom.Geometry) ([]sample,
 				y = 0.0
 			}
 		}
-		samples = append(samples, sample{Series: series, F: featureVector(b, m.Color), Y: y})
+		samples = append(samples, sample{Series: series, F: featureVector(b, m.Color), Term: cleanTerm(b, m.Color), Y: y})
 		b.Make(m.Cell)
 		want = want.Opponent()
 	}

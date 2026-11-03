@@ -232,6 +232,7 @@ func main() {
 		W:               res.W,
 		WInt:            wInt,
 		IntDrift:        intDrift,
+		CleanWeight:     config.EvalCleanWindowWeight(*geometryArg),
 		S:               res.S,
 		BestRestart:     res.Restart,
 		TrainLossGD:     res.Loss,
@@ -305,7 +306,7 @@ func calibrate(val []sample, w [5]float64, s float64) []bucketRow {
 	}
 	rows := make([]row, 0, len(val))
 	for _, sm := range val {
-		dot := float64(config.EvalTempo)
+		dot := float64(config.EvalTempo) + float64(sm.Term)
 		for j := range sm.F {
 			dot += float64(sm.F[j]) * w[j]
 		}

@@ -1,0 +1,17 @@
+g2-easy-tc1 M10 (lost: J9; twin won with L7) ply=9 static b=0 r=500 | sig b={CleanWin:76 CleanLn:8 CleanSt:8 OpenBld:0 MaxSt:1} r={CleanWin:111 CleanLn:11 CleanSt:12 OpenBld:1 MaxSt:2}
+  after J9: static b=1200 r=0 net=1200 | sig b={CleanWin:87 CleanLn:9 CleanSt:11 OpenBld:2 MaxSt:2} r={CleanWin:102 CleanLn:10 CleanSt:10 OpenBld:0 MaxSt:1}
+  after L7: static b=400 r=0 net=400 | sig b={CleanWin:98 CleanLn:10 CleanSt:11 OpenBld:1 MaxSt:2} r={CleanWin:103 CleanLn:10 CleanSt:10 OpenBld:0 MaxSt:1}
+  after K10: static b=500 r=500 net=0 | sig b={CleanWin:91 CleanLn:9 CleanSt:10 OpenBld:1 MaxSt:2} r={CleanWin:97 CleanLn:9 CleanSt:10 OpenBld:1 MaxSt:2}
+  after K6: static b=1000 r=500 net=500 | sig b={CleanWin:91 CleanLn:9 CleanSt:11 OpenBld:2 MaxSt:2} r={CleanWin:104 CleanLn:10 CleanSt:11 OpenBld:1 MaxSt:2}
+  after J10: static b=0 r=500 net=-500 | sig b={CleanWin:88 CleanLn:9 CleanSt:9 OpenBld:0 MaxSt:1} r={CleanWin:95 CleanLn:9 CleanSt:10 OpenBld:1 MaxSt:2}
+g24-hard-tc1 M10 (lost: F9) ply=9 static b=0 r=500 | sig b={CleanWin:76 CleanLn:8 CleanSt:8 OpenBld:0 MaxSt:1} r={CleanWin:111 CleanLn:11 CleanSt:12 OpenBld:1 MaxSt:2}
+  after F9: static b=1200 r=0 net=1200 | sig b={CleanWin:87 CleanLn:9 CleanSt:11 OpenBld:2 MaxSt:2} r={CleanWin:102 CleanLn:10 CleanSt:10 OpenBld:0 MaxSt:1}
+  after E10: static b=500 r=500 net=0 | sig b={CleanWin:91 CleanLn:9 CleanSt:10 OpenBld:1 MaxSt:2} r={CleanWin:97 CleanLn:9 CleanSt:10 OpenBld:1 MaxSt:2}
+  after E9: static b=1000 r=500 net=500 | sig b={CleanWin:83 CleanLn:8 CleanSt:10 OpenBld:2 MaxSt:2} r={CleanWin:96 CleanLn:9 CleanSt:10 OpenBld:1 MaxSt:2}
+  after F8: static b=1200 r=500 net=700 | sig b={CleanWin:87 CleanLn:9 CleanSt:11 OpenBld:2 MaxSt:2} r={CleanWin:110 CleanLn:11 CleanSt:12 OpenBld:1 MaxSt:2}
+  after E11: static b=0 r=500 net=-500 | sig b={CleanWin:92 CleanLn:9 CleanSt:9 OpenBld:0 MaxSt:1} r={CleanWin:98 CleanLn:9 CleanSt:10 OpenBld:1 MaxSt:2}
+g2-easy-tc1 M16 red open three live (lost: H9) ply=15 static b=4100 r=13300 | sig b={CleanWin:85 CleanLn:7 CleanSt:10 OpenBld:3 MaxSt:2} r={CleanWin:110 CleanLn:9 CleanSt:13 OpenBld:2 MaxSt:3}
+  after H9: static b=22700 r=13300 net=9400 | sig b={CleanWin:88 CleanLn:7 CleanSt:11 OpenBld:4 MaxSt:2} r={CleanWin:94 CleanLn:7 CleanSt:11 OpenBld:2 MaxSt:3}
+  after K6: static b=5100 r=8800 net=-3700 | sig b={CleanWin:99 CleanLn:8 CleanSt:13 OpenBld:5 MaxSt:2} r={CleanWin:102 CleanLn:8 CleanSt:10 OpenBld:1 MaxSt:3}
+  after K10: static b=10500 r=8800 net=1700 | sig b={CleanWin:97 CleanLn:8 CleanSt:12 OpenBld:3 MaxSt:3} r={CleanWin:102 CleanLn:8 CleanSt:10 OpenBld:1 MaxSt:3}
+  after J6: static b=6800 r=7400 net=-600 | sig b={CleanWin:90 CleanLn:7 CleanSt:12 OpenBld:4 MaxSt:3} r={CleanWin:101 CleanLn:8 CleanSt:10 OpenBld:1 MaxSt:3}

@@ -1,0 +1,309 @@
+{
+  "positions": [
+    {
+      "leg": "square-hard-tc1",
+      "game": 2,
+      "move": 4,
+      "pool": "W",
+      "cell": "I6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-hard-tc1",
+      "game": 34,
+      "move": 6,
+      "pool": "W",
+      "cell": "F5",
+      "score": 900,
+      "depth": 11,
+      "tag": "PONDER",
+      "moves": [
+        "H8",
+        "H6",
+        "G4",
+        "F6",
+        "E6"
+      ]
+    },
+    {
+      "leg": "square-hard-tc1",
+      "game": 20,
+      "move": 4,
+      "pool": "W",
+      "cell": "I6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-hard-tc1",
+      "game": 60,
+      "move": 4,
+      "pool": "W",
+      "cell": "G6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-hard-tc2",
+      "game": 8,
+      "move": 4,
+      "pool": "W",
+      "cell": "I6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-hard-tc2",
+      "game": 20,
+      "move": 6,
+      "pool": "W",
+      "cell": "G4",
+      "score": 500,
+      "depth": 13,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "F5",
+        "H5",
+        "H3"
+      ]
+    },
+    {
+      "leg": "square-hard-tc2",
+      "game": 22,
+      "move": 4,
+      "pool": "W",
+      "cell": "G6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-hard-tc2",
+      "game": 20,
+      "move": 4,
+      "pool": "W",
+      "cell": "H5",
+      "score": 1400,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "F5"
+      ]
+    },
+    {
+      "leg": "square-medium-tc1",
+      "game": 10,
+      "move": 4,
+      "pool": "W",
+      "cell": "G6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-medium-tc1",
+      "game": 10,
+      "move": 6,
+      "pool": "W",
+      "cell": "G9",
+      "score": 3100,
+      "depth": 10,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5",
+        "G6",
+        "J6"
+      ]
+    },
+    {
+      "leg": "square-medium-tc1",
+      "game": 10,
+      "move": 8,
+      "pool": "W",
+      "cell": "G7",
+      "score": 1900,
+      "depth": 12,
+      "tag": "PONDER",
+      "moves": [
+        "H8",
+        "H6",
+        "H5",
+        "G6",
+        "J6",
+        "G9",
+        "F6"
+      ]
+    },
+    {
+      "leg": "square-medium-tc2",
+      "game": 4,
+      "move": 4,
+      "pool": "W",
+      "cell": "I6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-medium-tc2",
+      "game": 10,
+      "move": 6,
+      "pool": "W",
+      "cell": "G6",
+      "score": 2600,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5",
+        "I6",
+        "K6"
+      ]
+    },
+    {
+      "leg": "square-medium-tc2",
+      "game": 12,
+      "move": 8,
+      "pool": "W",
+      "cell": "F6",
+      "score": 5900,
+      "depth": 13,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5",
+        "I6",
+        "K6",
+        "G6",
+        "E6"
+      ]
+    },
+    {
+      "leg": "square-medium-tc2",
+      "game": 8,
+      "move": 4,
+      "pool": "W",
+      "cell": "I6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-easy-tc1",
+      "game": 6,
+      "move": 4,
+      "pool": "W",
+      "cell": "H7",
+      "score": 400,
+      "depth": 8,
+      "tag": "",
+      "moves": [
+        "H8",
+        "I7",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-easy-tc1",
+      "game": 8,
+      "move": 6,
+      "pool": "W",
+      "cell": "I7",
+      "score": 3400,
+      "depth": 10,
+      "tag": "",
+      "moves": [
+        "H8",
+        "I9",
+        "K8",
+        "I8",
+        "I11"
+      ]
+    },
+    {
+      "leg": "square-easy-tc2",
+      "game": 2,
+      "move": 4,
+      "pool": "W",
+      "cell": "I6",
+      "score": 1000,
+      "depth": 9,
+      "tag": "",
+      "moves": [
+        "H8",
+        "H6",
+        "H5"
+      ]
+    },
+    {
+      "leg": "square-easy-tc2",
+      "game": 6,
+      "move": 6,
+      "pool": "W",
+      "cell": "F9",
+      "score": 3400,
+      "depth": 10,
+      "tag": "",
+      "moves": [
+        "H8",
+        "F8",
+        "E8",
+        "F7",
+        "F5"
+      ]
+    }
+  ]
+}

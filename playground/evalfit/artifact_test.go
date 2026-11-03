@@ -26,6 +26,7 @@ func smallArtifact() artifactData {
 		W:               [5]float64{304.6, 512.2, 1180.4, 3900.9, 15100.3},
 		WInt:            [5]int64{305, 512, 1180, 3901, 15100},
 		IntDrift:        0.4,
+		CleanWeight:     50,
 		S:               4123.5,
 		BestRestart:     3,
 		TrainLossGD:     0.601234567,
@@ -205,6 +206,11 @@ func TestArtifactVerify(t *testing.T) {
 	tampered.ValLossRecorded += 1e-3
 	if err := verifyArtifact(tampered, samples); err == nil {
 		t.Fatal("verify must fail when the recorded loss does not match the weights")
+	}
+	wrongClean := a
+	wrongClean.CleanWeight = 0
+	if err := verifyArtifact(wrongClean, samples); err == nil {
+		t.Fatal("verify must fail when the clean window weight does not match the geometry constant")
 	}
 	wrongWeights := a
 	wrongWeights.WInt = [5]int64{200, 600, 1200, 4000, 12000}

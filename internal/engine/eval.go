@@ -9,11 +9,30 @@ import (
 
 var classPairs [config.PatternTableEntries]uint8
 
+var cleanBits [config.PatternTableEntries]uint8
+
 func init() {
 	for idx := range config.PatternTableEntries {
 		red := pattern.Lookup(uint32(idx)).Class
 		blue := pattern.Lookup(swapStates(uint32(idx))).Class
 		classPairs[idx] = red | blue<<3
+		var hasOwn, hasOpp bool
+		for _, s := range pattern.Unpack(uint32(idx)) {
+			switch s {
+			case config.PatternStateOwn:
+				hasOwn = true
+			case config.PatternStateOpp:
+				hasOpp = true
+			}
+		}
+		var bits uint8
+		if hasOwn && !hasOpp {
+			bits |= 1
+		}
+		if hasOpp && !hasOwn {
+			bits |= 2
+		}
+		cleanBits[idx] = bits
 	}
 }
 
@@ -22,13 +41,15 @@ const cellStateMask = 1<<config.PatternCellBits - 1
 const windowHalf = (config.PatternWindowLen - 1) / 2
 
 type evaluator struct {
-	geom  *geom.Geometry
-	win   [config.PatternDirections][config.MaxBoardCells]uint32
-	wpair [config.PatternDirections][config.MaxBoardCells]uint8
-	score [2]int
-	cell  [2][config.MaxBoardCells]int
-	fours [2]int
-	w     *[config.PatternClassCount]int
+	geom   *geom.Geometry
+	win    [config.PatternDirections][config.MaxBoardCells]uint32
+	wpair  [config.PatternDirections][config.MaxBoardCells]uint8
+	score  [2]int
+	cell   [2][config.MaxBoardCells]int
+	fours  [2]int
+	clean  [2]int
+	cleanW int
+	w      *[config.PatternClassCount]int
 }
 
 func (ev *evaluator) weights() *[config.PatternClassCount]int {
@@ -45,7 +66,7 @@ func swapStates(idx uint32) uint32 {
 
 func (ev *evaluator) reset(b *rules.Board) {
 	w := ev.w
-	*ev = evaluator{w: w, geom: b.Geom}
+	*ev = evaluator{w: w, geom: b.Geom, cleanW: config.EvalCleanWindowWeight(b.Geom.Name)}
 	g := b.Geom
 	cw := ev.weights()
 	for d := range g.Dirs {
@@ -64,12 +85,19 @@ func (ev *evaluator) reset(b *rules.Board) {
 			if pair>>3 >= config.PatternClassFour {
 				ev.fours[rules.Blue]++
 			}
+			bits := cleanBits[red]
+			if bits&1 != 0 {
+				ev.clean[rules.Red]++
+			}
+			if bits&2 != 0 {
+				ev.clean[rules.Blue]++
+			}
 		}
 	}
 }
 
 func (ev *evaluator) eval(side rules.Color) int {
-	return ev.score[side] - ev.score[side^1] + config.EvalTempo
+	return ev.score[side] - ev.score[side^1] + config.EvalTempo + ev.cleanW*(ev.clean[side]-ev.clean[side^1])
 }
 
 func (ev *evaluator) applyWindow(center int, beforePair, afterPair uint8) {
@@ -100,6 +128,27 @@ func (ev *evaluator) applyWindow(center int, beforePair, afterPair uint8) {
 	}
 }
 
+func (ev *evaluator) applyClean(before, after uint32) {
+	db, da := cleanBits[before], cleanBits[after]
+	if db == da {
+		return
+	}
+	if db&1 != da&1 {
+		if da&1 != 0 {
+			ev.clean[rules.Red]++
+		} else {
+			ev.clean[rules.Red]--
+		}
+	}
+	if db&2 != da&2 {
+		if da&2 != 0 {
+			ev.clean[rules.Blue]++
+		} else {
+			ev.clean[rules.Blue]--
+		}
+	}
+}
+
 func (ev *evaluator) makeMove(color rules.Color, cell rules.Cell) {
 	state := uint32(config.PatternStateOpp)
 	if color == rules.Red {
@@ -118,12 +167,14 @@ func (ev *evaluator) makeMove(color rules.Color, cell rules.Cell) {
 			if center >= config.MaxBoardCells {
 				continue
 			}
+			before := ev.win[d][center]
 			beforePair := ev.wpair[d][center]
-			after := ev.win[d][center] | state<<(uint(windowHalf-k)*config.PatternCellBits)
+			after := before | state<<(uint(windowHalf-k)*config.PatternCellBits)
 			ev.win[d][center] = after
 			afterPair := classPairs[after]
 			ev.wpair[d][center] = afterPair
 			ev.applyWindow(center, beforePair, afterPair)
+			ev.applyClean(before, after)
 		}
 	}
 }
@@ -142,12 +193,14 @@ func (ev *evaluator) unmakeMove(cell rules.Cell) {
 			if center >= config.MaxBoardCells {
 				continue
 			}
+			after := ev.win[d][center]
 			afterPair := ev.wpair[d][center]
-			before := ev.win[d][center] &^ (cellStateMask << (uint(windowHalf-k) * config.PatternCellBits))
+			before := after &^ (cellStateMask << (uint(windowHalf-k) * config.PatternCellBits))
 			ev.win[d][center] = before
 			beforePair := classPairs[before]
 			ev.wpair[d][center] = beforePair
 			ev.applyWindow(center, afterPair, beforePair)
+			ev.applyClean(after, before)
 		}
 	}
 }

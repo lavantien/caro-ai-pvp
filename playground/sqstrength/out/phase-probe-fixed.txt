@@ -1,0 +1,24 @@
+m2 after H8 d=6 picks H6 score=-6000
+m2 after H8 d=8 picks H6 score=-5900
+m2 after H8 d=10 picks H6 score=600
+m4 after H8 H6 H5 d=6 picks J6 score=-5600
+m4 after H8 H6 H5 d=8 picks F6 score=-1400
+m4 after H8 H6 H5 d=10 picks F6 score=-1400
+m6 board H8 H6 H5 I6 K6 d=6 picks F6 score=-6800
+m6 board H8 H6 H5 I6 K6 d=8 picks F6 score=-6800
+m6 board H8 H6 H5 I6 K6 d=10 picks F6 score=-6800
+m6 board H8 H6 H5 G6 E6 d=6 picks J6 score=-6400
+m6 board H8 H6 H5 G6 E6 d=8 picks J6 score=-6400
+m6 board H8 H6 H5 G6 E6 d=10 picks J6 score=-6400
+m6 board H8 G7 E8 G8 G5 d=6 picks G10 score=-7000
+m6 board H8 G7 E8 G8 G5 d=8 picks G10 score=-7000
+m6 board H8 G7 E8 G8 G5 d=10 picks G10 score=-7000
+m6 board H8 I9 K8 I8 I11 d=6 picks I7 score=-6200
+m6 board H8 I9 K8 I8 I11 d=8 picks I7 score=-6200
+m6 board H8 I9 K8 I8 I11 d=10 picks I7 score=-6200
+m6 board H8 F8 E8 F7 F5 d=6 picks F10 score=-6400
+m6 board H8 F8 E8 F7 F5 d=8 picks F10 score=-6400
+m6 board H8 F8 E8 F7 F5 d=10 picks F10 score=-6400
+m8 board H8 H6 H5 I6 K6 G6 F6 d=6 picks G7 score=-2300
+m8 board H8 H6 H5 I6 K6 G6 F6 d=8 picks G7 score=-1300
+m8 board H8 H6 H5 I6 K6 G6 F6 d=10 picks G7 score=-1900

@@ -72,16 +72,17 @@ func TestEvaluatorOverrideWeightsArithmetic(t *testing.T) {
 	var zero evaluator
 	zero.w = &[config.PatternClassCount]int{}
 	zero.reset(b)
-	if got := zero.eval(rules.Red); got != config.EvalTempo {
-		t.Errorf("zero weights eval = %d, want tempo %d", got, config.EvalTempo)
+	zeroWant := config.EvalTempo + config.EvalCleanWindowWeight(b.Geom.Name)*(zero.clean[rules.Red]-zero.clean[rules.Blue])
+	if got := zero.eval(rules.Red); got != zeroWant {
+		t.Errorf("zero weights eval = %d, want the clean-only value %d", got, zeroWant)
 	}
 	var base evaluator
 	base.reset(b)
 	mv := freeCellNear(t, b, "H8")
 	zero.makeMove(rules.Red, mv)
 	zero.unmakeMove(mv)
-	if got := zero.eval(rules.Red); got != config.EvalTempo {
-		t.Errorf("zero weights eval after make/unmake = %d, want tempo %d", got, config.EvalTempo)
+	if got := zero.eval(rules.Red); got != zeroWant {
+		t.Errorf("zero weights eval after make/unmake = %d, want the clean-only value %d", got, zeroWant)
 	}
 	if !zero.stateright(b) {
 		t.Error("make/unmake under override weights desynced from the default evaluator")
@@ -131,14 +132,23 @@ func TestNewTieredEvalWeightsReachWorkers(t *testing.T) {
 }
 
 func TestNewEvalWeightsReachSearch(t *testing.T) {
-	b := playout(t, 7, 40)
+	b := midgameBoard(t)
 	dl := NewFixedBudget(30 * time.Second)
-	_, over := NewEval(1<<16, &[config.PatternClassCount]int{}).SearchDepth(b, dl, 1)
-	if over.Score != config.EvalTempo {
-		t.Errorf("zero-weights depth-1 score = %d, want tempo %d", over.Score, config.EvalTempo)
+	_, over := NewEval(1<<16, &[config.PatternClassCount]int{}).SearchDepth(b, dl, 2)
+	leaf := *b
+	for i := range over.PVLen {
+		leaf.Make(rules.Cell(over.PV[i]))
 	}
-	_, def := New(1<<16).SearchDepth(b, dl, 1)
-	if def.Score == config.EvalTempo {
-		t.Errorf("default depth-1 score = tempo %d, want a weighted score off tempo", config.EvalTempo)
+	var ref evaluator
+	ref.w = &[config.PatternClassCount]int{}
+	ref.reset(&leaf)
+	if want := ref.eval(b.Side); over.Score != want {
+		t.Errorf("zero-weights depth-2 score = %d, want the flattened leaf value %d", over.Score, want)
+	}
+	pb := playout(t, 7, 40)
+	_, overP := NewEval(1<<16, &[config.PatternClassCount]int{}).SearchDepth(pb, dl, 2)
+	_, defP := New(1<<16).SearchDepth(pb, dl, 2)
+	if defP.Score == overP.Score {
+		t.Errorf("default depth-2 score equals the flattened probe, the playout board cannot pin the override")
 	}
 }

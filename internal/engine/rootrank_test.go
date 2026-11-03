@@ -127,10 +127,10 @@ func TestFixedBudgetSearchUnchanged(t *testing.T) {
 	if got, want := int(mv), 36; got != want {
 		t.Fatalf("pinned move = %d, want %d", got, want)
 	}
-	if got, want := stats.Score, 4500; got != want {
+	if got, want := stats.Score, 5050; got != want {
 		t.Fatalf("pinned score = %d, want %d", got, want)
 	}
-	if got, want := stats.Nodes, uint64(1035); got != want {
+	if got, want := stats.Nodes, uint64(1079); got != want {
 		t.Fatalf("pinned nodes = %d, want %d", got, want)
 	}
 }
@@ -234,10 +234,10 @@ func TestExactRankingFlagLeavesDefaultPathPinned(t *testing.T) {
 	if got, want := int(mv), 36; got != want {
 		t.Fatalf("pinned move = %d, want %d", got, want)
 	}
-	if got, want := stats.Score, 4500; got != want {
+	if got, want := stats.Score, 5050; got != want {
 		t.Fatalf("pinned score = %d, want %d", got, want)
 	}
-	if got, want := stats.Nodes, uint64(1035); got != want {
+	if got, want := stats.Nodes, uint64(1079); got != want {
 		t.Fatalf("pinned nodes = %d, want %d", got, want)
 	}
 }

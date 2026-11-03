@@ -1,13 +1,5 @@
 package engine
 
-// Mutation-killer pins for internal/engine/search.go. Each test names the
-// survivor keys (file:line:col descriptor) it kills; the survivors not
-// covered here are either proven equivalent in .mutate-allow or flagged for
-// deletion (the dead cutoff-PV writes). Every pinned number is the
-// deterministic clean-code value of a fixed board and budget, so any splice
-// that changes traversal, scores, PVs, TT traffic, or stats arithmetic fails
-// exactly one of these pins.
-
 import (
 	"testing"
 	"time"
@@ -16,18 +8,11 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// countdownDL is a deterministic deadline: Exceeded flips true on the n-th
-// call and stays true, which lands the stop at an exact node count instead
-// of wall-clock time.
 type mutCountdownDL struct{ calls int }
 
 func (d *mutCountdownDL) Exceeded() bool { d.calls--; return d.calls <= 0 }
 func (d *mutCountdownDL) Stop()          {}
 
-// floodBoard fills every cell blue except the red anchor H8 and the named
-// free cells. With exactly one red stone and red to move the opening
-// constraint keeps only free cells at Chebyshev >= 3 from the anchor, so the
-// free-cell set is exactly the candidate set.
 func floodBoard(t *testing.T, free ...string) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -51,9 +36,6 @@ func floodBoard(t *testing.T, free ...string) *rules.Board {
 	return b
 }
 
-// seedChildTT stores an exact-bound mate entry at the hash reached by one
-// move, tuned so a probe at probePly decodes to want. With want = M-16 and
-// storePly = probePly+1 the decode is exactly M (or -M for negative want).
 func seedChildTT(t *testing.T, e *Engine, b *rules.Board, cell rules.Cell, want int, storePly int) {
 	t.Helper()
 	b.Make(cell)
@@ -62,11 +44,6 @@ func seedChildTT(t *testing.T, e *Engine, b *rules.Board, cell rules.Cell, want 
 	e.tt.store(h, want, 0, config.SearchMaxPly, ttBoundExact, storePly)
 }
 
-// kills 26:33, 26:35 x2, 27:33, 27:35 x2: pv and pvLen must have the +1
-// row because negamax at ply SearchMaxPly-1 writes pvLen[ply+1] before the
-// depth guard runs; a shorter array panics, a longer one admits slop.
-
-// pvEquals compares a stats PV against the wanted cell list.
 func pvEquals(stats *SearchStats, want ...rules.Cell) bool {
 	if stats.PVLen != len(want) {
 		return false
@@ -88,8 +65,6 @@ func TestMutKillPVArraysSizedForMaxPly(t *testing.T) {
 	}
 }
 
-// kills 71:58..70: resetForSearch must zero every stats counter so two
-// searches on one engine report independent counts.
 func TestMutKillResetZeroesCounters(t *testing.T) {
 	e := New(testTTBytes)
 	e.nodes, e.ttProbes, e.ttHits, e.cutNodes, e.cutFirst = 7, 7, 7, 7, 7
@@ -104,9 +79,6 @@ func TestMutKillResetZeroesCounters(t *testing.T) {
 	}
 }
 
-// kills 99:31 x2, 99:53 x2, 101:16: a stopped deadline before the first
-// iteration must leave the zero inits of best/completed visible in stats,
-// and the || guard must break on the deadline alone.
 func TestMutKillStoppedSearchInits(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
@@ -121,8 +93,6 @@ func TestMutKillStoppedSearchInits(t *testing.T) {
 	}
 }
 
-// kills 124:16, 125:17, 125:20: the precomputed fallback is the first
-// generated candidate of ply 0 in scan order, here F8.
 func TestMutKillFallbackMoveIsFirstCandidate(t *testing.T) {
 	b := rules.NewBoard()
 	place(t, b, rules.Red, "H8")
@@ -137,8 +107,6 @@ func TestMutKillFallbackMoveIsFirstCandidate(t *testing.T) {
 	}
 }
 
-// kills 135:18, 136:40 x2, 139:18, 140:54 x2, 140:59: the permille stats
-// arithmetic, exercised straight through finishStats with hand-set counters.
 func TestMutKillFinishStatsPermilles(t *testing.T) {
 	run := func(probes, hits, cutNodes, cutFirst uint64) SearchStats {
 		e := New(0)
@@ -161,9 +129,6 @@ func TestMutKillFinishStatsPermilles(t *testing.T) {
 	}
 }
 
-// kills 113:12, 113:33, 114:4: the mate early break stops iterative
-// deepening after the depth-1 win, so the whole search is 2 nodes at depth
-// 1; without the break the extra iterations inflate the node count.
 func TestMutKillMateEarlyBreakNodes(t *testing.T) {
 	e := New(0)
 	_, stats := e.SearchDepth(mate1Board(t), NewFixedBudget(time.Second), 4)
@@ -172,47 +137,33 @@ func TestMutKillMateEarlyBreakNodes(t *testing.T) {
 	}
 }
 
-// kills 68:18, 68:37 (stale killer slots reorder the first search, A1 is a
-// live midgame candidate), 150:36, 166:39, 168:28, 168:29, 168:47, 250:13,
-// 253:28, 253:39, 253:57, 254:7, 254:9, 254:17, 254:22, 254:29, 255:29,
-// 255:51, 263:8, 266:8, 276:8, 280:31, 280:36, 284:5, 286:12 and the bulk
-// of the remaining window and ordering traversal splices: exact node, move,
-// score and PV pins on fixed boards. Depth 2 and 3 with the table off pin
-// the bare alpha-beta; the mate pins below pin forced-line behavior.
 func TestMutKillMidgameBarePins(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
 	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 2)
-	if stats.Nodes != 107 || mv != rules.Move(mustCell(t, "E3")) || stats.Score != 1000 || stats.PVLen != 2 {
-		t.Errorf("mid d2: nodes=%d mv=%d score=%d pvlen=%d, want 107 E3 1000 2", stats.Nodes, mv, stats.Score, stats.PVLen)
+	if stats.Nodes != 142 || mv != rules.Move(mustCell(t, "G8")) || stats.Score != 300 || stats.PVLen != 2 {
+		t.Errorf("mid d2: nodes=%d mv=%d score=%d pvlen=%d, want 142 G8 300 2", stats.Nodes, mv, stats.Score, stats.PVLen)
 	}
 	e = New(0)
 	mv, stats = e.SearchDepth(b, NewFixedBudget(time.Second), 3)
-	if stats.Nodes != 578 || mv != rules.Move(mustCell(t, "E3")) || stats.Score != 7000 || !pvEquals(&stats, mustCell(t, "E3"), mustCell(t, "B3"), mustCell(t, "G8")) {
+	if stats.Nodes != 696 || mv != rules.Move(mustCell(t, "E3")) || stats.Score != 7700 || !pvEquals(&stats, mustCell(t, "E3"), mustCell(t, "F3"), mustCell(t, "G8")) {
 		t.Errorf("mid d3: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
 	}
 }
 
-// kills 268:7, 268:9, 268:12 (cutFirst accounting), 284:5, 284:10, 286:12,
-// 286:17 (bound selection feeds probing) and reinforces the bare pins with
-// the table on: fresh and warm searches on one engine have distinct exact
-// node counts.
 func TestMutKillTTTraversalPins(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
 	_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 3)
-	if stats.Nodes != 440 || stats.FirstMoveFailHighPermille != 821 {
-		t.Errorf("mid d3 tt: nodes=%d fh1=%d, want 440 and 821", stats.Nodes, stats.FirstMoveFailHighPermille)
+	if stats.Nodes != 486 || stats.FirstMoveFailHighPermille != 770 {
+		t.Errorf("mid d3 tt: nodes=%d fh1=%d, want 486 and 770", stats.Nodes, stats.FirstMoveFailHighPermille)
 	}
 	_, stats = e.SearchDepth(b, NewFixedBudget(time.Second), 3)
-	if stats.Nodes != 42 {
-		t.Errorf("mid d3 tt warm: nodes=%d, want 42", stats.Nodes)
+	if stats.Nodes != 44 {
+		t.Errorf("mid d3 tt warm: nodes=%d, want 44", stats.Nodes)
 	}
 }
 
-// kills 178:9 (tie move must not rewrite the root PV head), 182:26 x2,
-// 249:15, 249:21 (root/interior pvLen bookkeeping on the draw line), and
-// 248:8 x2 (the interior draw scores exactly 0).
 func TestMutKillTwoHoleDrawPins(t *testing.T) {
 	b := rules.NewCrossCheck()
 	for r := range config.CrossCheckSize {
@@ -232,7 +183,6 @@ func TestMutKillTwoHoleDrawPins(t *testing.T) {
 	}
 }
 
-// kills 162:17: the root filling draw leaves a length-1 PV.
 func TestMutKillFillingDrawPVLen(t *testing.T) {
 	b := rules.NewCrossCheck()
 	for r := range config.CrossCheckSize {
@@ -252,10 +202,6 @@ func TestMutKillFillingDrawPVLen(t *testing.T) {
 	}
 }
 
-// kills 159:12 (root win PV length is 1 even when the winning move is
-// ordered after the two open-four blocks). Decoy: red four E9..H9 with the
-// win at I9, blue open four F2..I2 whose block cells E2/J2 share the top
-// static, so the win lands at i=2 after two recursions.
 func TestMutKillDecoyRootWinPVLen(t *testing.T) {
 	b := rules.NewBoard()
 	place(t, b, rules.Red, "E9", "F9", "G9", "H9")
@@ -268,10 +214,6 @@ func TestMutKillDecoyRootWinPVLen(t *testing.T) {
 	}
 }
 
-// kills 216:14 (leaf one ply earlier misses the mate), 164:28 (shallower
-// mainline misses the mate at depth 3), 246:15, 246:16 x2, 246:21 (interior
-// win-case pvLen), 253:57, 255:51 (scout/re-search ply skew shifts mate
-// distance by one step), plus window mutants on the forced line.
 func TestMutKillMate2Depth3Pins(t *testing.T) {
 	e := New(0)
 	mv, stats := e.SearchDepth(mate2Board(t), NewFixedBudget(time.Second), 3)
@@ -281,33 +223,23 @@ func TestMutKillMate2Depth3Pins(t *testing.T) {
 	}
 }
 
-// kills 212:40 (extension flips to the mover's own fours) and 251:28
-// (mainline depth): depth 4 finds the 5-ply mate only through the
-// forced-defense extension, with exact node and PV pins.
 func TestMutKillMate3Depth4Pins(t *testing.T) {
 	e := New(0)
 	mv, stats := e.SearchDepth(mate3Board(t), NewFixedBudget(time.Second), 4)
 	want := config.EvalMateMax - 5*config.EvalMateScoreStep
-	if stats.Nodes != 2032 || mv != rules.Move(mustCell(t, "H9")) || stats.Score != want || !pvEquals(&stats, mustCell(t, "H9"), mustCell(t, "I9"), mustCell(t, "H10"), mustCell(t, "H11"), mustCell(t, "H6")) {
+	if stats.Nodes != 2034 || mv != rules.Move(mustCell(t, "H9")) || stats.Score != want || !pvEquals(&stats, mustCell(t, "H9"), mustCell(t, "I9"), mustCell(t, "H10"), mustCell(t, "H11"), mustCell(t, "H6")) {
 		t.Errorf("mate3 d4: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
 	}
 }
 
-// kills 198:20, 198:32, 198:35 x2: the node-check cadence decides exactly
-// which node observes the flipped deadline; every cadence splice moves the
-// stop node and the completed depth.
 func TestMutKillPollCadence(t *testing.T) {
 	e := New(0)
 	_, stats := e.SearchDepth(midgameBoard(t), &mutCountdownDL{calls: 5}, 5)
-	if stats.Nodes != 1669 || stats.Depth != 4 {
-		t.Errorf("countdown stop: nodes=%d depth=%d, want 1669 and 4", stats.Nodes, stats.Depth)
+	if stats.Nodes != 1753 || stats.Depth != 4 {
+		t.Errorf("countdown stop: nodes=%d depth=%d, want 1753 and 4", stats.Nodes, stats.Depth)
 	}
 }
 
-// kills 228:6, 228:8, 228:11 (0 -> 1): the boundary move value 0 (cell A1)
-// must still be adopted as the TT move. Blue B1..D1 make A1 a live
-// candidate; seeding move 0 at the G7 child reorders that child and changes
-// the exact node count.
 func TestMutKillTTMoveZeroAdopted(t *testing.T) {
 	b := rules.NewBoard()
 	place(t, b, rules.Red, "H8", "I9", "C3")
@@ -319,13 +251,11 @@ func TestMutKillTTMoveZeroAdopted(t *testing.T) {
 	b.Unmake()
 	e.tt.store(h, 0, 0, 0, ttBoundLower, 1)
 	_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 3)
-	if stats.Nodes != 218 {
-		t.Errorf("seeded A1 ttm: nodes=%d, want 218", stats.Nodes)
+	if stats.Nodes != 217 {
+		t.Errorf("seeded A1 ttm: nodes=%d, want 217", stats.Nodes)
 	}
 }
 
-// kills 216:23: negamax at ply SearchMaxPly must return the leaf eval
-// before touching the ply-indexed move stack, which has no row 64.
 func TestMutKillMaxPlyLeafGuard(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
@@ -337,8 +267,6 @@ func TestMutKillMaxPlyLeafGuard(t *testing.T) {
 	}
 }
 
-// kills 186:58 x2: the root store passes ply 0, so probing the root entry
-// at ply 0 decodes back to exactly the reported root score.
 func TestMutKillRootStorePlyDecodes(t *testing.T) {
 	b := mate1Board(t)
 	e := New(testTTBytes)
@@ -349,11 +277,6 @@ func TestMutKillRootStorePlyDecodes(t *testing.T) {
 	}
 }
 
-// kills 167:7, 167:9, 167:17, 167:29 (alpha-boundary scout) and 167:22
-// (beta-boundary scout): both root moves decode to exactly -M (C1) or the
-// second to exactly +M (C2) through seeded entries, so the re-search guard
-// is exercised on both boundaries; any splice that fires the re-search adds
-// a third node.
 func TestMutKillRootPVSWindowCraft(t *testing.T) {
 	m := config.EvalMateMax
 	step := config.EvalMateScoreStep
@@ -379,10 +302,6 @@ func TestMutKillRootPVSWindowCraft(t *testing.T) {
 	}
 }
 
-// kills 147:26 (1 -> 0) and 148:10, 148:15 x2: every iteration scores both
-// root moves exactly -M, which never beats alpha, so the move-0 sentinel
-// must still record the best move and the pvLen[0] reset must hold through
-// the last iteration's snapshot.
 func TestMutKillRootSentinelCraft(t *testing.T) {
 	m := config.EvalMateMax
 	fb := floodBoard(t, "E5", "F5")
@@ -398,9 +317,6 @@ func TestMutKillRootSentinelCraft(t *testing.T) {
 	}
 }
 
-// kills 234:41 and 234:43 (1 -> 0): the single interior candidate decodes
-// to exactly -M, one below the fail-soft sentinel, so best/bestMove must
-// still update and the stored best move must be the candidate.
 func TestMutKillInteriorSentinelCraft(t *testing.T) {
 	m := config.EvalMateMax
 	fb := floodBoard(t, "E5", "F5")
@@ -414,9 +330,6 @@ func TestMutKillInteriorSentinelCraft(t *testing.T) {
 	}
 }
 
-// checkerBoard fills the board with alternating colors except a free 3x3
-// block: no two adjacent stones share a color anywhere, so no move can ever
-// complete a five and every subtree is a pure eval walk.
 func mutCheckerBoard(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -433,10 +346,6 @@ func mutCheckerBoard(t *testing.T) *rules.Board {
 	return b
 }
 
-// kills 212:13, 212:15 x2, 212:45: the extension must fire exactly when
-// extLeft is positive. Blue to move against red's four (fours[red] = 5),
-// where the forced restriction leaves only the forced answers: extLeft 0
-// stays a depth-1 node (2 nodes), extLeft 1 extends to depth 2 (76 nodes).
 func TestMutKillExtensionBudget(t *testing.T) {
 	b := mate1Board(t)
 	b.Side = rules.Blue
@@ -449,16 +358,11 @@ func TestMutKillExtensionBudget(t *testing.T) {
 	e = New(0)
 	e.resetForSearch(b)
 	e.negamax(b, 1, -config.EvalMateMax, config.EvalMateMax, 1, 1, NewFixedBudget(time.Second))
-	if e.nodes != 76 {
-		t.Errorf("extLeft=1: nodes=%d, want 76 (extension fires)", e.nodes)
+	if e.nodes != 82 {
+		t.Errorf("extLeft=1: nodes=%d, want 82 (extension fires)", e.nodes)
 	}
 }
 
-// kills 284:10, 286:17: a fail-high exactly at beta stores a lower bound
-// and a fail-low exactly at the original alpha stores an upper bound; the
-// discriminating probe windows cutoff only under the exact bound the
-// spliced condition would produce. The single candidate E5 is seeded to
-// return -7000, so the node's best is exactly 7000.
 func TestMutKillBoundClassification(t *testing.T) {
 	fb := floodBoard(t, "E5", "F5")
 	e := New(testTTBytes)
@@ -489,13 +393,6 @@ func TestMutKillBoundClassification(t *testing.T) {
 	}
 }
 
-// kills 166:41 and 253:41: the scout window is exactly [-(alpha+1), -alpha].
-// The first root move (H7 on this board) is seeded to return 1, so alpha is
-// -1 and the second move's true value 0 sits exactly on the window edge:
-// the clean scout stores an upper bound at the child, making its own
-// full-window re-search traverse everything, while the widened scout stores
-// an exact bound whose re-search probe cuts off immediately. The ply-2
-// variant drives the interior scout through a direct negamax call.
 func TestMutKillScoutWindowBoundary(t *testing.T) {
 	cb := mutCheckerBoard(t)
 	e := New(testTTBytes)
@@ -510,16 +407,11 @@ func TestMutKillScoutWindowBoundary(t *testing.T) {
 	e.beginSearch(cb)
 	seedChildTT(t, e, cb, mustCell(t, "H7"), 1, 2)
 	rv := e.negamax(cb, 3, -config.EvalMateMax, config.EvalMateMax, 1, config.SearchExtensionMaxPly, NewFixedBudget(time.Second))
-	// 1109 under the forced-four restriction (was 1181 on unrestricted
-	// candidates): the value is pinned by rv=0, only the count moved.
 	if e.nodes != 1109 || rv != 0 {
 		t.Errorf("interior scout craft: nodes=%d rv=%d, want 1109 0", e.nodes, rv)
 	}
 }
 
-// kills 159:12 (1 -> 0 and 1 -> 2): the root win case must clear the child
-// pv row before the improvement copy reads it, so a stale pvLen[1] left by
-// any earlier context cannot extend the winning line past length 1.
 func TestMutKillRootWinClearsChildRow(t *testing.T) {
 	b := mate1Board(t)
 	e := New(0)
@@ -536,9 +428,6 @@ func TestMutKillRootWinClearsChildRow(t *testing.T) {
 	}
 }
 
-// kills 246:16 (1 -> 2): inside a narrow mate window the interior win is an
-// improvement, not a cutoff, so the parent's pv copy reads the row the win
-// case must have cleared at ply+1.
 func TestMutKillInteriorWinClearsChildRow(t *testing.T) {
 	m := config.EvalMateMax
 	b := mate1Board(t)
@@ -556,20 +445,11 @@ func TestMutKillInteriorWinClearsChildRow(t *testing.T) {
 	}
 }
 
-// relapseDL is a deadline whose Exceeded relapses: true on the first
-// consult, clear on the second, latched again from the third. The head
-// guard must exit the ladder on the first true consult; a continue would
-// fall into the cleared second consult and open an iteration anyway.
 type relapseDL struct{ calls int }
 
 func (d *relapseDL) Exceeded() bool { d.calls++; return d.calls == 1 || d.calls >= 3 }
 func (d *relapseDL) Stop()          {}
 
-// kills 133:4 (break -> continue): the clean break ends the ladder before
-// any iteration runs, so depth and nodes stay 0 and the answer is the
-// fallback. The continue reaches the cleared second consult, banks the
-// depth 2 iteration, and only the latched third consult ends the ladder,
-// exposing itself through a nonzero depth and node count.
 func TestMutKillHeadGuardExitsOnFirstExceeded(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
@@ -582,10 +462,6 @@ func TestMutKillHeadGuardExitsOnFirstExceeded(t *testing.T) {
 	}
 }
 
-// drawBoard is the cross-check region with A1 the only free cell: the
-// alternating coloring never gives either side five, so the single legal
-// move fills the board for a draw (the full main diagonal is an overline,
-// which wins nothing).
 func drawBoard(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewCrossCheck()
@@ -602,9 +478,6 @@ func drawBoard(t *testing.T) *rules.Board {
 	return b
 }
 
-// kills 196:12 (1 -> 0 and 1 -> 2): the root filling draw must clear the
-// child pv row before the improvement copy reads it, so a stale pvLen[1]
-// from earlier context cannot extend the drawn line past length 1.
 func TestMutKillRootDrawClearsChildRow(t *testing.T) {
 	b := drawBoard(t)
 	e := New(0)
@@ -621,9 +494,6 @@ func TestMutKillRootDrawClearsChildRow(t *testing.T) {
 	}
 }
 
-// kills 283:16 (1 -> 0 and 1 -> 2): the interior filling draw must clear
-// the ply+1 row before the improvement copy, the same leak one ply down.
-// The window (-1, 1) makes the draw an improvement without a cutoff.
 func TestMutKillInteriorDrawClearsChildRow(t *testing.T) {
 	b := drawBoard(t)
 	e := New(0)
@@ -640,10 +510,6 @@ func TestMutKillInteriorDrawClearsChildRow(t *testing.T) {
 	}
 }
 
-// consultDL counts Exceeded consults and answers a fixed verdict, turning
-// the number of head-guard evaluations after a refused head into the
-// observable: a break evaluates no later head, a continue one per
-// remaining depth.
 type consultDL struct {
 	exceeded bool
 	calls    int
@@ -653,11 +519,6 @@ func (d *consultDL) Exceeded() bool        { d.calls++; return d.exceeded }
 func (d *consultDL) Stop()                 {}
 func (d *consultDL) Budget() time.Duration { return time.Nanosecond }
 
-// kills 133:4 (break -> continue) alongside the relapse craft: with the
-// deadline exceeded before the first iteration, the clean break leaves the
-// single head-guard consult of depth 1, while the continue consults once
-// per depth through SearchMaxPly. No searchRoot runs on either build, so
-// no interior consult disturbs the count.
 func TestMutKillHeadGuardConsultCount(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
@@ -668,13 +529,6 @@ func TestMutKillHeadGuardConsultCount(t *testing.T) {
 	}
 }
 
-// kills 136:4 (break -> continue): the nanosecond grant refuses the depth
-// 2 head through the soft stop on every clock, and the break leaves the
-// two head-guard consults of depths 1 and 2. The continue re-enters the
-// head guard once per skipped depth through SearchMaxPly. The depth 1
-// search of this board sits far under the node check cadence, so no
-// interior consult disturbs the count, and the refused bodies never run,
-// so nodes and depth stay identical between the builds.
 func TestMutKillSoftStopBreakNotContinue(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)

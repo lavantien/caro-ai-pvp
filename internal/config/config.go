@@ -186,6 +186,18 @@ const (
 )
 const EvalTempo = 1000
 const (
+	EvalCleanWindowWeightSquare = 50
+	EvalCleanWindowWeightHex    = 0
+)
+
+func EvalCleanWindowWeight(variant string) int {
+	if variant == Variants[0].Name {
+		return EvalCleanWindowWeightSquare
+	}
+	return EvalCleanWindowWeightHex
+}
+
+const (
 	PatternWeightNone        = 0
 	PatternWeightOpenTwo     = 100
 	PatternWeightBrokenThree = 500

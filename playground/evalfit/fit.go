@@ -37,6 +37,7 @@ func defaultGDOptions() gdOptions {
 
 type fitCell struct {
 	F    [5]float64
+	Term float64
 	N    float64
 	YSum float64
 }
@@ -44,6 +45,11 @@ type fitCell struct {
 type fitData struct {
 	Cells []fitCell
 	Total float64
+}
+
+type cellKey struct {
+	F    [5]int32
+	Term int32
 }
 
 type fitResult struct {
@@ -56,18 +62,19 @@ type fitResult struct {
 }
 
 func aggregateFit(samples []sample) fitData {
-	index := make(map[[5]int32]int)
+	index := make(map[cellKey]int)
 	d := fitData{}
 	for _, s := range samples {
-		i, ok := index[s.F]
+		k := cellKey{F: s.F, Term: s.Term}
+		i, ok := index[k]
 		if !ok {
 			i = len(d.Cells)
-			index[s.F] = i
+			index[k] = i
 			var f [5]float64
 			for c, v := range s.F {
 				f[c] = float64(v)
 			}
-			d.Cells = append(d.Cells, fitCell{F: f})
+			d.Cells = append(d.Cells, fitCell{F: f, Term: float64(s.Term)})
 		}
 		d.Cells[i].N++
 		d.Cells[i].YSum += s.Y
@@ -103,7 +110,7 @@ func (d fitData) lossGrad(w [5]float64, s float64, wantGrad bool) (float64, [5]f
 	loss := 0.0
 	dLogS := 0.0
 	for _, c := range d.Cells {
-		dot := float64(config.EvalTempo)
+		dot := float64(config.EvalTempo) + c.Term
 		for j := range c.F {
 			dot += c.F[j] * w[j]
 		}
