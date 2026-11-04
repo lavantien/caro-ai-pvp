@@ -35,6 +35,34 @@ func cleanWindowCount(b *rules.Board, side rules.Color) int {
 	return n
 }
 
+func boxedThreeCount(b *rules.Board, side rules.Color) int {
+	n := 0
+	for d := range len(b.Geom.Dirs) {
+		for cell := range b.Geom.Cells {
+			idx := pattern.Index(b, rules.Cell(cell), d, side)
+			if pattern.Lookup(idx).Class != config.PatternClassThree {
+				continue
+			}
+			states := pattern.Unpack(idx)
+			engaged := false
+			for i, si := range states {
+				if si != config.PatternStateOwn {
+					continue
+				}
+				for j, sj := range states {
+					if sj == config.PatternStateOpp && j >= i-2 && j <= i+2 {
+						engaged = true
+					}
+				}
+			}
+			if engaged {
+				n++
+			}
+		}
+	}
+	return n
+}
+
 func flattenedDepth2Expectation(t *testing.T, b *rules.Board, st engine.SearchStats) int {
 	t.Helper()
 	if st.PVLen != 2 {
@@ -44,7 +72,8 @@ func flattenedDepth2Expectation(t *testing.T, b *rules.Board, st engine.SearchSt
 	leaf.Make(rules.Cell(st.PV[0]))
 	leaf.Make(rules.Cell(st.PV[1]))
 	delta := cleanWindowCount(&leaf, rules.Red) - cleanWindowCount(&leaf, rules.Blue)
-	return config.EvalTempo + config.EvalCleanWindowWeight(b.Geom.Name)*delta
+	boxed := boxedThreeCount(&leaf, rules.Red) - boxedThreeCount(&leaf, rules.Blue)
+	return config.EvalTempo + config.EvalCleanWindowWeight(b.Geom.Name)*delta - config.EvalBoxedCutThree(b.Geom.Name)*boxed
 }
 
 func searchDepthStats(t *testing.T, s searcher, b *rules.Board, depth int) engine.SearchStats {

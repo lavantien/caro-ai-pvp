@@ -233,6 +233,7 @@ func main() {
 		WInt:            wInt,
 		IntDrift:        intDrift,
 		CleanWeight:     config.EvalCleanWindowWeight(*geometryArg),
+		BoxedCutThree:   config.EvalBoxedCutThree(*geometryArg),
 		S:               res.S,
 		BestRestart:     res.Restart,
 		TrainLossGD:     res.Loss,

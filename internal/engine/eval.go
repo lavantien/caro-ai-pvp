@@ -11,10 +11,13 @@ var classPairs [config.PatternTableEntries]uint8
 
 var cleanBits [config.PatternTableEntries]uint8
 
+var boxedPairs [config.PatternTableEntries]uint8
+
 func init() {
 	for idx := range config.PatternTableEntries {
+		swapped := swapStates(uint32(idx))
 		red := pattern.Lookup(uint32(idx)).Class
-		blue := pattern.Lookup(swapStates(uint32(idx))).Class
+		blue := pattern.Lookup(swapped).Class
 		classPairs[idx] = red | blue<<3
 		var hasOwn, hasOpp bool
 		for _, s := range pattern.Unpack(uint32(idx)) {
@@ -33,7 +36,33 @@ func init() {
 			bits |= 2
 		}
 		cleanBits[idx] = bits
+		var bx uint8
+		if boxedEngaged(uint32(idx), red) {
+			bx |= 1
+		}
+		if boxedEngaged(swapped, blue) {
+			bx |= 2
+		}
+		boxedPairs[idx] = bx
 	}
+}
+
+func boxedEngaged(idx uint32, cls uint8) bool {
+	if cls != config.PatternClassThree {
+		return false
+	}
+	states := pattern.Unpack(idx)
+	for i, si := range states {
+		if si != config.PatternStateOwn {
+			continue
+		}
+		for j, sj := range states {
+			if sj == config.PatternStateOpp && j >= i-2 && j <= i+2 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 const cellStateMask = 1<<config.PatternCellBits - 1
@@ -44,11 +73,14 @@ type evaluator struct {
 	geom   *geom.Geometry
 	win    [config.PatternDirections][config.MaxBoardCells]uint32
 	wpair  [config.PatternDirections][config.MaxBoardCells]uint8
+	wboxed [config.PatternDirections][config.MaxBoardCells]uint8
 	score  [2]int
 	cell   [2][config.MaxBoardCells]int
 	fours  [2]int
 	clean  [2]int
 	cleanW int
+	boxedT [2]int
+	cutT   int
 	w      *[config.PatternClassCount]int
 }
 
@@ -66,15 +98,22 @@ func swapStates(idx uint32) uint32 {
 
 func (ev *evaluator) reset(b *rules.Board) {
 	w := ev.w
-	*ev = evaluator{w: w, geom: b.Geom, cleanW: config.EvalCleanWindowWeight(b.Geom.Name)}
+	*ev = evaluator{
+		w:      w,
+		geom:   b.Geom,
+		cleanW: config.EvalCleanWindowWeight(b.Geom.Name),
+		cutT:   config.EvalBoxedCutThree(b.Geom.Name),
+	}
 	g := b.Geom
 	cw := ev.weights()
 	for d := range g.Dirs {
 		for cell := range g.Cells {
 			red := pattern.Index(b, rules.Cell(cell), d, rules.Red)
 			pair := classPairs[red]
+			bx := boxedPairs[red]
 			ev.win[d][cell] = red
 			ev.wpair[d][cell] = pair
+			ev.wboxed[d][cell] = bx
 			ev.score[rules.Red] += int(cw[pair&7])
 			ev.score[rules.Blue] += int(cw[pair>>3])
 			ev.cell[rules.Red][cell] += int(cw[pair&7])
@@ -92,15 +131,35 @@ func (ev *evaluator) reset(b *rules.Board) {
 			if bits&2 != 0 {
 				ev.clean[rules.Blue]++
 			}
+			if bx&1 != 0 {
+				ev.boxedT[rules.Red]++
+			}
+			if bx&2 != 0 {
+				ev.boxedT[rules.Blue]++
+			}
 		}
 	}
 }
 
 func (ev *evaluator) eval(side rules.Color) int {
-	return ev.score[side] - ev.score[side^1] + config.EvalTempo + ev.cleanW*(ev.clean[side]-ev.clean[side^1])
+	return ev.score[side] - ev.score[side^1] + config.EvalTempo +
+		ev.cleanW*(ev.clean[side]-ev.clean[side^1]) -
+		ev.cutT*(ev.boxedT[side]-ev.boxedT[side^1])
 }
 
-func (ev *evaluator) applyWindow(center int, beforePair, afterPair uint8) {
+func (ev *evaluator) applyBoxed(side rules.Color, beforeCls, afterCls uint8, beforeOn, afterOn bool) {
+	beforeThree := beforeOn && beforeCls == config.PatternClassThree
+	afterThree := afterOn && afterCls == config.PatternClassThree
+	if afterThree != beforeThree {
+		if afterThree {
+			ev.boxedT[side]++
+		} else {
+			ev.boxedT[side]--
+		}
+	}
+}
+
+func (ev *evaluator) applyWindow(center int, beforePair, afterPair, beforeBoxed, afterBoxed uint8) {
 	cw := ev.weights()
 	redDelta := int(cw[afterPair&7]) - int(cw[beforePair&7])
 	blueDelta := int(cw[afterPair>>3]) - int(cw[beforePair>>3])
@@ -126,6 +185,8 @@ func (ev *evaluator) applyWindow(center int, beforePair, afterPair uint8) {
 			ev.fours[rules.Blue]--
 		}
 	}
+	ev.applyBoxed(rules.Red, beforePair&7, afterPair&7, beforeBoxed&1 != 0, afterBoxed&1 != 0)
+	ev.applyBoxed(rules.Blue, beforePair>>3, afterPair>>3, beforeBoxed&2 != 0, afterBoxed&2 != 0)
 }
 
 func (ev *evaluator) applyClean(before, after uint32) {
@@ -169,11 +230,14 @@ func (ev *evaluator) makeMove(color rules.Color, cell rules.Cell) {
 			}
 			before := ev.win[d][center]
 			beforePair := ev.wpair[d][center]
+			beforeBoxed := ev.wboxed[d][center]
 			after := before | state<<(uint(windowHalf-k)*config.PatternCellBits)
 			ev.win[d][center] = after
 			afterPair := classPairs[after]
+			afterBoxed := boxedPairs[after]
 			ev.wpair[d][center] = afterPair
-			ev.applyWindow(center, beforePair, afterPair)
+			ev.wboxed[d][center] = afterBoxed
+			ev.applyWindow(center, beforePair, afterPair, beforeBoxed, afterBoxed)
 			ev.applyClean(before, after)
 		}
 	}
@@ -195,11 +259,14 @@ func (ev *evaluator) unmakeMove(cell rules.Cell) {
 			}
 			after := ev.win[d][center]
 			afterPair := ev.wpair[d][center]
+			afterBoxed := ev.wboxed[d][center]
 			before := after &^ (cellStateMask << (uint(windowHalf-k) * config.PatternCellBits))
 			ev.win[d][center] = before
 			beforePair := classPairs[before]
+			beforeBoxed := boxedPairs[before]
 			ev.wpair[d][center] = beforePair
-			ev.applyWindow(center, afterPair, beforePair)
+			ev.wboxed[d][center] = beforeBoxed
+			ev.applyWindow(center, afterPair, beforePair, afterBoxed, beforeBoxed)
 			ev.applyClean(after, before)
 		}
 	}

@@ -146,7 +146,7 @@ func TestMutKillMidgameBarePins(t *testing.T) {
 	}
 	e = New(0)
 	mv, stats = e.SearchDepth(b, NewFixedBudget(time.Second), 3)
-	if stats.Nodes != 696 || mv != rules.Move(mustCell(t, "E3")) || stats.Score != 7700 || !pvEquals(&stats, mustCell(t, "E3"), mustCell(t, "F3"), mustCell(t, "G8")) {
+	if stats.Nodes != 697 || mv != rules.Move(mustCell(t, "E3")) || stats.Score != 7700 || !pvEquals(&stats, mustCell(t, "E3"), mustCell(t, "F3"), mustCell(t, "G8")) {
 		t.Errorf("mid d3: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
 	}
 }
@@ -235,7 +235,7 @@ func TestMutKillMate3Depth4Pins(t *testing.T) {
 func TestMutKillPollCadence(t *testing.T) {
 	e := New(0)
 	_, stats := e.SearchDepth(midgameBoard(t), &mutCountdownDL{calls: 5}, 5)
-	if stats.Nodes != 1753 || stats.Depth != 4 {
+	if stats.Nodes != 1714 || stats.Depth != 4 {
 		t.Errorf("countdown stop: nodes=%d depth=%d, want 1753 and 4", stats.Nodes, stats.Depth)
 	}
 }

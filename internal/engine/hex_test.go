@@ -46,7 +46,7 @@ func TestInterlockPerGeometry(t *testing.T) {
 			if config.SearchOrderKiller1 <= maxStatic+config.SearchHistoryMax {
 				t.Fatalf("%s killer1 %d not above max order %d", v.Name, config.SearchOrderKiller1, maxStatic+config.SearchHistoryMax)
 			}
-			maxTotal := (maxWeight + config.EvalCleanWindowWeight(v.Name)) * len(g.Dirs) * region
+			maxTotal := (maxWeight + config.EvalCleanWindowWeight(v.Name) + config.EvalBoxedCutThree(v.Name)) * len(g.Dirs) * region
 			if config.EvalMateMax <= maxTotal {
 				t.Fatalf("%s EvalMateMax %d not above max eval sum %d", v.Name, config.EvalMateMax, maxTotal)
 			}

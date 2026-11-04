@@ -72,7 +72,8 @@ func TestEvaluatorOverrideWeightsArithmetic(t *testing.T) {
 	var zero evaluator
 	zero.w = &[config.PatternClassCount]int{}
 	zero.reset(b)
-	zeroWant := config.EvalTempo + config.EvalCleanWindowWeight(b.Geom.Name)*(zero.clean[rules.Red]-zero.clean[rules.Blue])
+	zeroWant := config.EvalTempo + config.EvalCleanWindowWeight(b.Geom.Name)*(zero.clean[rules.Red]-zero.clean[rules.Blue]) -
+		config.EvalBoxedCutThree(b.Geom.Name)*(zero.boxedT[rules.Red]-zero.boxedT[rules.Blue])
 	if got := zero.eval(rules.Red); got != zeroWant {
 		t.Errorf("zero weights eval = %d, want the clean-only value %d", got, zeroWant)
 	}

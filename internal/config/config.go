@@ -188,6 +188,8 @@ const EvalTempo = 1000
 const (
 	EvalCleanWindowWeightSquare = 50
 	EvalCleanWindowWeightHex    = 0
+	EvalBoxedCutThreeSquare     = 850
+	EvalBoxedCutThreeHex        = 0
 )
 
 func EvalCleanWindowWeight(variant string) int {
@@ -195,6 +197,13 @@ func EvalCleanWindowWeight(variant string) int {
 		return EvalCleanWindowWeightSquare
 	}
 	return EvalCleanWindowWeightHex
+}
+
+func EvalBoxedCutThree(variant string) int {
+	if variant == Variants[0].Name {
+		return EvalBoxedCutThreeSquare
+	}
+	return EvalBoxedCutThreeHex
 }
 
 const (

@@ -27,6 +27,7 @@ func smallArtifact() artifactData {
 		WInt:            [5]int64{305, 512, 1180, 3901, 15100},
 		IntDrift:        0.4,
 		CleanWeight:     50,
+		BoxedCutThree:   850,
 		S:               4123.5,
 		BestRestart:     3,
 		TrainLossGD:     0.601234567,
@@ -211,6 +212,11 @@ func TestArtifactVerify(t *testing.T) {
 	wrongClean.CleanWeight = 0
 	if err := verifyArtifact(wrongClean, samples); err == nil {
 		t.Fatal("verify must fail when the clean window weight does not match the geometry constant")
+	}
+	wrongBoxed := a
+	wrongBoxed.BoxedCutThree = 0
+	if err := verifyArtifact(wrongBoxed, samples); err == nil {
+		t.Fatal("verify must fail when the boxed cut does not match the geometry constant")
 	}
 	wrongWeights := a
 	wrongWeights.WInt = [5]int64{200, 600, 1200, 4000, 12000}
