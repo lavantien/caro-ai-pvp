@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"math/rand/v2"
 	"runtime"
 	"strings"
 	"sync"
@@ -89,8 +90,55 @@ func TestSMPPonderWidthClampsToPoolAndFloor(t *testing.T) {
 	}
 }
 
+const (
+	quietEndgameSeed  = 30
+	quietEndgameMoves = 240
+)
+
+func quietEndgameBoard(t testing.TB) *rules.Board {
+	t.Helper()
+	b := rules.NewBoard()
+	rng := rand.New(rand.NewPCG(quietEndgameSeed, quietEndgameSeed*2+1))
+	var buf [config.BoardCells]rules.Move
+	for range quietEndgameMoves {
+		n := b.LegalMoves(buf[:])
+		if n == 0 {
+			break
+		}
+		placed := false
+		start := rng.IntN(n)
+		for k := range n {
+			cell := rules.Cell(buf[(start+k)%n])
+			b.Make(cell)
+			if b.FastLastMoveWin(b.Side^1, cell) {
+				b.Unmake()
+				continue
+			}
+			placed = true
+			break
+		}
+		if !placed {
+			break
+		}
+	}
+	var probeBuf [config.BoardCells]rules.Move
+	free := b.LegalMoves(probeBuf[:])
+	for _, m := range probeBuf[:free] {
+		cell := rules.Cell(m)
+		cur := b.Side
+		b.Make(cell)
+		won := b.FastLastMoveWin(cur, cell)
+		b.Unmake()
+		b.Side = cur
+		if won {
+			t.Fatalf("quiet endgame fixture: free cell %d completes a five for the mover", cell)
+		}
+	}
+	return b
+}
+
 func TestSearchRootRingMatchesIterations(t *testing.T) {
-	b := playout(t, 4242, 24)
+	b := quietEndgameBoard(t)
 	const maxIter = config.PonderDepthHistory + 2
 	var moves [maxIter]rules.Move
 	var scores [maxIter]int
@@ -119,7 +167,7 @@ func TestSearchRootRingMatchesIterations(t *testing.T) {
 }
 
 func TestEngineSearchRootRingMatchesIterations(t *testing.T) {
-	b := playout(t, 4242, 24)
+	b := quietEndgameBoard(t)
 	const maxIter = config.PonderDepthHistory + 2
 	var moves [maxIter]rules.Move
 	var scores [maxIter]int
@@ -147,7 +195,7 @@ func TestEngineSearchRootRingMatchesIterations(t *testing.T) {
 }
 
 func TestEngineRingMatchesSMPWidthOne(t *testing.T) {
-	b := playout(t, 4242, 24)
+	b := quietEndgameBoard(t)
 	const depth = config.PonderDepthHistory
 	e := New(testTTBytes)
 	engMv, engStats := e.SearchDepth(b, NewStoppable(), depth)

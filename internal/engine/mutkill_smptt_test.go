@@ -153,6 +153,8 @@ func TestSMPKillSoftStopBreakEndsLoop(t *testing.T) {
 
 const poisonChildScore = -(config.EvalMateMax - 2*config.EvalMateScoreStep)
 
+const killSetupNodeBudget = 50000
+
 func poisonWorker(b *rules.Board) *Engine {
 	tt := newTT(1 << 21)
 	bc := *b
@@ -211,7 +213,7 @@ func TestSMPKillSelectionTieBreaksByArrival(t *testing.T) {
 	s.workers[1] = poisonWorker(b)
 	for attempt := 1; ; attempt++ {
 		warmAndPark(t, s, b)
-		mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
+		mv, stats := s.Search(b, NewNodeBudget(killSetupNodeBudget))
 		r0, r1 := &s.results[0], &s.results[1]
 		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
 			if attempt < 5 {
@@ -241,7 +243,7 @@ func TestSMPKillArrivalCounterStrictlyIncreases(t *testing.T) {
 	s.workers[1].radius = 0
 	for attempt := 1; ; attempt++ {
 		warmAndPark(t, s, b)
-		mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
+		mv, stats := s.Search(b, NewNodeBudget(killSetupNodeBudget))
 		r0, r1 := &s.results[0], &s.results[1]
 		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
 			if attempt < 5 {
