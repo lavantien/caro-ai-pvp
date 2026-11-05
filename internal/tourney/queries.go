@@ -89,7 +89,7 @@ func (t *Store) SeriesAll(ctx context.Context, runID int64) ([]Series, error) {
 		rows, err := tx.QueryContext(ctx, `
 		SELECT id, pairing_slot, red_first_slot, blue_first_slot, winner_slot,
 			red_first_wins, blue_first_wins, created_at, finished_at
-		FROM tournament_series WHERE run_id = ? ORDER BY created_at DESC, id DESC`, runID)
+		FROM tournament_series WHERE run_id = ? ORDER BY created_at DESC, pairing_slot`, runID)
 		if err != nil {
 			return err
 		}
