@@ -16,6 +16,27 @@ const (
 )
 
 const (
+	gmPassThresholdEasy   = 0.90
+	gmPassThresholdMedium = 0.80
+	gmPassThresholdHard   = 0.75
+	gmPassThresholdMaster = 2.0 / 3.0
+)
+
+var passRungs = map[string]map[string]float64{
+	"master": {
+		"easy":   passThresholdEasy,
+		"medium": passThresholdMedium,
+		"hard":   passThresholdHard,
+	},
+	"grandmaster": {
+		"master": gmPassThresholdMaster,
+		"hard":   gmPassThresholdHard,
+		"medium": gmPassThresholdMedium,
+		"easy":   gmPassThresholdEasy,
+	},
+}
+
+const (
 	passDecided = iota
 	failDecided
 	passUndecided
@@ -40,16 +61,16 @@ func gateWinner(side rules.Color, drawn bool) string {
 	return winnerBlue
 }
 
-func passThreshold(opp string) (float64, error) {
-	switch opp {
-	case "easy":
-		return passThresholdEasy, nil
-	case "medium":
-		return passThresholdMedium, nil
-	case "hard":
-		return passThresholdHard, nil
+func passThreshold(subject, opp string) (float64, error) {
+	rungs, ok := passRungs[subject]
+	if !ok {
+		return 0, fmt.Errorf("passgate subject %q is outside master, grandmaster", subject)
 	}
-	return 0, fmt.Errorf("passgate opponent %q is outside easy, medium, hard", opp)
+	threshold, ok := rungs[opp]
+	if !ok {
+		return 0, fmt.Errorf("passgate opponent %q is not a rung of subject %q", opp, subject)
+	}
+	return threshold, nil
 }
 
 func decidePass(winsDraws, games int, threshold, z float64) (float64, float64, float64, int) {
@@ -76,14 +97,17 @@ func passBlockAction(block, maxBlocks, state int) (bool, string) {
 	return false, "extend: needed, run another block"
 }
 
-func runHexPassGate(w io.Writer, env gameEnv, tcIdx, games int, opp string, fixedMs int64, maxBlocks int, z float64) error {
-	threshold, err := passThreshold(opp)
+func runHexPassGate(w io.Writer, env gameEnv, tcIdx, games int, subject, opp string, fixedMs int64, maxBlocks int, z float64) error {
+	threshold, err := passThreshold(subject, opp)
 	if err != nil {
 		return err
 	}
 	tc, err := gateTC(tcIdx)
 	if err != nil {
 		return err
+	}
+	if _, ok := seats[subject]; !ok {
+		return fmt.Errorf("passgate subject %q is not a known seat", subject)
 	}
 	if _, ok := seats[opp]; !ok {
 		return fmt.Errorf("passgate opponent %q is not a known seat", opp)
@@ -94,17 +118,17 @@ func runHexPassGate(w io.Writer, env gameEnv, tcIdx, games int, opp string, fixe
 	if maxBlocks < 1 {
 		return fmt.Errorf("passgate needs gateMaxBlocks >= 1, got %d", maxBlocks)
 	}
-	master := &tally{name: "master"}
+	subjectTally := &tally{name: subject}
 	challenger := &tally{name: opp}
-	results := map[string]*tally{master.name: master, challenger.name: challenger}
-	fmt.Fprintf(w, "passgate master vs %s tc %d+%d games %d blocks %d geometry %s\n", opp, tc.InitialMin, tc.IncrementSec, games, maxBlocks, env.variant)
+	results := map[string]*tally{subjectTally.name: subjectTally, challenger.name: challenger}
+	fmt.Fprintf(w, "passgate %s vs %s tc %d+%d games %d blocks %d geometry %s\n", subject, opp, tc.InitialMin, tc.IncrementSec, games, maxBlocks, env.variant)
 	total := 0
 	for block := 1; block <= maxBlocks; block++ {
 		for g := 0; g < games; g++ {
 			total++
-			red, blue := challenger, master
+			red, blue := challenger, subjectTally
 			if total%2 == 1 {
-				red, blue = master, challenger
+				red, blue = subjectTally, challenger
 			}
 			fmt.Fprintf(w, "game %d: %s (red) vs %s (blue)\n", total, red.name, blue.name)
 			side, drawn, moves := play(env, red, blue, tcIdx, total, fixedMs)
@@ -112,7 +136,7 @@ func runHexPassGate(w io.Writer, env gameEnv, tcIdx, games int, opp string, fixe
 			record(results, red.name, blue.name, winnerSeat, moves)
 			fmt.Fprintln(w, gameLine(total, red.name, blue.name, winnerSeat, moves))
 		}
-		wd, lb, ub, state := decidePass(master.wins+master.draws, total, threshold, z)
+		wd, lb, ub, state := decidePass(subjectTally.wins+subjectTally.draws, total, threshold, z)
 		fmt.Fprintf(w, "extend: block %d/%d n=%d wd=%.3f lb=%.3f ub=%.3f\n", block, maxBlocks, total, wd, lb, ub)
 		stop, note := passBlockAction(block, maxBlocks, state)
 		if note != "" {

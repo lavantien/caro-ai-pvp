@@ -83,15 +83,36 @@ func TestPairLogGeometryMismatchRefused(t *testing.T) {
 }
 
 func TestPassThreshold(t *testing.T) {
-	cases := map[string]float64{"easy": 0.90, "medium": 0.75, "hard": 0.60}
-	for opp, want := range cases {
-		got, err := passThreshold(opp)
-		if err != nil || got != want {
-			t.Fatalf("passThreshold(%q) = %v, %v, want %v", opp, got, err, want)
+	cases := []struct {
+		subject, opp string
+		want         float64
+	}{
+		{"master", "easy", 0.90},
+		{"master", "medium", 0.75},
+		{"master", "hard", 0.60},
+		{"grandmaster", "master", 2.0 / 3.0},
+		{"grandmaster", "hard", 0.75},
+		{"grandmaster", "medium", 0.80},
+		{"grandmaster", "easy", 0.90},
+	}
+	for _, c := range cases {
+		got, err := passThreshold(c.subject, c.opp)
+		if err != nil || got != c.want {
+			t.Fatalf("passThreshold(%q, %q) = %v, %v, want %v", c.subject, c.opp, got, err, c.want)
 		}
 	}
-	if _, err := passThreshold("grandmaster"); err == nil {
-		t.Fatal("grandmaster accepted as passgate opponent")
+	bad := []struct{ subject, opp string }{
+		{"master", "grandmaster"},
+		{"master", "master"},
+		{"grandmaster", "grandmaster"},
+		{"hard", "easy"},
+		{"master-nobook", "easy"},
+		{"", "easy"},
+	}
+	for _, c := range bad {
+		if _, err := passThreshold(c.subject, c.opp); err == nil {
+			t.Fatalf("passThreshold(%q, %q) accepted", c.subject, c.opp)
+		}
 	}
 }
 
@@ -113,6 +134,9 @@ func TestPassVerdictLine(t *testing.T) {
 	}
 	if got := passVerdictLine("square", 0.483, 0.357, 0.610, 0.60, "hard", 1, 60, true); got != "square-passgates: FAILED opp=hard tc=1 wd=0.483 threshold=0.600 n=60 lb=0.357 ub=0.610 cap=true" {
 		t.Fatalf("square verdict %q", got)
+	}
+	if got := passVerdictLine("square", 0.60, 0.55, 0.68, 2.0/3.0, "master", 2, 20, false); got != "square-passgates: FAILED opp=master tc=2 wd=0.600 threshold=0.667 n=20 lb=0.550 ub=0.680 cap=false" {
+		t.Fatalf("grandmaster master-rung verdict %q", got)
 	}
 }
 

@@ -162,7 +162,8 @@ func main() {
 	pairOut := flag.String("pairOut", "", "append-only resumable pair log path, requires exactly 2 seats, exclusive of floor mode")
 	geometryArg := flag.String("geometry", "square", "board geometry variant name")
 	floorVerdict := flag.String("floorVerdict", "", "floor mode verdict prefix: drive extension blocks to a covering interval or the block cap, then print one <prefix>: DONE or FAILED line")
-	passgateOpp := flag.String("passgate", "", "master pass gate opponent tier among easy, medium, hard: master versus it over both seats with block extension, exclusive of floor and pair modes")
+	passgateOpp := flag.String("passgate", "", "pass gate opponent tier among the subject rungs: the -passgateSeat subject versus it over both seats with block extension, exclusive of floor and pair modes")
+	passgateSeat := flag.String("passgateSeat", "master", "pass gate subject seat among master, grandmaster, rungs and thresholds come from the subject")
 	ladder := flag.Bool("ladder", false, "hex ladder inversion check: easy, medium, hard, master round-robin, exclusive of floor and pair modes")
 	gateZ := flag.Float64("gateZ", 1.96, "wald z multiplier for the pass gate interval")
 	gateMaxBlocks := flag.Int("gateMaxBlocks", 3, "max pass gate blocks of games before the point rule decides")
@@ -190,7 +191,7 @@ func main() {
 	}
 
 	if *passgateOpp != "" {
-		if err := runHexPassGate(os.Stdout, env, *tcIdx, *games, *passgateOpp, *fixedBudgetMs, *gateMaxBlocks, *gateZ); err != nil {
+		if err := runHexPassGate(os.Stdout, env, *tcIdx, *games, *passgateSeat, *passgateOpp, *fixedBudgetMs, *gateMaxBlocks, *gateZ); err != nil {
 			fmt.Fprintf(os.Stderr, "arena: %v\n", err)
 			os.Exit(1)
 		}
