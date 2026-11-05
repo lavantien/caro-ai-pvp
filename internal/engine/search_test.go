@@ -172,12 +172,14 @@ func TestPVStaysLegal(t *testing.T) {
 	}
 }
 
+const deepeningNodeBudget = 200000
+
 func TestIterativeDeepeningProgression(t *testing.T) {
 	b := midgameBoard(t)
 	var prevNodes uint64
 	for depth := 1; depth <= 5; depth++ {
 		e := New(testTTBytes)
-		_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), depth)
+		_, stats := e.SearchDepth(b, NewNodeBudget(deepeningNodeBudget), depth)
 		if stats.Depth != depth {
 			t.Errorf("depth %d: completed depth = %d", depth, stats.Depth)
 		}
