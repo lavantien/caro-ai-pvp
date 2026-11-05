@@ -68,3 +68,13 @@ func FuzzParseMemAvail(f *testing.F) {
 		}
 	})
 }
+
+func TestHostAvailMemReadsProc(t *testing.T) {
+	got, err := hostAvailMem()
+	if err != nil {
+		t.Fatalf("hostAvailMem: %v", err)
+	}
+	if got == 0 {
+		t.Fatal("hostAvailMem = 0 on a host with /proc/meminfo")
+	}
+}
