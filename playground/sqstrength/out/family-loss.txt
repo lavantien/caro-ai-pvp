@@ -1,0 +1,339 @@
+pos square-easy-tc2 g1 m4 pool=regate2-loss-master played=H6 rank=5/253 cutRanks=[5 5 5] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 E6 net=350 cutNets=[350 350 350]
+  top2 G6 net=350 cutNets=[350 350 350]
+  top3 G5 net=350 cutNets=[350 350 350]
+pos square-easy-tc2 g1 m6 pool=regate2-loss-master played=J8 rank=7/251 cutRanks=[37 37 63] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F8 net=0 cutNets=[-120 -180 -240]
+  top2 E7 net=0 cutNets=[0 0 0]
+  top3 I5 net=0 cutNets=[0 0 0]
+pos square-easy-tc2 g1 m8 pool=regate2-loss-master played=K5 rank=4/249 cutRanks=[3 3 2] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 G9 net=150 cutNets=[150 150 150]
+  top2 J6 net=-50 cutNets=[-50 -50 -50]
+  top3 J9 net=-250 cutNets=[-250 -250 -250]
+pos square-easy-tc2 g1 m10 pool=regate2-loss-master played=G8 rank=21/247 cutRanks=[18 16 17] meTwo(c,e,f)=0,0,0 oppTwo=4,0,0
+  top1 F10 net=0 cutNets=[0 0 0]
+  top2 E11 net=-700 cutNets=[-700 -700 -700]
+  top3 G10 net=-2400 cutNets=[-2400 -2400 -2400]
+pos square-easy-tc2 g1 m12 pool=regate2-loss-master played=F10 rank=1/245 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F10 net=450 cutNets=[450 450 450]
+  top2 J5 net=-19700 cutNets=[-19700 -19700 -19700]
+  top3 K7 net=-19750 cutNets=[-19750 -19750 -19750]
+pos square-easy-tc2 g1 m14 pool=regate2-loss-master played=G4 rank=27/243 cutRanks=[38 47 53] meTwo(c,e,f)=0,0,0 oppTwo=1,3,0
+  top1 F9 net=3350 cutNets=[3470 3530 3590]
+  top2 F7 net=3150 cutNets=[3270 3330 3390]
+  top3 F8 net=2800 cutNets=[2920 2980 3040]
+pos square-easy-tc2 g1 m16 pool=regate2-loss-master played=D2 rank=4/241 cutRanks=[4 4 4] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F9 net=1550 cutNets=[1550 1550 1550]
+  top2 F7 net=1350 cutNets=[1350 1350 1350]
+  top3 F8 net=1000 cutNets=[1000 1000 1000]
+pos square-easy-tc2 g9 m4 pool=regate2-loss-master played=H6 rank=5/253 cutRanks=[5 5 5] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 E6 net=350 cutNets=[350 350 350]
+  top2 G6 net=350 cutNets=[350 350 350]
+  top3 G5 net=350 cutNets=[350 350 350]
+pos square-easy-tc2 g9 m6 pool=regate2-loss-master played=J8 rank=7/251 cutRanks=[37 37 63] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F8 net=0 cutNets=[-120 -180 -240]
+  top2 E7 net=0 cutNets=[0 0 0]
+  top3 I5 net=0 cutNets=[0 0 0]
+pos square-easy-tc2 g9 m8 pool=regate2-loss-master played=K5 rank=4/249 cutRanks=[3 3 2] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 G9 net=150 cutNets=[150 150 150]
+  top2 J6 net=-50 cutNets=[-50 -50 -50]
+  top3 J9 net=-250 cutNets=[-250 -250 -250]
+pos square-easy-tc2 g9 m10 pool=regate2-loss-master played=G8 rank=21/247 cutRanks=[18 16 17] meTwo(c,e,f)=0,0,0 oppTwo=4,0,0
+  top1 F10 net=0 cutNets=[0 0 0]
+  top2 E11 net=-700 cutNets=[-700 -700 -700]
+  top3 G10 net=-2400 cutNets=[-2400 -2400 -2400]
+pos square-easy-tc2 g9 m12 pool=regate2-loss-master played=F10 rank=1/245 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F10 net=450 cutNets=[450 450 450]
+  top2 J5 net=-19700 cutNets=[-19700 -19700 -19700]
+  top3 K7 net=-19750 cutNets=[-19750 -19750 -19750]
+pos square-easy-tc2 g9 m14 pool=regate2-loss-master played=G4 rank=27/243 cutRanks=[38 47 53] meTwo(c,e,f)=0,0,0 oppTwo=1,3,0
+  top1 F9 net=3350 cutNets=[3470 3530 3590]
+  top2 F7 net=3150 cutNets=[3270 3330 3390]
+  top3 F8 net=2800 cutNets=[2920 2980 3040]
+pos square-easy-tc2 g9 m16 pool=regate2-loss-master played=D2 rank=4/241 cutRanks=[4 4 4] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F9 net=1550 cutNets=[1550 1550 1550]
+  top2 F7 net=1350 cutNets=[1350 1350 1350]
+  top3 F8 net=1000 cutNets=[1000 1000 1000]
+pos square-easy-tc2 g26 m4 pool=regate2-loss-easy played=H10 rank=2/253 cutRanks=[2 2 2] meTwo(c,e,f)=0,0,0 oppTwo=4,0,0
+  top1 H9 net=500 cutNets=[500 500 500]
+  top2 H10 net=500 cutNets=[500 500 500]
+  top3 H7 net=300 cutNets=[300 300 300]
+pos square-easy-tc2 g26 m6 pool=regate2-loss-easy played=G8 rank=4/251 cutRanks=[4 4 4] meTwo(c,e,f)=0,0,0 oppTwo=5,0,0
+  top1 J12 net=1900 cutNets=[1900 1900 1900]
+  top2 I11 net=1850 cutNets=[1850 1850 1850]
+  top3 K13 net=1800 cutNets=[1800 1800 1800]
+pos square-easy-tc2 g26 m8 pool=regate2-loss-easy played=I9 rank=7/249 cutRanks=[7 7 7] meTwo(c,e,f)=0,0,0 oppTwo=12,0,0
+  top1 G11 net=1800 cutNets=[1800 1800 1800]
+  top2 G10 net=1750 cutNets=[1750 1750 1750]
+  top3 G12 net=1650 cutNets=[1650 1650 1650]
+pos square-easy-tc2 g26 m10 pool=regate2-loss-easy played=H6 rank=5/247 cutRanks=[5 5 5] meTwo(c,e,f)=7,3,0 oppTwo=0,0,0
+  top1 G11 net=2450 cutNets=[2330 2270 2210]
+  top2 J8 net=0 cutNets=[-120 -180 -240]
+  top3 K7 net=-750 cutNets=[-870 -930 -990]
+pos square-easy-tc2 g26 m12 pool=regate2-loss-easy played=C11 rank=11/245 cutRanks=[12 12 12] meTwo(c,e,f)=1,3,0 oppTwo=0,0,0
+  top1 G11 net=2550 cutNets=[2430 2370 2310]
+  top2 J9 net=850 cutNets=[850 850 850]
+  top3 G10 net=600 cutNets=[480 420 360]
+pos square-easy-tc2 g26 m14 pool=regate2-loss-easy played=I10 rank=9/243 cutRanks=[9 9 9] meTwo(c,e,f)=0,0,0 oppTwo=11,0,0
+  top1 G11 net=3750 cutNets=[3750 3750 3750]
+  top2 G12 net=2450 cutNets=[2450 2450 2450]
+  top3 G10 net=2050 cutNets=[2050 2050 2050]
+pos square-easy-tc2 g26 m16 pool=regate2-loss-easy played=J11 rank=1/241 cutRanks=[1 1 1] meTwo(c,e,f)=11,0,0 oppTwo=0,0,0
+  top1 J11 net=3950 cutNets=[3950 3950 3950]
+  top2 I11 net=2500 cutNets=[2500 2500 2500]
+  top3 J12 net=450 cutNets=[450 450 450]
+pos square-easy-tc2 g31 m4 pool=regate2-loss-master played=H6 rank=5/253 cutRanks=[5 5 5] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 E6 net=350 cutNets=[350 350 350]
+  top2 G6 net=350 cutNets=[350 350 350]
+  top3 G5 net=350 cutNets=[350 350 350]
+pos square-easy-tc2 g31 m6 pool=regate2-loss-master played=J8 rank=7/251 cutRanks=[37 37 63] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F8 net=0 cutNets=[-120 -180 -240]
+  top2 E7 net=0 cutNets=[0 0 0]
+  top3 I5 net=0 cutNets=[0 0 0]
+pos square-easy-tc2 g31 m8 pool=regate2-loss-master played=K5 rank=4/249 cutRanks=[3 3 2] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 G9 net=150 cutNets=[150 150 150]
+  top2 J6 net=-50 cutNets=[-50 -50 -50]
+  top3 J9 net=-250 cutNets=[-250 -250 -250]
+pos square-easy-tc2 g31 m10 pool=regate2-loss-master played=G8 rank=21/247 cutRanks=[18 16 17] meTwo(c,e,f)=0,0,0 oppTwo=4,0,0
+  top1 F10 net=0 cutNets=[0 0 0]
+  top2 E11 net=-700 cutNets=[-700 -700 -700]
+  top3 G10 net=-2400 cutNets=[-2400 -2400 -2400]
+pos square-easy-tc2 g31 m12 pool=regate2-loss-master played=F10 rank=1/245 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F10 net=450 cutNets=[450 450 450]
+  top2 J5 net=-19700 cutNets=[-19700 -19700 -19700]
+  top3 K7 net=-19750 cutNets=[-19750 -19750 -19750]
+pos square-easy-tc2 g31 m14 pool=regate2-loss-master played=G4 rank=27/243 cutRanks=[38 47 53] meTwo(c,e,f)=0,0,0 oppTwo=1,3,0
+  top1 F9 net=3350 cutNets=[3470 3530 3590]
+  top2 F7 net=3150 cutNets=[3270 3330 3390]
+  top3 F8 net=2800 cutNets=[2920 2980 3040]
+pos square-easy-tc2 g31 m16 pool=regate2-loss-master played=D2 rank=4/241 cutRanks=[4 4 4] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F9 net=1550 cutNets=[1550 1550 1550]
+  top2 F7 net=1350 cutNets=[1350 1350 1350]
+  top3 F8 net=1000 cutNets=[1000 1000 1000]
+pos square-easy-tc2 g43 m4 pool=regate2-loss-master played=H6 rank=5/253 cutRanks=[5 5 5] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 E6 net=350 cutNets=[350 350 350]
+  top2 G6 net=350 cutNets=[350 350 350]
+  top3 G5 net=350 cutNets=[350 350 350]
+pos square-easy-tc2 g43 m6 pool=regate2-loss-master played=J8 rank=7/251 cutRanks=[37 37 63] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F8 net=0 cutNets=[-120 -180 -240]
+  top2 E7 net=0 cutNets=[0 0 0]
+  top3 I5 net=0 cutNets=[0 0 0]
+pos square-easy-tc2 g43 m8 pool=regate2-loss-master played=K5 rank=4/249 cutRanks=[3 3 2] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 G9 net=150 cutNets=[150 150 150]
+  top2 J6 net=-50 cutNets=[-50 -50 -50]
+  top3 J9 net=-250 cutNets=[-250 -250 -250]
+pos square-easy-tc2 g43 m10 pool=regate2-loss-master played=G8 rank=21/247 cutRanks=[18 16 17] meTwo(c,e,f)=0,0,0 oppTwo=4,0,0
+  top1 F10 net=0 cutNets=[0 0 0]
+  top2 E11 net=-700 cutNets=[-700 -700 -700]
+  top3 G10 net=-2400 cutNets=[-2400 -2400 -2400]
+pos square-easy-tc2 g43 m12 pool=regate2-loss-master played=F10 rank=1/245 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F10 net=450 cutNets=[450 450 450]
+  top2 J5 net=-19700 cutNets=[-19700 -19700 -19700]
+  top3 K7 net=-19750 cutNets=[-19750 -19750 -19750]
+pos square-easy-tc2 g43 m14 pool=regate2-loss-master played=E4 rank=6/243 cutRanks=[6 7 6] meTwo(c,e,f)=0,0,0 oppTwo=5,0,0
+  top1 F9 net=3250 cutNets=[3250 3250 3250]
+  top2 F7 net=3050 cutNets=[3050 3050 3050]
+  top3 F8 net=2700 cutNets=[2700 2700 2700]
+pos square-easy-tc2 g43 m16 pool=regate2-loss-master played=C5 rank=12/241 cutRanks=[12 12 12] meTwo(c,e,f)=0,0,0 oppTwo=5,0,0
+  top1 F9 net=4150 cutNets=[4150 4150 4150]
+  top2 F7 net=3950 cutNets=[3950 3950 3950]
+  top3 F8 net=3600 cutNets=[3600 3600 3600]
+pos square-easy-tc2 g57 m4 pool=regate2-loss-master played=H6 rank=5/253 cutRanks=[5 5 5] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 E6 net=350 cutNets=[350 350 350]
+  top2 G6 net=350 cutNets=[350 350 350]
+  top3 G5 net=350 cutNets=[350 350 350]
+pos square-easy-tc2 g57 m6 pool=regate2-loss-master played=J8 rank=7/251 cutRanks=[37 37 63] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F8 net=0 cutNets=[-120 -180 -240]
+  top2 E7 net=0 cutNets=[0 0 0]
+  top3 I5 net=0 cutNets=[0 0 0]
+pos square-easy-tc2 g57 m8 pool=regate2-loss-master played=K5 rank=4/249 cutRanks=[3 3 2] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 G9 net=150 cutNets=[150 150 150]
+  top2 J6 net=-50 cutNets=[-50 -50 -50]
+  top3 J9 net=-250 cutNets=[-250 -250 -250]
+pos square-easy-tc2 g57 m10 pool=regate2-loss-master played=G8 rank=21/247 cutRanks=[18 16 17] meTwo(c,e,f)=0,0,0 oppTwo=4,0,0
+  top1 F10 net=0 cutNets=[0 0 0]
+  top2 E11 net=-700 cutNets=[-700 -700 -700]
+  top3 G10 net=-2400 cutNets=[-2400 -2400 -2400]
+pos square-easy-tc2 g57 m12 pool=regate2-loss-master played=F10 rank=1/245 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F10 net=450 cutNets=[450 450 450]
+  top2 J5 net=-19700 cutNets=[-19700 -19700 -19700]
+  top3 K7 net=-19750 cutNets=[-19750 -19750 -19750]
+pos square-easy-tc2 g57 m14 pool=regate2-loss-master played=G4 rank=27/243 cutRanks=[38 47 53] meTwo(c,e,f)=0,0,0 oppTwo=1,3,0
+  top1 F9 net=3350 cutNets=[3470 3530 3590]
+  top2 F7 net=3150 cutNets=[3270 3330 3390]
+  top3 F8 net=2800 cutNets=[2920 2980 3040]
+pos square-easy-tc2 g57 m16 pool=regate2-loss-master played=D2 rank=4/241 cutRanks=[4 4 4] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 F9 net=1550 cutNets=[1550 1550 1550]
+  top2 F7 net=1350 cutNets=[1350 1350 1350]
+  top3 F8 net=1000 cutNets=[1000 1000 1000]
+pos square-medium-tc2 g1 m4 pool=regate2-loss-master played=F8 rank=12/253 cutRanks=[12 12 12] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 I9 net=200 cutNets=[200 200 200]
+  top2 I10 net=200 cutNets=[200 200 200]
+  top3 I11 net=200 cutNets=[200 200 200]
+pos square-medium-tc2 g1 m6 pool=regate2-loss-master played=L11 rank=8/251 cutRanks=[7 8 7] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 E7 net=1650 cutNets=[1650 1650 1650]
+  top2 D6 net=1550 cutNets=[1550 1550 1550]
+  top3 G9 net=1500 cutNets=[1500 1500 1500]
+pos square-medium-tc2 g1 m8 pool=regate2-loss-master played=K11 rank=7/249 cutRanks=[7 7 7] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 H11 net=150 cutNets=[30 -30 -90]
+  top2 E7 net=-650 cutNets=[-650 -650 -650]
+  top3 F11 net=-650 cutNets=[-650 -650 -650]
+pos square-medium-tc2 g1 m10 pool=regate2-loss-master played=H11 rank=1/247 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=1,0,0
+  top1 H11 net=100 cutNets=[-20 -80 -140]
+  top2 E11 net=-7750 cutNets=[-7750 -7750 -7750]
+  top3 E7 net=-18000 cutNets=[-18000 -18000 -18000]
+pos square-medium-tc2 g1 m12 pool=regate2-loss-master played=I12 rank=9/245 cutRanks=[8 8 8] meTwo(c,e,f)=0,0,0 oppTwo=10,0,0
+  top1 E7 net=1950 cutNets=[1950 1950 1950]
+  top2 D6 net=1850 cutNets=[1850 1850 1850]
+  top3 G9 net=1800 cutNets=[1800 1800 1800]
+pos square-medium-tc2 g1 m14 pool=regate2-loss-master played=I14 rank=6/243 cutRanks=[6 6 6] meTwo(c,e,f)=6,0,0 oppTwo=6,0,0
+  top1 G10 net=1000 cutNets=[1000 1000 1000]
+  top2 J13 net=200 cutNets=[200 200 200]
+  top3 F9 net=-850 cutNets=[-970 -1030 -1090]
+pos square-medium-tc2 g1 m16 pool=regate2-loss-master played=J13 rank=1/241 cutRanks=[1 1 1] meTwo(c,e,f)=10,0,0 oppTwo=10,0,0
+  top1 J13 net=6800 cutNets=[6800 6800 6800]
+  top2 G10 net=2750 cutNets=[2750 2750 2750]
+  top3 K12 net=1250 cutNets=[1130 1070 1010]
+pos square-medium-tc2 g2 m4 pool=regate2-loss-medium played=K9 rank=81/253 cutRanks=[82 82 82] meTwo(c,e,f)=0,0,0 oppTwo=4,0,0
+  top1 F8 net=500 cutNets=[500 500 500]
+  top2 G8 net=500 cutNets=[500 500 500]
+  top3 I8 net=300 cutNets=[300 300 300]
+pos square-medium-tc2 g2 m6 pool=regate2-loss-medium played=I8 rank=2/251 cutRanks=[2 2 2] meTwo(c,e,f)=0,0,0 oppTwo=1,0,0
+  top1 F8 net=700 cutNets=[700 700 700]
+  top2 I8 net=-2000 cutNets=[-2000 -2000 -2000]
+  top3 D8 net=-2250 cutNets=[-2250 -2250 -2250]
+pos square-medium-tc2 g2 m8 pool=regate2-loss-medium played=D8 rank=1/249 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 D8 net=600 cutNets=[600 600 600]
+  top2 C8 net=-7500 cutNets=[-7500 -7500 -7500]
+  top3 J9 net=-17100 cutNets=[-17100 -17100 -17100]
+pos square-medium-tc2 g2 m10 pool=regate2-loss-medium played=F10 rank=9/247 cutRanks=[11 13 14] meTwo(c,e,f)=0,0,0 oppTwo=18,0,0
+  top1 J9 net=2450 cutNets=[2450 2450 2450]
+  top2 I9 net=2350 cutNets=[2350 2350 2350]
+  top3 H9 net=2250 cutNets=[2250 2250 2250]
+pos square-medium-tc2 g2 m12 pool=regate2-loss-medium played=E10 rank=2/245 cutRanks=[2 2 2] meTwo(c,e,f)=5,0,0 oppTwo=12,0,0
+  top1 E9 net=-150 cutNets=[-150 -150 -150]
+  top2 E10 net=-1150 cutNets=[-1150 -1150 -1150]
+  top3 C7 net=-1200 cutNets=[-1200 -1200 -1200]
+pos square-medium-tc2 g2 m14 pool=regate2-loss-medium played=H10 rank=1/243 cutRanks=[1 1 1] meTwo(c,e,f)=11,0,0 oppTwo=12,0,0
+  top1 H10 net=2050 cutNets=[2050 2050 2050]
+  top2 D10 net=-1000 cutNets=[-1000 -1000 -1000]
+  top3 G10 net=-1150 cutNets=[-1150 -1150 -1150]
+pos square-medium-tc2 g2 m16 pool=regate2-loss-medium played=D7 rank=4/241 cutRanks=[4 4 4] meTwo(c,e,f)=5,0,0 oppTwo=6,0,0
+  top1 E9 net=-3800 cutNets=[-3800 -3800 -3800]
+  top2 G11 net=-4250 cutNets=[-4250 -4250 -4250]
+  top3 C7 net=-4450 cutNets=[-4450 -4450 -4450]
+pos square-medium-tc2 g3 m4 pool=regate2-loss-master played=J9 rank=6/253 cutRanks=[6 6 6] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 I7 net=200 cutNets=[200 200 200]
+  top2 K9 net=200 cutNets=[200 200 200]
+  top3 K7 net=200 cutNets=[200 200 200]
+pos square-medium-tc2 g3 m6 pool=regate2-loss-master played=I9 rank=4/251 cutRanks=[4 4 4] meTwo(c,e,f)=0,0,0 oppTwo=11,0,0
+  top1 J5 net=1450 cutNets=[1450 1450 1450]
+  top2 J6 net=1400 cutNets=[1400 1400 1400]
+  top3 J7 net=1350 cutNets=[1350 1350 1350]
+pos square-medium-tc2 g3 m8 pool=regate2-loss-master played=I11 rank=15/249 cutRanks=[14 14 14] meTwo(c,e,f)=6,0,0 oppTwo=18,0,0
+  top1 K7 net=5350 cutNets=[5470 5530 5590]
+  top2 H10 net=5350 cutNets=[5470 5530 5590]
+  top3 G11 net=4100 cutNets=[4100 4100 4100]
+pos square-medium-tc2 g3 m10 pool=regate2-loss-master played=K8 rank=7/247 cutRanks=[7 7 8] meTwo(c,e,f)=11,0,0 oppTwo=6,0,0
+  top1 K7 net=4050 cutNets=[4050 4050 4050]
+  top2 I10 net=1150 cutNets=[1150 1150 1150]
+  top3 H10 net=700 cutNets=[820 880 940]
+pos square-medium-tc2 g3 m12 pool=regate2-loss-master played=H10 rank=1/245 cutRanks=[1 1 1] meTwo(c,e,f)=7,3,0 oppTwo=0,0,0
+  top1 H10 net=2600 cutNets=[2480 2420 2360]
+  top2 K7 net=-2500 cutNets=[-2620 -2680 -2740]
+  top3 G11 net=-3100 cutNets=[-3340 -3460 -3580]
+pos square-medium-tc2 g3 m14 pool=regate2-loss-master played=M10 rank=9/243 cutRanks=[9 10 9] meTwo(c,e,f)=7,3,0 oppTwo=0,0,0
+  top1 G11 net=16100 cutNets=[15860 15740 15620]
+  top2 F12 net=16100 cutNets=[15980 15920 15860]
+  top3 G9 net=6600 cutNets=[6480 6420 6360]
+pos square-medium-tc2 g3 m16 pool=regate2-loss-master played=L8 rank=12/241 cutRanks=[9 9 9] meTwo(c,e,f)=6,3,0 oppTwo=6,0,0
+  top1 F12 net=17950 cutNets=[17830 17770 17710]
+  top2 G11 net=17950 cutNets=[17710 17590 17470]
+  top3 J7 net=7400 cutNets=[7280 7220 7160]
+pos square-medium-tc2 g9 m4 pool=regate2-loss-master played=H6 rank=12/253 cutRanks=[12 12 12] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 I7 net=200 cutNets=[200 200 200]
+  top2 K9 net=200 cutNets=[200 200 200]
+  top3 K7 net=200 cutNets=[200 200 200]
+pos square-medium-tc2 g9 m6 pool=regate2-loss-master played=H4 rank=53/251 cutRanks=[76 84 107] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 L10 net=1900 cutNets=[1900 1900 1900]
+  top2 K9 net=1850 cutNets=[1850 1850 1850]
+  top3 I7 net=1700 cutNets=[1700 1700 1700]
+pos square-medium-tc2 g9 m8 pool=regate2-loss-master played=I5 rank=4/249 cutRanks=[4 4 4] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 L10 net=1500 cutNets=[1500 1500 1500]
+  top2 K9 net=1450 cutNets=[1450 1450 1450]
+  top3 I7 net=1300 cutNets=[1300 1300 1300]
+pos square-medium-tc2 g9 m10 pool=regate2-loss-master played=J4 rank=2/247 cutRanks=[2 2 2] meTwo(c,e,f)=7,3,0 oppTwo=4,0,0
+  top1 G7 net=5950 cutNets=[5830 5770 5710]
+  top2 J4 net=5700 cutNets=[5580 5520 5460]
+  top3 F8 net=4650 cutNets=[4530 4470 4410]
+pos square-medium-tc2 g9 m12 pool=regate2-loss-master played=G3 rank=8/245 cutRanks=[8 7 7] meTwo(c,e,f)=6,3,0 oppTwo=15,0,0
+  top1 K3 net=18450 cutNets=[18370 18330 18290]
+  top2 L2 net=18350 cutNets=[18230 18170 18110]
+  top3 I4 net=7200 cutNets=[7080 7020 6960]
+pos square-medium-tc2 g9 m14 pool=regate2-loss-master played=I4 rank=5/243 cutRanks=[5 5 5] meTwo(c,e,f)=5,0,0 oppTwo=16,3,0
+  top1 L2 net=20150 cutNets=[20270 20330 20390]
+  top2 K3 net=20000 cutNets=[20160 20240 20320]
+  top3 F2 net=19650 cutNets=[19770 19830 19890]
+pos square-medium-tc2 g9 m16 pool=regate2-loss-master played=I3 rank=9/241 cutRanks=[9 9 9] meTwo(c,e,f)=6,0,0 oppTwo=21,0,0
+  top1 L4 net=20350 cutNets=[20470 20530 20590]
+  top2 K4 net=20200 cutNets=[20280 20320 20360]
+  top3 L2 net=20000 cutNets=[20000 20000 20000]
+pos square-medium-tc2 g27 m4 pool=regate2-loss-master played=H6 rank=12/253 cutRanks=[12 12 12] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 I7 net=200 cutNets=[200 200 200]
+  top2 K9 net=200 cutNets=[200 200 200]
+  top3 K7 net=200 cutNets=[200 200 200]
+pos square-medium-tc2 g27 m6 pool=regate2-loss-master played=K12 rank=14/251 cutRanks=[7 7 6] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 G5 net=1650 cutNets=[1650 1650 1650]
+  top2 F4 net=1550 cutNets=[1550 1550 1550]
+  top3 I7 net=1500 cutNets=[1500 1500 1500]
+pos square-medium-tc2 g27 m8 pool=regate2-loss-master played=K11 rank=7/249 cutRanks=[7 7 7] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 K8 net=150 cutNets=[30 -30 -90]
+  top2 G5 net=-650 cutNets=[-650 -650 -650]
+  top3 K6 net=-650 cutNets=[-650 -650 -650]
+pos square-medium-tc2 g27 m10 pool=regate2-loss-master played=K8 rank=1/247 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=1,0,0
+  top1 K8 net=100 cutNets=[-20 -80 -140]
+  top2 K5 net=-7750 cutNets=[-7750 -7750 -7750]
+  top3 G5 net=-18000 cutNets=[-18000 -18000 -18000]
+pos square-medium-tc2 g27 m12 pool=regate2-loss-master played=N9 rank=14/245 cutRanks=[16 15 16] meTwo(c,e,f)=0,0,0 oppTwo=10,0,0
+  top1 G5 net=1950 cutNets=[1950 1950 1950]
+  top2 F4 net=1850 cutNets=[1850 1850 1850]
+  top3 I7 net=1800 cutNets=[1800 1800 1800]
+pos square-medium-tc2 g27 m14 pool=regate2-loss-master played=L11 rank=1/243 cutRanks=[1 1 1] meTwo(c,e,f)=4,0,0 oppTwo=11,0,0
+  top1 L11 net=3050 cutNets=[3050 3050 3050]
+  top2 M10 net=2800 cutNets=[2800 2800 2800]
+  top3 J5 net=150 cutNets=[150 150 150]
+pos square-medium-tc2 g27 m16 pool=regate2-loss-master played=M7 rank=19/241 cutRanks=[19 19 18] meTwo(c,e,f)=6,0,0 oppTwo=21,0,0
+  top1 J11 net=3800 cutNets=[3800 3800 3800]
+  top2 M11 net=3050 cutNets=[3050 3050 3050]
+  top3 I11 net=1950 cutNets=[1950 1950 1950]
+pos square-medium-tc2 g47 m4 pool=regate2-loss-master played=F8 rank=12/253 cutRanks=[12 12 12] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 I9 net=200 cutNets=[200 200 200]
+  top2 I10 net=200 cutNets=[200 200 200]
+  top3 I11 net=200 cutNets=[200 200 200]
+pos square-medium-tc2 g47 m6 pool=regate2-loss-master played=H11 rank=5/251 cutRanks=[6 6 8] meTwo(c,e,f)=0,0,0 oppTwo=6,0,0
+  top1 E7 net=1650 cutNets=[1650 1650 1650]
+  top2 D6 net=1550 cutNets=[1550 1550 1550]
+  top3 G9 net=1500 cutNets=[1500 1500 1500]
+pos square-medium-tc2 g47 m8 pool=regate2-loss-master played=I12 rank=4/249 cutRanks=[4 4 4] meTwo(c,e,f)=0,0,0 oppTwo=5,0,0
+  top1 E7 net=2050 cutNets=[2050 2050 2050]
+  top2 D6 net=1950 cutNets=[1950 1950 1950]
+  top3 G9 net=1900 cutNets=[1900 1900 1900]
+pos square-medium-tc2 g47 m10 pool=regate2-loss-master played=J10 rank=7/247 cutRanks=[7 7 7] meTwo(c,e,f)=0,0,0 oppTwo=10,0,0
+  top1 F9 net=2150 cutNets=[2150 2150 2150]
+  top2 G10 net=2100 cutNets=[2100 2100 2100]
+  top3 E8 net=2000 cutNets=[1880 1820 1760]
+pos square-medium-tc2 g47 m12 pool=regate2-loss-master played=I13 rank=27/245 cutRanks=[30 29 28] meTwo(c,e,f)=0,0,0 oppTwo=5,0,0
+  top1 G10 net=4650 cutNets=[4650 4650 4650]
+  top2 F10 net=2750 cutNets=[2750 2750 2750]
+  top3 F9 net=2700 cutNets=[2700 2700 2700]
+pos square-medium-tc2 g47 m14 pool=regate2-loss-master played=N7 rank=8/243 cutRanks=[8 9 8] meTwo(c,e,f)=0,0,0 oppTwo=0,0,0
+  top1 G10 net=2500 cutNets=[2500 2500 2500]
+  top2 F10 net=700 cutNets=[700 700 700]
+  top3 F9 net=550 cutNets=[550 550 550]
+pos square-medium-tc2 g47 m16 pool=regate2-loss-master played=K12 rank=16/241 cutRanks=[15 15 15] meTwo(c,e,f)=0,0,0 oppTwo=16,0,0
+  top1 G10 net=1850 cutNets=[1850 1850 1850]
+  top2 F10 net=50 cutNets=[50 50 50]
+  top3 K11 net=-100 cutNets=[-220 -280 -340]
+agg regate2-loss-easy positions=7 playedTop3=2 demotedByCut(40,60,80)=[0 0 0] rankShiftSum=[1 1 1]
+agg regate2-loss-master positions=70 playedTop3=11 demotedByCut(40,60,80)=[0 0 0] rankShiftSum=[189 224 398]
+agg regate2-loss-medium positions=7 playedTop3=4 demotedByCut(40,60,80)=[0 0 0] rankShiftSum=[3 5 6]

@@ -1,0 +1,5 @@
+pos g2-m10 g2 m10 pool=feedboard played=J9 rank=1/247 cutRanks=[1 1 1] meTwo(c,e,f)=0,0,0 oppTwo=5,0,0
+  top1 J9 net=450 cutNets=[450 450 450]
+  top2 L7 net=150 cutNets=[150 150 150]
+  top3 H7 net=150 cutNets=[150 150 150]
+agg feedboard positions=1 playedTop3=1 demotedByCut(40,60,80)=[0 0 0] rankShiftSum=[0 0 0]

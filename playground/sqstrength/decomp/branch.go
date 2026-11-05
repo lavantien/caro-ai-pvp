@@ -71,4 +71,6 @@ func runBranchProbes(g *geom.Geometry) {
 	probeBranch("g8-easy-tc1 M10 same board (won: played L7)", g, g8m10, 8, []string{"J9", "L7"})
 	g24m10 := []string{"H8", "G7", "E8", "G8", "G5", "G9", "G11", "G6", "G10"}
 	probeBranch("g24-hard-tc1 M10 blue to move (lost: played F9)", g, g24m10, 8, []string{"F9", "E10", "E9", "F8", "E11"})
+	g26m8 := []string{"H8", "G9", "H11", "H10", "F8", "G7"}
+	probeBranch("g26-easy-tc2 M8 blue to move (regate1 won with H6, regate2 lost with I9)", g, g26m8, 12, []string{"H6", "I9", "G8", "E9", "H7"})
 }

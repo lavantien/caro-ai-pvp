@@ -159,6 +159,10 @@ func main() {
 	branch := flag.Bool("branch", false, "run the divergence-point branch probes instead of the pool decomposition")
 	signal := flag.Bool("signal", false, "run the candidate-signal probes on the divergence boards")
 	phase := flag.Bool("phase", false, "run the opening and midgame board probes through the corrected engine")
+	family := flag.Bool("family", false, "run the regate2 loss and win family census over all legal children")
+	familyOut := flag.String("familyOut", "playground/sqstrength/out/family-probe.txt", "family probe output")
+	cutSweepMoves := flag.String("cutSweep", "", "comma list of board moves, then print the boxed-cut sweep for -cutCands")
+	cutCands := flag.String("cutCands", "", "comma list of candidate cells for the cut sweep")
 	flag.Parse()
 
 	g0, err := geom.ByName(*variant)
@@ -175,6 +179,14 @@ func main() {
 	}
 	if *phase {
 		runPhaseProbes(g0)
+		return
+	}
+	if *family {
+		runFamilyProbes(g0, *positionsPath, *familyOut)
+		return
+	}
+	if *cutSweepMoves != "" {
+		runCutSweep(g0, strings.Split(*cutSweepMoves, ","), strings.Split(*cutCands, ","))
 		return
 	}
 

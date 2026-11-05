@@ -1,0 +1,25 @@
+{
+  "positions": [
+    {
+      "leg": "g2-m10",
+      "game": 2,
+      "move": 10,
+      "pool": "feedboard",
+      "cell": "J9",
+      "score": 6000,
+      "depth": 11,
+      "tag": "",
+      "moves": [
+        "H8",
+        "I9",
+        "K8",
+        "I8",
+        "I11",
+        "I7",
+        "I5",
+        "I6",
+        "I10"
+      ]
+    }
+  ]
+}
