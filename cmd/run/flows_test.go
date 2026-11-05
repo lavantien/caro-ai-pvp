@@ -100,7 +100,6 @@ func TestExitCodeProcess(t *testing.T) {
 	case "plain":
 		exitCode(errors.New("plain"))
 	}
-	return
 }
 
 func TestExitCodeMapsErrorsToCodes(t *testing.T) {
