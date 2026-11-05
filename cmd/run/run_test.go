@@ -709,6 +709,7 @@ func TestPlaygroundModulesSteps(t *testing.T) {
 	if len(steps) == 0 {
 		t.Fatal("no playground module steps")
 	}
+	built := map[string]bool{}
 	for _, s := range steps {
 		if s.path != "go" || !strings.HasPrefix(strings.Join(s.args, " "), "-C playground"+string(os.PathSeparator)) {
 			t.Fatalf("module step = %v %v", s.path, s.args)
@@ -716,5 +717,47 @@ func TestPlaygroundModulesSteps(t *testing.T) {
 		if !reflect.DeepEqual(s.args[2:], []string{"build", "-o", "../../bin/", "."}) || s.dir != "" {
 			t.Fatalf("module argv = %v dir=%q", s.args, s.dir)
 		}
+		built[strings.TrimPrefix(s.args[1], "playground"+string(os.PathSeparator))] = true
+	}
+	for _, lib := range []string{"mutateproof", "mutstillborn"} {
+		if built[lib] {
+			t.Fatalf("library module %s must not produce a build step: %v", lib, built)
+		}
+	}
+}
+
+func TestRootBuildsBinary(t *testing.T) {
+	write := func(t *testing.T, name, src string) string {
+		t.Helper()
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return dir
+	}
+	if !rootBuildsBinary(write(t, "main.go", "package main\n\nfunc main() {}\n")) {
+		t.Error("rootBuildsBinary(main module) = false, want true")
+	}
+	if rootBuildsBinary(write(t, "flag.go", "package mutateproof\n\nfunc Flag() bool { return true }\n")) {
+		t.Error("rootBuildsBinary(library module) = true, want false")
+	}
+	if !rootBuildsBinary(write(t, "broken.go", "package main\nfunc broken(\n")) {
+		t.Error("rootBuildsBinary(unparsable root) = false, want true so go build reports the real error")
+	}
+	if !rootBuildsBinary(t.TempDir()) {
+		t.Error("rootBuildsBinary(no go files) = false, want true so go build reports the real error")
+	}
+	libPlusSub := t.TempDir()
+	if err := os.WriteFile(filepath.Join(libPlusSub, "flag.go"), []byte("package mutateproof\n\nfunc Flag() bool { return true }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(libPlusSub, "cmd", "tool"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(libPlusSub, "cmd", "tool", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if rootBuildsBinary(libPlusSub) {
+		t.Error("rootBuildsBinary(library root with main subpackage) = true, want false: the step builds . only")
 	}
 }

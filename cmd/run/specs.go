@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -190,13 +192,17 @@ func registerPlaygroundTargets() {
 			if !e.IsDir() {
 				continue
 			}
-			if _, err := os.Stat(filepath.Join("playground", e.Name(), "go.mod")); err != nil {
+			dir := filepath.Join("playground", e.Name())
+			if _, err := os.Stat(filepath.Join(dir, "go.mod")); err != nil {
+				continue
+			}
+			if !rootBuildsBinary(dir) {
 				continue
 			}
 			steps = append(steps, step{
 				name: "build " + e.Name(),
 				path: "go",
-				args: []string{"-C", filepath.Join("playground", e.Name()), "build", "-o", "../../bin/", "."},
+				args: []string{"-C", dir, "build", "-o", "../../bin/", "."},
 				env:  map[string]string{"CGO_ENABLED": "1"},
 			})
 		}
@@ -300,6 +306,29 @@ func registerPlaygroundTargets() {
 			goDirStep("gpuoffload-build", "playground/gpuoffload", "build", "-o", "../../bin/gpuoffload.exe", "."),
 		}, nil
 	})
+}
+
+func rootBuildsBinary(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return true
+	}
+	fset := token.NewFileSet()
+	parsed := false
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
+			continue
+		}
+		f, perr := parser.ParseFile(fset, filepath.Join(dir, e.Name()), nil, parser.PackageClauseOnly)
+		if perr != nil {
+			continue
+		}
+		parsed = true
+		if f.Name.Name == "main" {
+			return true
+		}
+	}
+	return !parsed
 }
 
 func registerArenaTargets() {
