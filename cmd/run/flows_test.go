@@ -171,6 +171,14 @@ func TestTrackedGoFilesListsGoOnly(t *testing.T) {
 	}
 }
 
+func isolateGitDiscovery(t *testing.T, dir string) {
+	t.Helper()
+
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(dir))
+}
+
 func TestGitHeadShaReadsRepo(t *testing.T) {
 	dir := tempGitRepo(t)
 	commitFile(t, dir, "a.txt", "x\n")
@@ -184,7 +192,9 @@ func TestGitHeadShaReadsRepo(t *testing.T) {
 	}
 	plain := t.TempDir()
 	t.Chdir(plain)
-	if _, err := gitHeadSha(); err == nil {
+	isolateGitDiscovery(t, plain)
+	_, err = gitHeadSha()
+	if err == nil {
 		t.Fatal("gitHeadSha succeeded outside a repo")
 	}
 }
