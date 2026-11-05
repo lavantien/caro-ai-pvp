@@ -1,9 +1,5 @@
 package engine
 
-// Killer tests for the smp.go and tt.go mutation survivors. Every test here
-// fails under at least one hand-applied splice from the gate report and
-// passes on clean code. Grouped by the code region they pin.
-
 import (
 	"runtime"
 	"sync/atomic"
@@ -14,8 +10,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// onceExceededDeadline is exceeded exactly on its first Exceeded call, then
-// never again: it drives the runWorker depth loop through one true reading.
 type onceExceededDeadline struct {
 	calls atomic.Int32
 }
@@ -23,8 +17,6 @@ type onceExceededDeadline struct {
 func (d *onceExceededDeadline) Exceeded() bool { return d.calls.Add(1) == 1 }
 func (d *onceExceededDeadline) Stop()          {}
 
-// farCornerBoard keeps every stone outside all windows through A1, so the
-// deterministic fallback move is never the zero cell.
 func farCornerBoard(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -33,8 +25,6 @@ func farCornerBoard(t *testing.T) *rules.Board {
 	return b
 }
 
-// driverFallback reproduces the driver's fallback computation: a fresh
-// engine, reset search state, then the first generated move.
 func driverFallback(b *rules.Board) rules.Move {
 	e := New(0)
 	fb := *b
@@ -42,11 +32,6 @@ func driverFallback(b *rules.Board) rules.Move {
 	return e.fallbackMove(&fb)
 }
 
-// smp serveHot spin window and served-job report.
-
-// The idle spin is a lower bound: serveHot only returns false once the clock
-// reaches the park deadline, so an empty wake channel must hold the caller
-// for the whole window.
 func TestSMPKillServeHotHoldsParkWindow(t *testing.T) {
 	s := newSMP(1, 0)
 	start := time.Now()
@@ -59,8 +44,6 @@ func TestSMPKillServeHotHoldsParkWindow(t *testing.T) {
 	}
 }
 
-// A queued token must be served and reported true: the worker loop keys on
-// the boolean to keep spinning instead of parking mid-burst.
 func TestSMPKillServeHotReportsServedJob(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	w, b, res := s.workers[0], &s.boards[0], &s.results[0]
@@ -81,9 +64,6 @@ func TestSMPKillServeHotReportsServedJob(t *testing.T) {
 	}
 }
 
-// Budget reporting and the no-iteration fallback.
-
-// A Budgeter deadline grants AllocNs to the stats verbatim.
 func TestSMPKillSearchReportsGrantedBudget(t *testing.T) {
 	s := newSMP(1, 0)
 	defer s.Close()
@@ -93,8 +73,6 @@ func TestSMPKillSearchReportsGrantedBudget(t *testing.T) {
 	}
 }
 
-// Zero budget means zero iterations: the fallback move, no depth, no nodes,
-// and nothing read out of an untouched result slot.
 func TestSMPKillNoIterationFallsBackCleanly(t *testing.T) {
 	b := farCornerBoard(t)
 	want := driverFallback(b)
@@ -112,8 +90,6 @@ func TestSMPKillNoIterationFallsBackCleanly(t *testing.T) {
 	}
 }
 
-// The depth loop exits on a deadline that is exceeded once up front instead
-// of skipping the first depth and searching the rest.
 func TestSMPKillDepthLoopExitsWhenExceeded(t *testing.T) {
 	b := farCornerBoard(t)
 	want := driverFallback(b)
@@ -128,12 +104,6 @@ func TestSMPKillDepthLoopExitsWhenExceeded(t *testing.T) {
 	}
 }
 
-// Soft-stop and stopped-break loop exits.
-
-// countingBudgetDeadline never stops but observes every Exceeded consult.
-// Its nanosecond budget makes the soft rule fire on the first head consult
-// after a banked iteration whatever the clock reads: a zero elapsed reading
-// becomes the 16ms quantum and any positive reading already clears 0.65ns.
 type countingBudgetDeadline struct {
 	calls atomic.Int32
 }
@@ -146,9 +116,6 @@ func (d *countingBudgetDeadline) Exceeded() bool {
 func (d *countingBudgetDeadline) Stop()                 {}
 func (d *countingBudgetDeadline) Budget() time.Duration { return time.Nanosecond }
 
-// twoHoleBoard is a full checkerboard holding exactly two empty cells, both
-// on Blue diagonals: Red to move completes no window, so the root is quiet
-// and a depth-1 search covers its few nodes far inside one check interval.
 func twoHoleBoard(t *testing.T) *rules.Board {
 	t.Helper()
 	b := rules.NewCrossCheck()
@@ -165,9 +132,6 @@ func twoHoleBoard(t *testing.T) *rules.Board {
 	return b
 }
 
-// The soft-stop break must end the worker loop. Once the soft rule fires, a
-// break leaves exactly the two head-guard consults of one completed
-// iteration, while a continue burns one consult per skipped depth.
 func TestSMPKillSoftStopBreakEndsLoop(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	w, b, res := s.workers[0], &s.boards[0], &s.results[0]
@@ -187,14 +151,8 @@ func TestSMPKillSoftStopBreakEndsLoop(t *testing.T) {
 	}
 }
 
-// Selection among workers: depth first, then first arrival.
-
-// poisonChildScore is a losing-mate child score, so a poisoned worker's root
-// reads a mate-in-2 flavored win every depth without ever halting the pool.
 const poisonChildScore = -(config.EvalMateMax - 2*config.EvalMateScoreStep)
 
-// poisonWorker builds an engine whose every root child probe cuts with an
-// exact poisonChildScore entry: each depth completes in a handful of probes.
 func poisonWorker(b *rules.Board) *Engine {
 	tt := newTT(1 << 21)
 	bc := *b
@@ -210,17 +168,12 @@ func poisonWorker(b *rules.Board) *Engine {
 	return newEngineShared(tt)
 }
 
-// warmAndPark runs one throwaway search and waits out the park delay so the
-// persistent pool parks: the next dispatch then hands exactly one wake token
-// to each worker instead of letting a hot instant worker eat both.
 func warmAndPark(t *testing.T, s *SMP, b *rules.Board) {
 	t.Helper()
 	_, _ = s.Search(b, NewFixedBudget(time.Microsecond))
 	time.Sleep(3 * time.Duration(config.SearchWorkerParkDelayMs) * time.Millisecond)
 }
 
-// assertInstantWinWorker pins the deterministic radius-zero report: the full
-// depth ladder with the empty-root floor score, no pv, moveNone.
 func assertInstantWinWorker(t *testing.T, stats SearchStats, mv rules.Move) {
 	t.Helper()
 	if stats.Depth != config.SearchMaxPly {
@@ -234,18 +187,12 @@ func assertInstantWinWorker(t *testing.T, stats SearchStats, mv rules.Move) {
 	}
 }
 
-// A deeper completing worker must beat an earlier shallower one, so the
-// disjunctive comparison cannot degrade to a pure conjunction.
 func TestSMPKillSelectionPrefersDeeperWorker(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
 	s.workers[1].radius = 0
 	warmAndPark(t, s, b)
-	// The grant must clear the coarse-clock quantum: at 30ms the soft limit
-	// (19.5ms) holds a full 16ms tick, so the head consult keeps opening
-	// iterations on a quantized clock too and the radius-zero worker can
-	// bank the whole ladder the setup pins.
 	mv, stats := s.Search(b, NewFixedBudget(30*time.Millisecond))
 	if s.results[1].completed != config.SearchMaxPly {
 		t.Fatalf("setup: radius-zero worker completed %d", s.results[1].completed)
@@ -256,12 +203,6 @@ func TestSMPKillSelectionPrefersDeeperWorker(t *testing.T) {
 	assertInstantWinWorker(t, stats, mv)
 }
 
-// Equal completed depth ties break by arrival order, not by index: the
-// radius-zero worker arrives first and must win the tie. Which worker
-// banks its ladder first is scheduler timing, not engine behavior, so the
-// search reruns until the instant worker actually arrived first (a seq
-// mutant fails every attempt that meets the premise; the clean engine
-// passes the first one that does).
 func TestSMPKillSelectionTieBreaksByArrival(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
@@ -272,10 +213,6 @@ func TestSMPKillSelectionTieBreaksByArrival(t *testing.T) {
 		warmAndPark(t, s, b)
 		mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
 		r0, r1 := &s.results[0], &s.results[1]
-		// A starved worker can burn its whole fixed budget without one
-		// completed iteration on a loaded machine, so the completions
-		// premise rides the same rerun as the tie below: a broken poison
-		// setup never meets it in any attempt.
 		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
 			if attempt < 5 {
 				continue
@@ -296,9 +233,6 @@ func TestSMPKillSelectionTieBreaksByArrival(t *testing.T) {
 	}
 }
 
-// The arrival counter must strictly increase: with a zero stride every
-// completion ties and the later index can never win on arrival. The same
-// scheduling-tolerant rerun as the tie-break test above.
 func TestSMPKillArrivalCounterStrictlyIncreases(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
@@ -309,10 +243,6 @@ func TestSMPKillArrivalCounterStrictlyIncreases(t *testing.T) {
 		warmAndPark(t, s, b)
 		mv, stats := s.Search(b, NewFixedBudget(500*time.Millisecond))
 		r0, r1 := &s.results[0], &s.results[1]
-		// A starved worker can burn its whole fixed budget without one
-		// completed iteration on a loaded machine, so the completions
-		// premise rides the same rerun as the tie below: a broken poison
-		// setup never meets it in any attempt.
 		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
 			if attempt < 5 {
 				continue
@@ -333,10 +263,6 @@ func TestSMPKillArrivalCounterStrictlyIncreases(t *testing.T) {
 	}
 }
 
-// Stats arithmetic against the aggregated worker counters.
-
-// The empty-board root has one move, so a depth-2 search probes the shared
-// table exactly once: a single hit must still report a full permille.
 func TestSMPKillTTHitPermilleSingleProbe(t *testing.T) {
 	b := rules.NewBoard()
 	s := newSMP(1, 1<<12)
@@ -354,7 +280,6 @@ func TestSMPKillTTHitPermilleSingleProbe(t *testing.T) {
 	}
 }
 
-// The reported hit permille is exactly the aggregated worker ratio.
 func TestSMPKillTTHitPermilleMatchesWorkers(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
@@ -368,21 +293,19 @@ func TestSMPKillTTHitPermilleMatchesWorkers(t *testing.T) {
 	}
 }
 
-// mate-in-1 at depth 2 produces exactly one cutoff on the first tried move.
-func TestSMPKillCutPermilleSingleCutNode(t *testing.T) {
+func TestSMPKillCutPermilleAllFirstMoveCuts(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
-	_, stats := s.SearchDepth(mate1Board(t), NewFixedBudget(time.Second), 1)
+	_, stats := s.SearchDepth(mate2Board(t), NewFixedBudget(time.Second), 1)
 	r := &s.results[0]
-	if r.cutNodes != 1 || r.cutFirst != 1 {
-		t.Fatalf("setup: cut nodes %d first %d, want exactly 1 and 1", r.cutNodes, r.cutFirst)
+	if r.cutNodes != 3 || r.cutFirst != 3 {
+		t.Fatalf("setup: cut nodes %d first %d, want exactly 3 and 3", r.cutNodes, r.cutFirst)
 	}
 	if stats.FirstMoveFailHighPermille != 1000 {
 		t.Errorf("cut permille = %d, want 1000", stats.FirstMoveFailHighPermille)
 	}
 }
 
-// The reported fail-high permille is exactly the aggregated worker ratio.
 func TestSMPKillCutPermilleMatchesWorkers(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
@@ -397,10 +320,6 @@ func TestSMPKillCutPermilleMatchesWorkers(t *testing.T) {
 
 }
 
-// Worker report slots.
-
-// The reported pv length is the root slot: a quiet depth-1 search leaves
-// every child slot reset, so the line is exactly the chosen move.
 func TestSMPKillPVLenFromRootSlot(t *testing.T) {
 	b := farCornerBoard(t)
 	s := newSMP(1, testTTBytes)
@@ -414,8 +333,6 @@ func TestSMPKillPVLenFromRootSlot(t *testing.T) {
 	}
 }
 
-// An immediate win must set the shared halt flag after the completing
-// iteration, stopping siblings inside their node-check cadence.
 func TestSMPKillImmediateWinHaltsPool(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	w, b, res := s.workers[0], &s.boards[0], &s.results[0]
@@ -433,7 +350,6 @@ func TestSMPKillImmediateWinHaltsPool(t *testing.T) {
 	}
 }
 
-// ensureProcs targets exactly one P for the driver plus one per worker.
 func TestSMPKillEnsureProcsExactTarget(t *testing.T) {
 	old := runtime.GOMAXPROCS(0)
 	defer runtime.GOMAXPROCS(old)
@@ -445,8 +361,6 @@ func TestSMPKillEnsureProcsExactTarget(t *testing.T) {
 	}
 }
 
-// tt bound numbering: the zero data word is the empty slot, never an exact
-// bound, so a hash-zero probe on an enabled empty table must miss.
 func TestTTKillZeroDataWordNeverCuts(t *testing.T) {
 	tb := newTT(1 << 10)
 	score, move, cutoff := tb.probe(0, 0, -1000, 1000, 0)
@@ -475,8 +389,6 @@ func TestTTKillMateFenceRoundTrip(t *testing.T) {
 	}
 }
 
-// Generation 63 is a live table generation: the bump must hold it before
-// wrapping on the next one.
 func TestTTKillGenBumpHoldsMaxGen(t *testing.T) {
 	tb := newTT(16)
 	tb.gen = 62
@@ -490,7 +402,6 @@ func TestTTKillGenBumpHoldsMaxGen(t *testing.T) {
 	}
 }
 
-// Every probe miss path returns the exact miss tuple.
 func TestTTKillKeyMissTuple(t *testing.T) {
 	tb := newTT(1 << 10)
 	tb.store(0x1234, 500, 3, 4, ttBoundExact, 0)
@@ -503,8 +414,6 @@ func TestTTKillKeyMissTuple(t *testing.T) {
 	}
 }
 
-// A shallower stored entry is a miss, not a cutoff: the ordering move is
-// still handed back with a zero score.
 func TestTTKillShallowEntryMissTuple(t *testing.T) {
 	tb := newTT(1 << 10)
 	tb.store(999, 250, 7, 5, ttBoundExact, 0)
@@ -520,7 +429,6 @@ func TestTTKillShallowEntryMissTuple(t *testing.T) {
 	}
 }
 
-// An upper bound at exactly alpha cuts: equality is within the window.
 func TestTTKillUpperBoundCutsAtAlpha(t *testing.T) {
 	tb := newTT(1 << 10)
 	tb.store(555, -900, 4, 4, ttBoundUpper, 0)
@@ -533,7 +441,6 @@ func TestTTKillUpperBoundCutsAtAlpha(t *testing.T) {
 	}
 }
 
-// A lower bound below beta falls through with the zero miss score.
 func TestTTKillLowerBelowBetaFallsThrough(t *testing.T) {
 	tb := newTT(1 << 10)
 	tb.store(777, 100, 3, 6, ttBoundLower, 0)
@@ -546,8 +453,6 @@ func TestTTKillLowerBelowBetaFallsThrough(t *testing.T) {
 	}
 }
 
-// hashFull samples the whole table when it fits the sample budget: entries
-// off the sampled stride must not be counted, and must be once it does not.
 func TestTTKillHashFullSamplesWithinBudget(t *testing.T) {
 	tb := newTT(2048 * ttEntryBytes)
 	tb.gen = 1
@@ -559,9 +464,6 @@ func TestTTKillHashFullSamplesWithinBudget(t *testing.T) {
 	}
 }
 
-// A nonzero data word with zero generation bits is table content when the
-// table generation is zero, and hashFull must count it: a sentinel that
-// matched the empty word would count the three empty slots instead.
 func TestTTKillHashFullCountsNonzeroWord(t *testing.T) {
 	tb := newTT(4 * ttEntryBytes)
 	tb.gen = 0

@@ -390,9 +390,17 @@ func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, ex
 		return 0
 	}
 	e.pvLen[ply] = 0
-	if extLeft > 0 && e.eval.fours[b.Side^1] > 0 {
-		depth++
-		extLeft--
+	var near bitmask
+	haveNear := false
+	forced := false
+	if e.eval.fours[b.Side^1] > 0 {
+		near = e.nearMask(b)
+		haveNear = true
+		forced = e.eval.liveWin1(b, b.Side^1, near)
+		if extLeft > 0 && forced {
+			depth++
+			extLeft--
+		}
 	}
 	if depth <= 0 || ply >= config.SearchMaxPly {
 		return e.eval.eval(b.Side)
@@ -409,7 +417,10 @@ func (e *Engine) negamax(b *rules.Board, depth int, alpha, beta int, ply int, ex
 			ttm = rules.Move(m)
 		}
 	}
-	n := e.generate(b, ply, ttm)
+	if !haveNear {
+		near = e.nearMask(b)
+	}
+	n := e.genMoves(b, ply, ttm, near, forced)
 	best, bestMove := -(config.EvalMateMax + 1), moveNone
 	a0 := alpha
 	for i := 0; i < n; i++ {

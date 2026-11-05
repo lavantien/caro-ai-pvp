@@ -7,17 +7,26 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
+func (e *Engine) nearMask(b *rules.Board) bitmask {
+	return dilate(bitmask(b.Full), e.radius, b.Geom)
+}
+
 func (e *Engine) generate(b *rules.Board, ply int, ttm rules.Move) int {
+	near := e.nearMask(b)
+	forced := e.eval.fours[b.Side^1] > 0 && e.eval.liveWin1(b, b.Side^1, near)
+	return e.genMoves(b, ply, ttm, near, forced)
+}
+
+func (e *Engine) genMoves(b *rules.Board, ply int, ttm rules.Move, near bitmask, forced bool) int {
 	if b.MoveCount == 0 {
 		e.moves[ply][0] = rules.Move(b.Geom.Center)
 		e.scores[ply][0] = 0
 		return 1
 	}
-	near := dilate(bitmask(b.Full), e.radius, b.Geom)
 	anchor, constrained := openingAnchor(b)
 	side := int(b.Side)
 	minStatic := 0
-	if e.eval.fours[side^1] > 0 {
+	if forced {
 		minStatic = config.PatternWeightFour
 	}
 	n := e.fill(b, ply, ttm, side, anchor, constrained, near, true, minStatic)
@@ -28,6 +37,30 @@ func (e *Engine) generate(b *rules.Board, ply int, ttm rules.Move) int {
 		n = e.fill(b, ply, ttm, side, anchor, constrained, near, false, 0)
 	}
 	return n
+}
+
+func (ev *evaluator) liveWin1(b *rules.Board, side rules.Color, near bitmask) bool {
+	for w := range b.Geom.Words {
+		free := near[w] & b.Region[w] &^ b.Full[w]
+		for free != 0 {
+			bit := free & (^free + 1)
+			free ^= bit
+			cell := rules.Cell(w*wordBits + bits.TrailingZeros64(bit))
+			if ev.cell[side][cell] < config.PatternWeightFour {
+				continue
+			}
+			cur := b.Side
+			b.Side = side
+			b.Make(cell)
+			won := b.FastLastMoveWin(side, cell)
+			b.Unmake()
+			b.Side = cur
+			if won {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (e *Engine) fill(b *rules.Board, ply int, ttm rules.Move, side int, anchor uint16, constrained bool, near bitmask, requireLive bool, minStatic int) int {

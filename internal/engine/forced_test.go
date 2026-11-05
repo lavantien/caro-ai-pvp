@@ -7,15 +7,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// The selective threat restriction of the spec's search design: at a node
-// where the opponent of the mover holds a live four, only own win-in-1
-// cells and blocks of the opponent's win-in-1 cells can change the value,
-// every other move loses at once, so generate keeps only cells whose
-// centered window interaction reaches the Four class weight, a superset of
-// the forced set that costs one comparison per candidate.
-
-// forcedBoard seats red against a blue four H8-H11 closed at H7, so H12 is
-// blue's single win-in-1 cell and red's only forced answer.
 func forcedBoard(t testing.TB) *rules.Board {
 	t.Helper()
 	b := rules.NewBoard()
@@ -40,16 +31,12 @@ func TestForcedFourRestrictsCandidates(t *testing.T) {
 	}
 }
 
-// TestForcedFourKeepsEveryForcedCell is the soundness property: over random
-// playouts, whenever the opponent of the mover holds a four, every win-in-1
-// cell of either color (own counters and opponent blocks alike) survives the
-// restriction. Dropping any of them could change the node value.
 func TestForcedFourKeepsEveryForcedCell(t *testing.T) {
 	for seed := range uint64(12) {
 		b := playout(t, 911*seed+17, int(8+seed*9))
 		e := New(0)
 		e.eval.reset(b)
-		if e.eval.fours[b.Side^1] == 0 {
+		if len(winIn1Cells(t, b, b.Side^1)) == 0 {
 			continue
 		}
 		n := e.generate(b, 0, moveNone)
@@ -76,10 +63,37 @@ func TestForcedFourKeepsEveryForcedCell(t *testing.T) {
 	}
 }
 
-// TestFallbackMovePicksBestOrdered pins the fallback against the
-// enumeration-order regression: a starved search must answer with its best
-// known candidate, never the first cell of the A1 scan. Under a live four
-// that is the forced block; on a quiet board it is the highest static cell.
+func TestPhantomFourRestrictionStaysOff(t *testing.T) {
+	boards := []*rules.Board{phantomFourBoard(t, "I11")}
+	for seed := range uint64(24) {
+		b := playout(t, 4177*seed+31, int(6+seed*7))
+		e := New(0)
+		e.eval.reset(b)
+		if e.eval.fours[b.Side^1] == 0 || len(winIn1Cells(t, b, b.Side^1)) != 0 {
+			continue
+		}
+		boards = append(boards, b)
+	}
+	if len(boards) < 2 {
+		t.Fatalf("phantom-only boards found %d, want the recorded board plus at least one playout hit", len(boards))
+	}
+	for i, b := range boards {
+		e := New(0)
+		e.eval.reset(b)
+		n := e.generate(b, 0, moveNone)
+		unconstrained := 0
+		for _, m := range e.moves[0][:n] {
+			static := e.eval.cell[b.Side][m] + e.eval.cell[b.Side^1][m]
+			if static < config.PatternWeightFour {
+				unconstrained++
+			}
+		}
+		if unconstrained == 0 {
+			t.Fatalf("board %d: restriction fired on phantom fours alone, %d candidates all at the four weight", i, n)
+		}
+	}
+}
+
 func TestFallbackMovePicksBestOrdered(t *testing.T) {
 	e := New(0)
 
