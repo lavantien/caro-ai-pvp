@@ -152,6 +152,55 @@ func TestManagerFailedDriveMarksDetail(t *testing.T) {
 	}
 }
 
+func TestManagerDetailSamplesDriveStateBeforeTables(t *testing.T) {
+	ts, srv := newTestStore(t)
+	ctx := context.Background()
+	run, err := ts.CreateRun(ctx, mustTC(1, 0), config.SeriesBO3, config.TournamentStartRating, rosterTwo(), "test", "")
+	if err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	first := mustSchedule(t, srv, run.ID)[0]
+	m := NewManager(ts, nil)
+	terminal := errors.New("drive died mid-poll")
+	st := &driveState{done: make(chan struct{})}
+	m.mu.Lock()
+	m.drives[run.ID] = st
+	type polled struct {
+		d   Detail
+		err error
+	}
+	res := make(chan polled, 1)
+	entered := make(chan struct{})
+	go func() {
+		close(entered)
+		d, derr := m.Detail(ctx, run.ID)
+		res <- polled{d, derr}
+	}()
+	<-entered
+	mustAppend(t, ts, gameOf(run.ID, first.ID, 0, 0, 1, server.RedWins))
+	mustAppend(t, ts, gameOf(run.ID, first.ID, 1, 0, 1, server.RedWins))
+	st.err = terminal
+	close(st.done)
+	m.mu.Unlock()
+	out := <-res
+	if out.err != nil {
+		t.Fatalf("detail: %v", out.err)
+	}
+	if !errors.Is(out.d.Failure, terminal) {
+		t.Fatalf("failure = %v, want the drive's terminal error", out.d.Failure)
+	}
+	if out.d.Running {
+		t.Error("detail reports a finished drive as running")
+	}
+	if len(out.d.Series) != 2 || out.d.Series[0].FinishedAt == nil ||
+		out.d.Series[0].RedFirstWins != 2 || out.d.Series[0].WinnerSlot == nil || *out.d.Series[0].WinnerSlot != 0 {
+		t.Errorf("series = %+v, want pairing 0 holding the games the drive committed before it finished", out.d.Series)
+	}
+	if out.d.Series[1].FinishedAt != nil {
+		t.Errorf("series = %+v, want pairing 1 untouched", out.d.Series)
+	}
+}
+
 func gatedSource(release chan struct{}) *fakeSource {
 	return &fakeSource{script: easySweeps, onStart: func(*fakeStream) error {
 		<-release

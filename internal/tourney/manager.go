@@ -60,6 +60,7 @@ type Detail struct {
 }
 
 func (m *Manager) Detail(ctx context.Context, runID int64) (Detail, error) {
+	running, failure := m.driveState(runID)
 	run, err := m.store.Run(ctx, runID)
 	if err != nil {
 		return Detail{}, err
@@ -76,7 +77,6 @@ func (m *Manager) Detail(ctx context.Context, runID int64) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
-	running, failure := m.driveState(runID)
 	if run.Status != RunStateOngoing {
 		running = false
 	}
