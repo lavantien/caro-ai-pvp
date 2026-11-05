@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -103,4 +104,25 @@ func guardRunningImage(s step, image string) error {
 		return nil
 	}
 	return fmt.Errorf("run: refused at %s: %s is running as pid %s, stop the process or defer this build, never replace a running binary", s.name, image, strings.Join(pids, ","))
+}
+
+func parseTasklistCSV(raw string) []runningProcess {
+	var procs []runningProcess
+	r := csv.NewReader(strings.NewReader(raw))
+	r.FieldsPerRecord = -1
+	r.LazyQuotes = true
+	rows, err := r.ReadAll()
+	if err != nil {
+		return procs
+	}
+	for _, row := range rows {
+		if len(row) < 2 {
+			continue
+		}
+		if row[0] == "" || row[1] == "" {
+			continue
+		}
+		procs = append(procs, runningProcess{Image: row[0], PID: row[1]})
+	}
+	return procs
 }

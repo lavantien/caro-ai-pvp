@@ -90,7 +90,11 @@ func TestGuardRefusesBuildOfRunningImage(t *testing.T) {
 		t.Fatalf("os.Executable: %v", err)
 	}
 	image := filepath.Base(exe)
-	r := &runner{target: "test-target", root: ".", goExe: ".exe", base: map[string]string{"GOTMPDIR": t.TempDir()}}
+	goExe := ""
+	if strings.EqualFold(filepath.Ext(image), ".exe") {
+		goExe = ".exe"
+	}
+	r := &runner{target: "test-target", root: ".", goExe: goExe, base: map[string]string{"GOTMPDIR": t.TempDir()}}
 	s := step{name: "build", path: "go", args: []string{"build", "-o", "bin/" + image, "."}}
 	_, err = r.runCode(s)
 	if err == nil {
