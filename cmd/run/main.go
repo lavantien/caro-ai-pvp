@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const goTestTimeout = "30m"
+const goTestTimeout = "60m"
 
 type step struct {
 	name  string

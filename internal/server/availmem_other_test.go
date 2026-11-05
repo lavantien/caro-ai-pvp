@@ -34,6 +34,13 @@ func TestParseMemAvailRoundTripAndRejections(t *testing.T) {
 			t.Errorf("parse %s input succeeded, want the rejection", name)
 		}
 	}
+	got, err := parseMemAvail([]byte("MemTotal: 100 kB\nMemAvailable: 7 kB\nMemAvailable: 9 kB\n"))
+	if err != nil {
+		t.Fatalf("parse two MemAvailable lines: %v", err)
+	}
+	if got != 7*1024 {
+		t.Errorf("parse two MemAvailable lines = %d, want the first line value %d", got, 7*1024)
+	}
 }
 
 func FuzzParseMemAvail(f *testing.F) {
@@ -45,9 +52,19 @@ func FuzzParseMemAvail(f *testing.F) {
 		if err != nil {
 			return
 		}
-		want := strconv.FormatUint(got/1024, 10)
-		if !strings.Contains(string(data), "MemAvailable: "+want+" kB") {
-			t.Fatalf("parse of %q = %d, want the value to come from the line", data, got)
+		want := ""
+		for _, line := range strings.Split(string(data), "\n") {
+			rest, ok := strings.CutPrefix(line, "MemAvailable:")
+			if !ok {
+				continue
+			}
+			if fields := strings.Fields(rest); len(fields) > 0 {
+				want = fields[0]
+			}
+			break
+		}
+		if want != strconv.FormatUint(got/1024, 10) {
+			t.Fatalf("parse of %q = %d, want the value from the first MemAvailable line", data, got)
 		}
 	})
 }
