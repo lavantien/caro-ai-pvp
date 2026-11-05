@@ -118,6 +118,9 @@ func TestHeadlessDriversMatchSpec(t *testing.T) {
 		{"smoke32", SmokeRoster32(), 3, 2},
 		{"smoke10", SmokeRoster10(), 1, 0},
 		{"full", FullRoster24(), 2, 1},
+		{"full32", FullRoster32(), 3, 2},
+		{"full10", FullRoster10(), 1, 0},
+		{"full105", FullRoster105(), 10, 5},
 	} {
 		wantTC, ok := config.TCIndex(tc.initial, tc.increment)
 		if !ok {

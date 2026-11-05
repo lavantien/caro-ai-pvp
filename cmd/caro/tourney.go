@@ -22,6 +22,9 @@ var tourneyDrivers = map[string]func() tourney.RunSpec{
 	"smoke105":     tourney.SmokeRoster105,
 	"ponderprobe":  tourney.PonderProbe,
 	"full":         tourney.FullRoster24,
+	"full32":       tourney.FullRoster32,
+	"full10":       tourney.FullRoster10,
+	"full105":      tourney.FullRoster105,
 	"floor-hard21": tourney.FloorHard21,
 	"floor-hard32": tourney.FloorHard32,
 	"floor-gm21":   tourney.FloorGM21,
@@ -65,7 +68,7 @@ func runTourney(args []string) int {
 		return runTourneyResume(idArg, *dbPath, *parallel)
 	}
 	if len(rest) != 0 || driver == "" {
-		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, smoke105, ponderprobe, full, floor-hard21, floor-hard32, floor-gm21, floor-gm32, regate21-r1, regate21-r2, regate21-r3, or regate32-r1) plus flags")
+		fmt.Fprintln(os.Stderr, "caro: tourney needs exactly one driver (smoke32, smoke10, smoke105, ponderprobe, full, full32, full10, full105, floor-hard21, floor-hard32, floor-gm21, floor-gm32, regate21-r1, regate21-r2, regate21-r3, or regate32-r1) plus flags")
 		return 2
 	}
 	specFn, ok := tourneyDrivers[driver]

@@ -32,6 +32,33 @@ func TestRunTourneyArgumentValidation(t *testing.T) {
 	}
 }
 
+func TestTourneyDriversCoverFullControls(t *testing.T) {
+	for _, tc := range []struct {
+		driver    string
+		initial   int
+		increment int
+	}{
+		{"full", 2, 1},
+		{"full32", 3, 2},
+		{"full10", 1, 0},
+		{"full105", 10, 5},
+	} {
+		specFn, ok := tourneyDrivers[tc.driver]
+		if !ok {
+			t.Errorf("driver %q missing from the registry", tc.driver)
+			continue
+		}
+		wantTC, ok := config.TCIndex(tc.initial, tc.increment)
+		if !ok {
+			t.Fatalf("%d+%d is not a configured time control", tc.initial, tc.increment)
+		}
+		spec := specFn()
+		if spec.TCIdx != wantTC {
+			t.Errorf("%s tc = %d, want the %d+%d index %d", tc.driver, spec.TCIdx, tc.initial, tc.increment, wantTC)
+		}
+	}
+}
+
 func TestRunTourneyRejectsUnopenableStore(t *testing.T) {
 	if code := run([]string{"tourney", "--db", t.TempDir(), "smoke10"}); code != 1 {
 		t.Errorf("unopenable store exit = %d, want 1", code)

@@ -374,6 +374,9 @@ func registerTourneyTargets() {
 		{"tourney-regate21-r3", "regate21-r3", true},
 		{"tourney-regate32-r1", "regate32-r1", true},
 		{"tourney-full", "full", true},
+		{"tourney-full32", "full32", true},
+		{"tourney-full10", "full10", true},
+		{"tourney-full105", "full105", true},
 		{"tourney-resume", "resume", true},
 		{"tourney-close", "close", false},
 	} {

@@ -52,6 +52,27 @@ func FullRoster24() RunSpec {
 	}
 }
 
+func FullRoster32() RunSpec {
+	return RunSpec{
+		Roster: twoPerTierRoster(), TCIdx: mustTC(3, 2),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
+	}
+}
+
+func FullRoster10() RunSpec {
+	return RunSpec{
+		Roster: twoPerTierRoster(), TCIdx: mustTC(1, 0),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
+	}
+}
+
+func FullRoster105() RunSpec {
+	return RunSpec{
+		Roster: twoPerTierRoster(), TCIdx: mustTC(10, 5),
+		BOLen: config.SeriesBO3, StartRating: config.TournamentStartRating,
+	}
+}
+
 func SmokeRoster105() RunSpec {
 	return RunSpec{
 		Roster: []Participant{

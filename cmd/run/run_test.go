@@ -673,7 +673,8 @@ func TestRunnerTargetSurface(t *testing.T) {
 		"tourney-ponderprobe": true, "tourney-floor-hard21": true, "tourney-floor-hard32": true,
 		"tourney-floor-gm21": true, "tourney-floor-gm32": true,
 		"tourney-regate21-r1": true, "tourney-regate21-r2": true, "tourney-regate21-r3": true,
-		"tourney-regate32-r1": true, "tourney-full": true, "tourney-resume": true, "tourney-close": true,
+		"tourney-regate32-r1": true, "tourney-full": true, "tourney-full32": true,
+		"tourney-full10": true, "tourney-full105": true, "tourney-resume": true, "tourney-close": true,
 		"doctor": true, "fmt": true, "fmt-check": true, "fuzz": true,
 		"mutate-resume": true, "mutate-full": true, "tourney-regate-chain": true, "diagrams": true, "ci": true,
 	}
