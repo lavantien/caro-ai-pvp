@@ -196,7 +196,7 @@ func TestMutateStepArgs(t *testing.T) {
 func TestMutateEnv(t *testing.T) {
 	r := testRunner()
 	env := r.mutateEnv(vars{})
-	want := `C:\repo\.scratch\tmp`
+	want := filepath.Join(r.root, ".scratch", "tmp")
 	for _, k := range []string{"TMP", "TEMP", "GOTMPDIR"} {
 		if env[k] != want {
 			t.Fatalf("mutateEnv %s = %s, want %s", k, env[k], want)

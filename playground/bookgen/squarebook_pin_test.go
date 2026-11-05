@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
+
+var squareArtifactPath = filepath.Join("..", "..", "db", "book.carobook")
 
 type pinRow struct {
 	red  []int
@@ -76,7 +79,7 @@ func playedCanonical(t *testing.T, b *rules.Board, mv rules.Move) [config.BookKe
 
 func loadSquareArtifact(t *testing.T) *book.Book {
 	t.Helper()
-	f, err := os.Open(`..\..\db\book.carobook`)
+	f, err := os.Open(squareArtifactPath)
 	if err != nil {
 		t.Fatalf("open the square artifact: %v", err)
 	}
@@ -176,7 +179,7 @@ func TestSquareArtifactAnswersTheDiscriminatorBoards(t *testing.T) {
 }
 
 func TestSquareArtifactKeepsRedEntriesByteIdentical(t *testing.T) {
-	entries, err := parseArtifactEntries(t, `..\..\db\book.carobook`)
+	entries, err := parseArtifactEntries(t, squareArtifactPath)
 	if err != nil {
 		t.Fatal(err)
 	}
