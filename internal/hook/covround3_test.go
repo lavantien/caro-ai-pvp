@@ -44,7 +44,11 @@ func TestToolPathRejectsMissingAbsoluteAndEmptyPathEntries(t *testing.T) {
 }
 
 func TestStagedReturnsNilOutsideARepo(t *testing.T) {
-	h := directCtx(t, t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	outside := t.TempDir()
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(outside))
+	h := directCtx(t, outside)
 	if got := h.staged(`\.go$`); got != nil {
 		t.Fatalf("staged outside a repo = %v, want nil", got)
 	}
