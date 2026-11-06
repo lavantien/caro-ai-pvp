@@ -600,9 +600,17 @@ func TestDiagramNeedsRender(t *testing.T) {
 	}
 }
 
+func setPlantumlUnixDirs(t *testing.T, dirs ...string) {
+	t.Helper()
+	old := plantumlUnixDirs
+	plantumlUnixDirs = dirs
+	t.Cleanup(func() { plantumlUnixDirs = old })
+}
+
 func TestFindPlantumlJar(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("PLANTUML_JAR", filepath.Join(dir, "custom.jar"))
+	setPlantumlUnixDirs(t, t.TempDir())
 	jar, err := findPlantumlJar()
 	if err != nil || jar != filepath.Join(dir, "custom.jar") {
 		t.Fatalf("env override = %s, %v", jar, err)
@@ -618,7 +626,8 @@ func TestFindPlantumlJar(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	_ = os.Unsetenv("PLANTUML_JAR")
+	t.Setenv("PLANTUML_JAR", "")
+	setPlantumlUnixDirs(t, t.TempDir())
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HOME", home)
 	jar, err = findPlantumlJar()
@@ -626,8 +635,18 @@ func TestFindPlantumlJar(t *testing.T) {
 		t.Fatalf("scoop discovery = %s, %v", jar, err)
 	}
 	empty := t.TempDir()
+	share := t.TempDir()
+	if err := os.WriteFile(filepath.Join(share, "plantuml.jar"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("USERPROFILE", empty)
 	t.Setenv("HOME", empty)
+	setPlantumlUnixDirs(t, share)
+	jar, err = findPlantumlJar()
+	if err != nil || jar != filepath.Join(share, "plantuml.jar") {
+		t.Fatalf("unix dir discovery = %s, %v", jar, err)
+	}
+	setPlantumlUnixDirs(t, t.TempDir())
 	if jar, err := findPlantumlJar(); err == nil {
 		t.Fatalf("missing jar resolved to %s", jar)
 	}
