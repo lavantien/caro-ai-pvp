@@ -35,7 +35,7 @@ func TestLoadPriorsCanonicalizesAndCounts(t *testing.T) {
 	a := boardWithMoves(t, rules.Cell(119), rules.Cell(72))
 	b := boardWithMoves(t, rules.Cell(120), rules.Cell(71))
 	if canonicalBoardKey(a) != canonicalBoardKey(b) {
-		t.Skip("fixture pair not symmetric, regenerate")
+		t.Fatal("fixture pair lost symmetry under the canonical key")
 	}
 	path := writePriorsCorpus(t,
 		[]posRec{priorsRec(a, rules.Move(50)), priorsRec(b, rules.Move(0))},

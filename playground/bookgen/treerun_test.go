@@ -116,7 +116,7 @@ func TestRunTreeRealEngineSmokeArtifactProbes(t *testing.T) {
 		deep.Make(c)
 	}
 	if deep.MoveCount != 8 {
-		t.Skip("fixture drift")
+		t.Fatalf("deep fixture made %d of 8 moves", deep.MoveCount)
 	}
 	if _, ok := bk.Probe(deep); ok {
 		t.Error("past-bound position must not probe")
