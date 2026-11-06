@@ -66,16 +66,20 @@ func execCapture(path string, args []string, env []string, dir string) (string, 
 	return strings.TrimSpace(string(out)), 0, nil
 }
 
-func exitCode(err error) {
+func exitCodeValue(err error) int {
 	var ec *exitCoder
 	if errors.As(err, &ec) {
-		os.Exit(ec.code)
+		return ec.code
 	}
 	var errno syscall.Errno
 	if errors.As(err, &errno) {
-		os.Exit(int(errno))
+		return int(errno)
 	}
-	os.Exit(1)
+	return 1
+}
+
+func exitCode(err error) {
+	os.Exit(exitCodeValue(err))
 }
 
 func goEnvGOEXE() (string, error) {

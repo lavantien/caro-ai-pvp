@@ -152,41 +152,46 @@ func (r *runner) runAll(steps []step) error {
 	return nil
 }
 
-func main() {
-	if len(os.Args) < 2 {
+func runMain(args []string) int {
+	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "usage: go run ./cmd/run <target> [KEY=VALUE ...]")
-		os.Exit(2)
+		return 2
 	}
-	target := os.Args[1]
-	v, err := parseVars(os.Args[2:])
+	target := args[0]
+	v, err := parseVars(args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		return 2
 	}
 	r, err := newRunner(target, v)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		return 2
 	}
 	if flow, ok := flows[target]; ok {
 		if err := flow(r, v); err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			exitCode(err)
+			return exitCodeValue(err)
 		}
-		return
+		return 0
 	}
 	build, ok := registry[target]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "run: unknown target %q\n", target)
-		os.Exit(2)
+		return 2
 	}
 	steps, err := build(r, v)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		return 2
 	}
 	if err := r.runAll(steps); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		exitCode(err)
+		return exitCodeValue(err)
 	}
+	return 0
+}
+
+func main() {
+	os.Exit(runMain(os.Args[1:]))
 }
