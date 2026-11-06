@@ -290,20 +290,11 @@ func TestScalaChecksSkipWithoutSbt(t *testing.T) {
 	}
 }
 
-func writeVendorBin(t *testing.T, dir, name string) {
-	t.Helper()
-	p := filepath.Join(dir, "vendor", "bin")
-	if err := os.MkdirAll(p, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, dir, filepath.Join("vendor", "bin", name), "@exit 1\r\n")
-}
-
 func TestPhpChecksVendorBins(t *testing.T) {
 	dir := newRepo(t)
 	writeFile(t, dir, "composer.json", "{}\n")
-	for _, name := range []string{"pint.bat", "php-cs-fixer.bat", "phpstan.bat", "psalm.bat"} {
-		writeVendorBin(t, dir, name)
+	for _, tool := range []string{"pint", "php-cs-fixer", "phpstan", "psalm"} {
+		writeVendorTool(t, dir, tool, 1)
 	}
 	stageFile(t, dir, "a.php", "<?php echo 1;\n")
 	out, err := runHook(t, dir, os.Environ())

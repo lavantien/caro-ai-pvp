@@ -96,6 +96,12 @@ func pathEnv(env []string) (string, []string) {
 }
 
 func ToolPath(env []string, name string) (string, bool) {
+	if filepath.IsAbs(name) {
+		if st, err := os.Stat(name); err == nil && !st.IsDir() {
+			return name, true
+		}
+		return "", false
+	}
 	pathList, exts := pathEnv(env)
 	if pathList == "" {
 		return "", false

@@ -102,14 +102,10 @@ func TestNodeChecksScriptCheckFailureFailsHook(t *testing.T) {
 func TestPhpChecksRunVendorTools(t *testing.T) {
 	dir := newRepo(t)
 	writeFile(t, dir, "composer.json", "{}\n")
-	vendor := filepath.Join(dir, "vendor", "bin")
-	if err := os.MkdirAll(vendor, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, dir, filepath.FromSlash("vendor/bin/pint.bat"), "@echo off\nexit /b 1\n")
-	writeFile(t, dir, filepath.FromSlash("vendor/bin/php-cs-fixer.bat"), "@echo off\nexit /b 0\n")
-	writeFile(t, dir, filepath.FromSlash("vendor/bin/phpstan.bat"), "@echo off\nexit /b 1\n")
-	writeFile(t, dir, filepath.FromSlash("vendor/bin/psalm.bat"), "@echo off\nexit /b 1\n")
+	writeVendorTool(t, dir, "pint", 1)
+	writeVendorTool(t, dir, "php-cs-fixer", 0)
+	writeVendorTool(t, dir, "phpstan", 1)
+	writeVendorTool(t, dir, "psalm", 1)
 	stageFile(t, dir, "a.php", "<?php\n")
 	out, err := runHook(t, dir, os.Environ())
 	if err != nil {

@@ -2,6 +2,7 @@ package hook
 
 import (
 	"bytes"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -84,6 +85,25 @@ func fmtExit(code int, prints ...string) string {
 		n /= 10
 	}
 	return src + "\tos.Exit(" + s + ")\n}\n"
+}
+
+func writeVendorTool(t *testing.T, dir, tool string, code int) {
+	t.Helper()
+	name := tool + ".bat"
+	content := "@echo off\r\nexit /b " + strconv.Itoa(code) + "\r\n"
+	mode := 0o644
+	if runtime.GOOS != "windows" {
+		name = tool
+		content = "#!/bin/sh\nexit " + strconv.Itoa(code) + "\n"
+		mode = 0o755
+	}
+	bin := filepath.Join(dir, "vendor", "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, name), []byte(content), fs.FileMode(mode)); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func envWith(t *testing.T, extraDir string) []string {

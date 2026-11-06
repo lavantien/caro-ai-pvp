@@ -3,6 +3,7 @@ package hook
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -277,7 +278,20 @@ func (h *ctx) scalaChecks() {
 
 func (h *ctx) runnable(path string) bool {
 	st, err := os.Stat(path)
-	return err == nil && !st.IsDir() && filepath.Ext(path) != ""
+	if err != nil || st.IsDir() {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return filepath.Ext(path) != ""
+	}
+	return st.Mode()&0o111 != 0
+}
+
+func (h *ctx) vendorBin(tool string) string {
+	if runtime.GOOS == "windows" {
+		tool += ".bat"
+	}
+	return filepath.Join(h.root, "vendor", "bin", tool)
 }
 
 func (h *ctx) phpChecks() {
@@ -285,27 +299,27 @@ func (h *ctx) phpChecks() {
 	if len(files) == 0 {
 		return
 	}
-	if p := filepath.Join(h.root, "vendor", "bin", "pint.bat"); h.runnable(p) {
+	if p := h.vendorBin("pint"); h.runnable(p) {
 		h.printf("Running Laravel Pint...")
 		if _, code, _ := h.tryTool(p, []string{"--test"}, h.root); code != 0 {
 			h.tryTool(p, nil, h.root)
 			h.gitAdd(files...)
 		}
 	}
-	if p := filepath.Join(h.root, "vendor", "bin", "php-cs-fixer.bat"); h.runnable(p) {
+	if p := h.vendorBin("php-cs-fixer"); h.runnable(p) {
 		h.printf("Running php-cs-fixer...")
 		if _, code, _ := h.tryTool(p, []string{"fix", "--dry-run"}, h.root); code != 0 {
 			h.tryTool(p, []string{"fix"}, h.root)
 			h.gitAdd(files...)
 		}
 	}
-	if p := filepath.Join(h.root, "vendor", "bin", "phpstan.bat"); h.runnable(p) {
+	if p := h.vendorBin("phpstan"); h.runnable(p) {
 		h.printf("Running PHPStan...")
 		if _, code, _ := h.tryTool(p, []string{"analyse", "--memory-limit=1G"}, h.root); code != 0 {
 			h.printf("PHPStan warnings.")
 		}
 	}
-	if p := filepath.Join(h.root, "vendor", "bin", "psalm.bat"); h.runnable(p) {
+	if p := h.vendorBin("psalm"); h.runnable(p) {
 		h.printf("Running Psalm...")
 		if _, code, _ := h.tryTool(p, []string{"--show-info=false"}, h.root); code != 0 {
 			h.printf("Psalm warnings.")
@@ -335,7 +349,7 @@ func (h *ctx) phpPintChecks() {
 	if len(files) == 0 {
 		return
 	}
-	if h.runnable(filepath.Join(h.root, "vendor", "bin", "pint.bat")) {
+	if h.runnable(h.vendorBin("pint")) {
 		return
 	}
 	path, ok := ToolPath(h.env, "pint")
