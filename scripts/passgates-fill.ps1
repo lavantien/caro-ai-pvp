@@ -11,6 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $PSScriptRoot 'arena-launch.ps1')
 $target = 'passgates-fill'
 $verdictPattern = '^(hex|square)-passgates: (DONE|FAILED.*)$'
 $verdictDonePattern = '^(hex|square)-passgates: DONE$'
@@ -155,12 +156,12 @@ function Invoke-Arm($arm, $pollLog) {
 		$err = "$log.err"
 		Set-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) start: bin\arena-freeze.exe $argText"
 		Write-Host "arm $($arm.Name) start, log $log"
-		$p = Start-Process -FilePath $arenaFreeze -ArgumentList $arm.Args -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $raw -RedirectStandardError $err
+		$code = Invoke-ArenaProcess -FilePath $arenaFreeze -ArgumentList $arm.Args -WorkingDirectory $repo -OutPath $raw -ErrPath $err
 		Merge-ArmLog $arm.Name
-		Add-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) exit $($p.ExitCode)"
-		if ($p.ExitCode -ne 0) {
-			Write-Host "arm $($arm.Name) exited $($p.ExitCode), see $log"
-			return "crashed $($arm.Name) exit $($p.ExitCode)"
+		Add-Content -Path $log -Value "$(Get-Date -Format s) arm $($arm.Name) exit $code"
+		if ($code -ne 0) {
+			Write-Host "arm $($arm.Name) exited $code, see $log"
+			return "crashed $($arm.Name) exit $code"
 		}
 	}
 	$verdict = Get-ArmVerdict $arm.Name

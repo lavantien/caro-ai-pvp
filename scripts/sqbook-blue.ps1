@@ -15,6 +15,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $PSScriptRoot 'arena-launch.ps1')
 
 $usage = @'
 sqbook-blue: extend the square trunk book with blue-side replies
@@ -60,13 +61,13 @@ Write-Output "sqbook-blue: branch start, log $logAbs"
 $raw = "$logAbs.raw"
 $err = "$logAbs.err"
 $env:GOMEMLIMIT = $MemLimit
-$p = Start-Process -FilePath $binAbs -ArgumentList $phaseArgs -WorkingDirectory $repo -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $raw -RedirectStandardError $err
+$code = Invoke-ArenaProcess -FilePath $binAbs -ArgumentList $phaseArgs -WorkingDirectory $repo -OutPath $raw -ErrPath $err
 Add-Content -Path $logAbs -Value (Get-Content $raw)
 Remove-Item $raw -Force -Confirm:$false
 if (Test-Path $err) { Add-Content -Path $logAbs -Value (Get-Content $err); Remove-Item $err -Force -Confirm:$false }
-if ($p.ExitCode -ne 0) {
-	Write-Output "sqbook-blue: branch exited $($p.ExitCode), see $logAbs"
-	exit $p.ExitCode
+if ($code -ne 0) {
+	Write-Output "sqbook-blue: branch exited $code, see $logAbs"
+	exit $code
 }
 Write-Output 'sqbook-blue: branch done'
 exit 0
