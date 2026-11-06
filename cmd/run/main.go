@@ -52,12 +52,16 @@ type runner struct {
 	base   map[string]string
 }
 
+func rootChild(root, name string) string {
+	return filepath.Join(root, name)
+}
+
 func newRunner(target string, v vars) (*runner, error) {
 	root, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	if _, err := os.Stat(root + string(os.PathSeparator) + "go.mod"); err != nil {
+	if _, err := os.Stat(rootChild(root, "go.mod")); err != nil {
 		return nil, fmt.Errorf("run: invoke from the repo root, %s has no go.mod", root)
 	}
 	goExe, err := goEnvGOEXE()
@@ -66,7 +70,7 @@ func newRunner(target string, v vars) (*runner, error) {
 	}
 	base := map[string]string{
 		"CGO_ENABLED": "1",
-		"GOTMPDIR":    root + string(os.PathSeparator) + ".gotmp",
+		"GOTMPDIR":    rootChild(root, ".gotmp"),
 	}
 	if t, ok := os.LookupEnv("GOTMPDIR"); ok && t != "" {
 		base["GOTMPDIR"] = t
