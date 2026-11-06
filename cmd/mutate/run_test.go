@@ -784,6 +784,17 @@ func (r *baselineThenBuildFailRunner) runTest(context.Context, string) (string, 
 	return buildFailOut, &exec.ExitError{}
 }
 
+func TestRunBaselineFailureCarriesSuiteOutput(t *testing.T) {
+	r := &fakeRunner{failPkg: map[string]bool{"probe": true}, failOut: "zz-baseline-marker: toolchain cache corrupt\n"}
+	_, err := runBaseline(context.Background(), &strings.Builder{}, []mutation{{pkg: "probe"}}, r)
+	if err == nil {
+		t.Fatal("runBaseline(failing suite) err = nil, want the baseline failure")
+	}
+	if !strings.Contains(err.Error(), "zz-baseline-marker: toolchain cache corrupt") {
+		t.Fatalf("baseline error lost the suite output: %v", err)
+	}
+}
+
 func TestRunMutationMutantPhaseRunErrorPropagates(t *testing.T) {
 	dir := writeModule(t, map[string]string{
 		"go.mod": "module probe\n\ngo 1.27\n",

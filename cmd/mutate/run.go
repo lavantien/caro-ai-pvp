@@ -146,11 +146,14 @@ func isDigits(s string) bool {
 }
 
 func runErrorf(site string, err error, out string) error {
-	msg := fmt.Sprintf("run error %s: %v (no test failure signature and no build failure of the mutated package in the suite output; verdicts so far void, rerun the gate)", site, err)
+	return fmt.Errorf("run error %s: %v (no test failure signature and no build failure of the mutated package in the suite output; verdicts so far void, rerun the gate)%s", site, err, suiteTailSuffix(out))
+}
+
+func suiteTailSuffix(out string) string {
 	if tail := strings.TrimSpace(outputTail(out)); tail != "" {
-		msg += "\nsuite output tail:\n" + tail
+		return "\nsuite output tail:\n" + tail
 	}
-	return errors.New(msg)
+	return ""
 }
 
 func outputTail(out string) string {
@@ -190,8 +193,9 @@ func runBaseline(ctx context.Context, out io.Writer, ms []mutation, r runner) (m
 			continue
 		}
 		seen[m.pkg] = true
-		if _, err := r.runTest(ctx, m.pkg); err != nil {
-			return nil, fmt.Errorf("baseline suite failed for %s: %v (unmutated suite must be green before scoring mutants)", m.pkg, err)
+		testOut, err := r.runTest(ctx, m.pkg)
+		if err != nil {
+			return nil, fmt.Errorf("baseline suite failed for %s: %v (unmutated suite must be green before scoring mutants)%s", m.pkg, err, suiteTailSuffix(testOut))
 		}
 		green[m.pkg] = true
 	}
