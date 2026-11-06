@@ -77,6 +77,7 @@ func TestPonderSearcherCallProtocol(t *testing.T) {
 		t.Fatalf("create master vs master: %v", err)
 	}
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
+	r.Close()
 	starts := 0
 	for i, p := range registry {
 		events, open, closed := p.snapshot()
