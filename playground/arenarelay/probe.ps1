@@ -14,7 +14,8 @@ arenarelay probe: proves the arena arm relay keeps draining the child stdout
   and stderr while the child runs, delivers every line, propagates the exit
   code, and survives a hostile concurrent reader of the output file
   scenarios: old control via Start-Process redirect, new helper, new helper
-  under burst load with an external reader loop hammering the raw file
+  under burst load with an external reader loop hammering the raw file,
+  new helper under a slow drip asserting the raw file grows live mid-run
 '@
 
 if ($Help) { Write-Output $usage; exit 0 }
@@ -69,6 +70,19 @@ $burstCount = (Get-Content $burstRaw | Measure-Object -Line).Lines
 Assert ($code -eq 3) "burst under hostile reader propagates exit code, got $code"
 Assert ($burstCount -eq $BurstLines) "burst under hostile reader delivers $BurstLines lines, got $burstCount"
 Assert ($burstWall -lt 60000) "burst under hostile reader completes under 60 s, took $burstWall ms"
+
+$dripRaw = Join-Path $work 'drip.raw'
+$dripErr = Join-Path $work 'drip.err'
+$dripRunner = Start-Job { param($repo, $producer, $raw, $err) . (Join-Path $repo 'scripts\arena-launch.ps1'); Invoke-ArenaProcess -FilePath $producer -ArgumentList @('-lines', '20', '-every', '500ms', '-exit', '0') -WorkingDirectory $repo -OutPath $raw -ErrPath $err } -ArgumentList $repo, $producer, $dripRaw, $dripErr
+Start-Sleep -Milliseconds 4200
+$midCount = if (Test-Path $dripRaw) { (Get-Content $dripRaw | Measure-Object -Line).Lines } else { 0 }
+$dripRunner | Wait-Job | Out-Null
+$dripCode = Receive-Job $dripRunner
+$dripRunner | Remove-Job -Force -Confirm:$false
+$dripCount = (Get-Content $dripRaw | Measure-Object -Line).Lines
+Assert ($midCount -ge 1 -and $midCount -le 19) "drip raw grows live mid-run, sampled $midCount at 4.2 s"
+Assert ($dripCount -eq 20) "drip delivers all 20 lines, got $dripCount"
+Assert ($dripCode -eq 0) "drip propagates exit code, got $dripCode"
 
 Remove-Item $work -Recurse -Force -Confirm:$false
 if ($failures.Count -gt 0) {
