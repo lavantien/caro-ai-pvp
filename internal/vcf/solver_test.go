@@ -465,7 +465,7 @@ func TestAppendPVSeparatesEntries(t *testing.T) {
 func TestDeadlineMidSearchPoll(t *testing.T) {
 	board, _, ok := genRandom(14, 0x5851F42D4C957F2D, false)
 	if !ok {
-		t.SkipNow()
+		t.Fatal("seed 14 fixture produced a pre-won board, regenerate the fixture")
 	}
 	s := New(KindVCT)
 	dl := &countdownDeadline{after: 1}
