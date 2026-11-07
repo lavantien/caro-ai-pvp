@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-	[int]$Parallel = 6,
+	[int]$Parallel = 4,
 	[string]$Log = 'logs/archive/mutate-finalclose-engine-server.log',
 	[switch]$Help,
 	[switch]$DryRun,
