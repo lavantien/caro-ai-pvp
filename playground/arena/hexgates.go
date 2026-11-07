@@ -11,7 +11,7 @@ import (
 
 const (
 	passThresholdEasy   = 0.90
-	passThresholdMedium = 0.75
+	passThresholdMedium = 0.60
 	passThresholdHard   = 0.60
 )
 

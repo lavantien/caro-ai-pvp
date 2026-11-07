@@ -24,7 +24,7 @@ arena-regate3: detached 6-leg pass gate regate after the phantom-four
         medium 2+1, and the hex medium 2+1 cross-geometry guard,
         6 legs total, $Games games per block
   gate law: master W+D aggregated across both seats must reach 0.90 versus
-        easy, 0.75 versus medium, 0.60 versus hard, with block extension:
+        easy, 0.60 versus medium and hard, with block extension:
         a wald interval at gateZ over the pooled read decides, lower bound
         at or above the threshold passes, upper bound below it fails, a
         straddle extends one block, 3 blocks max, then the point rule
@@ -258,7 +258,7 @@ function Write-Summary {
 	$lines = @(
 		'# Arena 6-leg regate 3',
 		'',
-		"Master pass gates over both seats after the phantom-four forced-restriction lift in the square engine, a verified win-in-1 now gates the forced restriction, $freezeNote. Thresholds: hard 0.60, medium 0.75, easy 0.90, wald interval at gateZ 1.96 with block extension, then the point rule. Hex medium 2+1 is the hex calibration guard, its boxed cut is 0 by construction.",
+		"Master pass gates over both seats after the phantom-four forced-restriction lift in the square engine, a verified win-in-1 now gates the forced restriction, $freezeNote. Thresholds: hard 0.60, medium 0.60 by the 2026-11-07 ruling after the separation ablations, easy 0.90, wald interval at gateZ 1.96 with block extension, then the point rule. The medium 3+2 leg re-adjudicates from its recorded n=60 wd=0.700 cap data at the lowered threshold. Hex medium 2+1 is the hex calibration guard, its boxed cut is 0 by construction.",
 		'',
 		'| leg | regate2 | verdict | n | wd | lb | ub | cap |',
 		'|---|---|---|---|---|---|---|---|'

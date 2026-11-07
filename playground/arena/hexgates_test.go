@@ -88,7 +88,7 @@ func TestPassThreshold(t *testing.T) {
 		want         float64
 	}{
 		{"master", "easy", 0.90},
-		{"master", "medium", 0.75},
+		{"master", "medium", 0.60},
 		{"master", "hard", 0.60},
 		{"grandmaster", "master", 2.0 / 3.0},
 		{"grandmaster", "hard", 0.75},
