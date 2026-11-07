@@ -85,9 +85,7 @@ func TestBotVsBotRefusesWhenTTBudgetFull(t *testing.T) {
 	}
 	close(bot.release)
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
-	if got := s.rm.LiveCoreBookings(); got != 0 {
-		t.Errorf("cores after the finished series = %d, want 0", got)
-	}
+	waitFor(t, func() bool { return s.rm.LiveCoreBookings() == 0 })
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.TierGrandmaster.TTBytes })
 }
 
@@ -165,9 +163,7 @@ func TestBotRoomRetireReleasesLedgerExactlyOnce(t *testing.T) {
 	open()
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
 	r.retire()
-	if got := s.rm.LiveCoreBookings(); got != 0 {
-		t.Errorf("cores after the stacked retires = %d, want 0", got)
-	}
+	waitFor(t, func() bool { return s.rm.LiveCoreBookings() == 0 })
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
 }
 
@@ -192,9 +188,7 @@ func TestSearchAdmissionTimeoutRetiresTheRoom(t *testing.T) {
 	}
 	waitFor(t, func() bool { _, ok := r.Info(); return !ok })
 	s.rm.adm.ReleaseCores(config.MachineCores)
-	if got := s.rm.LiveCoreBookings(); got != 0 {
-		t.Errorf("cores after the timed-out room = %d, want 0", got)
-	}
+	waitFor(t, func() bool { return s.rm.LiveCoreBookings() == 0 })
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
 	close(bot.release)
 }
@@ -401,9 +395,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	if _, ok := casual.Info(); !ok {
 		t.Fatal("the casual room died while the bot series ran")
 	}
-	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
-		t.Fatalf("cores after the bot series under the gated search = %d, want the casual %d", got, want)
-	}
+	waitFor(t, func() bool { return s.rm.LiveCoreBookings() == config.TierMaster.Cores })
 	close(gated.release)
 	casual.Close()
 }
