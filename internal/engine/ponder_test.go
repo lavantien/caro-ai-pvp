@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -320,24 +321,43 @@ func TestStartPonderWhilePonderingPanics(t *testing.T) {
 	s.StartPonder(midgameBoard(t))
 }
 
+const latchPollLimit = 1000
+
+type heldDeadline struct{ released atomic.Bool }
+
+func (h *heldDeadline) Exceeded() bool { return h.released.Load() }
+
+func (h *heldDeadline) Stop() { h.released.Store(true) }
+
+func awaitLatch(t *testing.T, held func() bool, release func()) {
+	t.Helper()
+	for i := 0; ; i++ {
+		if held() {
+			return
+		}
+		if i >= latchPollLimit {
+			release()
+			t.Fatalf("search never held the searching latch after %d polls", latchPollLimit)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func TestStartPonderWhileSearchingPanics(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
 	b := midgameBoard(t)
+	dl := &heldDeadline{}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_, _ = s.Search(b, NewFixedBudget(scaledBudget(150*time.Millisecond)))
+		_, _ = s.Search(b, dl)
 	}()
-	for {
+	awaitLatch(t, func() bool {
 		s.mu.Lock()
-		busy := s.searching
-		s.mu.Unlock()
-		if busy {
-			break
-		}
-		time.Sleep(time.Millisecond)
-	}
+		defer s.mu.Unlock()
+		return s.searching
+	}, func() { dl.Stop() })
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -346,6 +366,9 @@ func TestStartPonderWhileSearchingPanics(t *testing.T) {
 		if msg, ok := r.(string); !ok || !strings.HasPrefix(msg, "engine:") {
 			t.Fatalf("panic %v, want an engine: prefix", r)
 		}
+	}()
+	defer func() {
+		dl.Stop()
 		<-done
 	}()
 	s.StartPonder(b)
@@ -638,23 +661,23 @@ func TestEngineStartPonderGuards(t *testing.T) {
 	defer busy.Close()
 	b := midgameBoard(t)
 	guard := *b
+	dl := &heldDeadline{}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		busy.Search(b, NewFixedBudget(scaledBudget(150*time.Millisecond)))
+		busy.Search(b, dl)
 	}()
-	for {
+	defer func() {
+		dl.Stop()
+		<-done
+	}()
+	awaitLatch(t, func() bool {
 		busy.mu.Lock()
-		searching := busy.searching
-		busy.mu.Unlock()
-		if searching {
-			break
-		}
-		runtime.Gosched()
-	}
+		defer busy.mu.Unlock()
+		return busy.searching
+	}, func() { dl.Stop() })
 	assertEnginePanic(t, "StartPonder while searching", func() { busy.StartPonder(&guard) })
 	assertEnginePanic(t, "Search while searching", func() { busy.Search(&guard, NewStoppable()) })
-	<-done
 }
 
 func TestEnginePonderConcurrentLifecycle(t *testing.T) {
