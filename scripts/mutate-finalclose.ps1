@@ -37,7 +37,6 @@ function Write-Status([string]$text) {
 }
 
 $fullLog = Join-Path $repo ($Log -replace '/', '\')
-$terminal = 'mutate: '
 $priorKills = 0
 
 if ($DryRun) {
@@ -71,7 +70,7 @@ $env:GOMEMLIMIT = '2GiB'
 
 $resumeArg = @()
 if (Test-Path $fullLog) {
-	$done = Get-Content $fullLog -ErrorAction SilentlyContinue | Where-Object { $_.like("$terminal*") -and $_ -match '^\S+ mutate: \d+/\d+ run' } | Select-Object -Last 1
+	$done = Get-Content $fullLog -ErrorAction SilentlyContinue | Where-Object { $_ -match '^\S+ mutate: \d+/\d+ run' } | Select-Object -Last 1
 	$priorKills = (Select-String -Path $fullLog -Pattern ' KILLED$').Count
 	if ($null -ne $done) { Write-Status "all-done prior gate: $done"; exit 0 }
 	$resumeArg = @('-resume', $fullLog)
