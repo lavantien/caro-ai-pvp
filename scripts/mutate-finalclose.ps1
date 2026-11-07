@@ -25,8 +25,9 @@ mutate-finalclose: detached engine plus server mutation re-gate for the final
   skips
   marker .scratch/mutate-finalclose.status: running | all-done exit 0 |
   failed exit <n> | done, status artifact never edited by hand
-  per-mutant timeout 2m matches the prior gates, GOMEMLIMIT 2GiB per
-  worker budget, GOTMPDIR <repo>/.gotmp
+  per-mutant timeout 2m matches the prior gates, no GOMEMLIMIT: the tool
+  caps each worker tree itself and the prior green gates ran without one,
+  GOTMPDIR <repo>/.gotmp
 '@
 
 if ($Help) { Write-Output $usage; exit 0 }
@@ -66,7 +67,6 @@ $gotmp = Join-Path $repo '.gotmp'
 New-Item -ItemType Directory -Force $gotmp | Out-Null
 $env:GOTMPDIR = $gotmp
 $env:CGO_ENABLED = '1'
-$env:GOMEMLIMIT = '2GiB'
 
 $resumeArg = @()
 if (Test-Path $fullLog) {
