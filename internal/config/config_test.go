@@ -141,6 +141,9 @@ func TestClockLawConstants(t *testing.T) {
 	if MutateCompileReserveMs < 60_000 {
 		t.Errorf("MutateCompileReserveMs = %d, want at least the 60000 ms compile reserve so the suite alarm fires before the outer window ends", MutateCompileReserveMs)
 	}
+	if MutateRunErrTailBytes < 4096 {
+		t.Errorf("MutateRunErrTailBytes = %d, want at least 4096 so a baseline failure tail keeps its panic header and faulting frames", MutateRunErrTailBytes)
+	}
 }
 
 func TestSuiteTimeoutKeepsAlarmInsideOuterWindow(t *testing.T) {

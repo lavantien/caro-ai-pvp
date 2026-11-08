@@ -24,7 +24,6 @@ const (
 	verdictRunError   = "RUN ERROR"
 	testFailPrefix    = "--- FAIL:"
 	buildFailedSuffix = " [build failed]"
-	runErrTailBytes   = 512
 )
 
 var errInterrupted = errors.New("interrupted")
@@ -161,10 +160,10 @@ func suiteTailSuffix(out string) string {
 }
 
 func outputTail(out string) string {
-	if len(out) <= runErrTailBytes {
+	if len(out) <= config.MutateRunErrTailBytes {
 		return out
 	}
-	return "..." + out[len(out)-runErrTailBytes:]
+	return "..." + out[len(out)-config.MutateRunErrTailBytes:]
 }
 
 func isInfraError(err error) bool {

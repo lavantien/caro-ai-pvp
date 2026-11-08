@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 func TestIsDigitsClassifiesTokens(t *testing.T) {
@@ -28,9 +30,9 @@ func TestOutputTailTruncatesLongOutput(t *testing.T) {
 	if got := outputTail("short"); got != "short" {
 		t.Fatalf("outputTail(short) = %q", got)
 	}
-	long := strings.Repeat("x", runErrTailBytes+50)
+	long := strings.Repeat("x", config.MutateRunErrTailBytes+50)
 	got := outputTail(long)
-	if !strings.HasPrefix(got, "...") || len(got) != runErrTailBytes+3 {
-		t.Fatalf("outputTail truncation = prefix %q len %d, want ... prefix and %d kept bytes", got[:6], len(got), runErrTailBytes)
+	if !strings.HasPrefix(got, "...") || len(got) != config.MutateRunErrTailBytes+3 {
+		t.Fatalf("outputTail truncation = prefix %q len %d, want ... prefix and %d kept bytes", got[:6], len(got), config.MutateRunErrTailBytes)
 	}
 }
