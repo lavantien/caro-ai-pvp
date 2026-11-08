@@ -75,7 +75,8 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	}
 	ttE := New(1 << 16)
 	if used := int64(len(ttE.tt.entries)) * 8; used > 1<<16 {
-		t.Fatalf("transposition table used %d bytes for a %d byte budget", used, 1<<16)
+		t.Errorf("transposition table used %d bytes for a %d byte budget", used, 1<<16)
+		panic("transposition table budget breach")
 	}
 	for _, pin := range []struct {
 		b    *rules.Board
