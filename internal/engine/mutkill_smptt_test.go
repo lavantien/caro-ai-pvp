@@ -172,7 +172,7 @@ func poisonWorker(b *rules.Board) *Engine {
 
 func warmAndPark(t *testing.T, s *SMP, b *rules.Board) {
 	t.Helper()
-	_, _ = s.Search(b, NewFixedBudget(time.Microsecond))
+	_, _ = s.Search(b, cappedProbe(time.Microsecond))
 	time.Sleep(3 * time.Duration(config.SearchWorkerParkDelayMs) * time.Millisecond)
 }
 
@@ -195,7 +195,7 @@ func TestSMPKillSelectionPrefersDeeperWorker(t *testing.T) {
 	defer s.Close()
 	s.workers[1].radius = 0
 	warmAndPark(t, s, b)
-	mv, stats := s.Search(b, NewFixedBudget(30*time.Millisecond))
+	mv, stats := s.Search(b, cappedNodeBudget(150_000))
 	if s.results[1].completed != config.SearchMaxPly {
 		t.Fatalf("setup: radius-zero worker completed %d", s.results[1].completed)
 	}
@@ -213,7 +213,7 @@ func TestSMPKillSelectionTieBreaksByArrival(t *testing.T) {
 	s.workers[1] = poisonWorker(b)
 	for attempt := 1; ; attempt++ {
 		warmAndPark(t, s, b)
-		mv, stats := s.Search(b, NewNodeBudget(killSetupNodeBudget))
+		mv, stats := s.Search(b, cappedNodeBudget(killSetupNodeBudget))
 		r0, r1 := &s.results[0], &s.results[1]
 		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
 			if attempt < 5 {
@@ -243,7 +243,7 @@ func TestSMPKillArrivalCounterStrictlyIncreases(t *testing.T) {
 	s.workers[1].radius = 0
 	for attempt := 1; ; attempt++ {
 		warmAndPark(t, s, b)
-		mv, stats := s.Search(b, NewNodeBudget(killSetupNodeBudget))
+		mv, stats := s.Search(b, cappedNodeBudget(killSetupNodeBudget))
 		r0, r1 := &s.results[0], &s.results[1]
 		if r0.completed != config.SearchMaxPly || r1.completed != config.SearchMaxPly {
 			if attempt < 5 {

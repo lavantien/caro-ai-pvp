@@ -82,7 +82,7 @@ func TestMutKillResetZeroesCounters(t *testing.T) {
 func TestMutKillStoppedSearchInits(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
-	dl := NewFixedBudget(time.Second)
+	dl := cappedProbe(time.Second)
 	dl.Stop()
 	mv, stats := e.Search(b, dl)
 	if !b.IsLegal(rules.Cell(mv)) {
@@ -99,7 +99,7 @@ func TestMutKillFallbackMoveIsFirstCandidate(t *testing.T) {
 	place(t, b, rules.Blue, "H9")
 	place(t, b, rules.Red, "I8")
 	e := New(0)
-	dl := NewFixedBudget(time.Second)
+	dl := cappedProbe(time.Second)
 	dl.Stop()
 	mv, _ := e.Search(b, dl)
 	if mv != rules.Move(mustCell(t, "F8")) {

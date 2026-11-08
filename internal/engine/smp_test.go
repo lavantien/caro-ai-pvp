@@ -50,7 +50,7 @@ func TestSMPSearchReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
 	budget := scaledBudget(80 * time.Millisecond)
-	mv, stats := s.Search(b, NewFixedBudget(budget))
+	mv, stats := s.Search(b, cappedNodeBudget(300_000))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("smp move %d illegal", mv)
 	}
@@ -84,7 +84,7 @@ func TestSMPSingleWorkerMatchesEngine(t *testing.T) {
 func TestSMPStatsAggregateAcrossWorkers(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
-	mv, stats := s.SearchDepth(b, NewFixedBudget(scaledBudget(120*time.Millisecond)), 64)
+	mv, stats := s.SearchDepth(b, cappedNodeBudget(1_000_000), 64)
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("move %d illegal", mv)
 	}
@@ -170,7 +170,7 @@ func TestSMPTinyBudgetStillLegal(t *testing.T) {
 	for _, budget := range []time.Duration{0, 30} {
 		b := midgameBoard(t)
 		s := newSMP(3, 0)
-		mv, stats := s.Search(b, NewFixedBudget(budget*time.Microsecond))
+		mv, stats := s.Search(b, cappedProbe(budget*time.Microsecond))
 		if !b.IsLegal(rules.Cell(mv)) {
 			t.Fatalf("budget %v: illegal move %d", budget, mv)
 		}
@@ -182,7 +182,7 @@ func TestSMPTinyBudgetStillLegal(t *testing.T) {
 func TestSMPTinyBudgetWithExternalStop(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
-	dl := NewFixedBudget(5 * time.Second)
+	dl := cappedBudget(5 * time.Second)
 	var stopped atomic.Bool
 	go func() {
 		time.Sleep(2 * time.Millisecond)
@@ -222,7 +222,7 @@ func TestSMPWorkerPoolLifecycle(t *testing.T) {
 	s := newSMP(4, testTTBytes)
 	for range 3 {
 		b := midgameBoard(t)
-		if mv, _ := s.Search(b, NewFixedBudget(30*time.Millisecond)); !b.IsLegal(rules.Cell(mv)) {
+		if mv, _ := s.Search(b, cappedNodeBudget(150_000)); !b.IsLegal(rules.Cell(mv)) {
 			t.Fatalf("lifecycle probe move %d illegal", mv)
 		}
 	}
@@ -245,7 +245,7 @@ func TestSMPCloseBeforeFirstSearchIsInert(t *testing.T) {
 }
 func TestSMPSearchAfterClosePanics(t *testing.T) {
 	s := newSMP(2, 0)
-	if mv, _ := s.Search(midgameBoard(t), NewFixedBudget(time.Microsecond)); !midgameBoard(t).IsLegal(rules.Cell(mv)) {
+	if mv, _ := s.Search(midgameBoard(t), cappedProbe(time.Microsecond)); !midgameBoard(t).IsLegal(rules.Cell(mv)) {
 		t.Fatalf("warmup move %d illegal", mv)
 	}
 	s.Close()
@@ -254,7 +254,7 @@ func TestSMPSearchAfterClosePanics(t *testing.T) {
 			t.Error("Search after Close must panic")
 		}
 	}()
-	_, _ = s.Search(midgameBoard(t), NewFixedBudget(time.Microsecond))
+	_, _ = s.Search(midgameBoard(t), cappedProbe(time.Microsecond))
 }
 func TestSMPDispatchAfterClosePanics(t *testing.T) {
 	s := newSMP(2, testTTBytes)
@@ -278,7 +278,7 @@ func TestSMPCloseJoinsInFlightSearch(t *testing.T) {
 		go func() {
 			defer close(done)
 			defer func() { _ = recover() }()
-			_, _ = s.Search(b, NewFixedBudget(60*time.Millisecond))
+			_, _ = s.Search(b, cappedNodeBudget(250_000))
 		}()
 		time.Sleep(time.Duration(i%9) * time.Millisecond)
 		s.Close()
@@ -307,7 +307,7 @@ func TestSMPConcurrentSearchPanicsLoudly(t *testing.T) {
 					panicked.Add(1)
 				}
 			}()
-			_, _ = s.Search(b, NewFixedBudget(80*time.Millisecond))
+			_, _ = s.Search(b, cappedNodeBudget(300_000))
 		})
 	}
 	close(start)
@@ -356,7 +356,7 @@ func TestSMPRaceHammer(t *testing.T) {
 		s := newSMP(workers, testTTBytes)
 		for seed := range uint64(4) {
 			b := playout(t, 400*seed+uint64(workers), int(10+seed*5))
-			mv, stats := s.Search(b, NewFixedBudget(40*time.Millisecond))
+			mv, stats := s.Search(b, cappedNodeBudget(200_000))
 			if !b.IsLegal(rules.Cell(mv)) {
 				t.Fatalf("workers %d seed %d: illegal move %d", workers, seed, mv)
 			}
@@ -402,11 +402,12 @@ func TestSMPWorkerLoopZeroAllocs(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	w := s.workers[0]
 	res := &s.results[0]
-	dl := NewFixedBudget(0)
+	dl := cappedProbe(0)
 	s.jobMaxDepth = config.SearchMaxPly
 	if n := testing.AllocsPerRun(20, func() {
 		s.tt.bumpGen()
 		w.resetForSearch(b)
+		w.nodeFeed = dl
 		s.halt.Store(false)
 		s.haltDL.inner = dl
 		dl.Reset(300 * time.Microsecond)
@@ -421,7 +422,7 @@ func TestSMPWorkerLoopZeroAllocs(t *testing.T) {
 func TestSMPSearchZeroAllocs(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
-	dl := NewFixedBudget(0)
+	dl := cappedProbe(0)
 	dl.Reset(time.Millisecond)
 	if mv, _ := s.Search(b, dl); !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("pool warmup move %d illegal", mv)

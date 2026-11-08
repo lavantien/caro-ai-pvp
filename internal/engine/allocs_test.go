@@ -11,7 +11,7 @@ import (
 func TestZeroAllocsSearch(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
-	dl := NewFixedBudget(0)
+	dl := cappedProbe(0)
 	var sinkMove rules.Move
 	var sinkStats SearchStats
 	if n := testing.AllocsPerRun(20, func() {
@@ -29,7 +29,7 @@ func TestZeroAllocsSearch(t *testing.T) {
 func TestZeroAllocsSearchNoTT(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
-	dl := NewFixedBudget(0)
+	dl := cappedProbe(0)
 	if n := testing.AllocsPerRun(20, func() {
 		dl.Reset(500 * time.Microsecond)
 		_, _ = e.Search(b, dl)

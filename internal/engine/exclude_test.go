@@ -15,7 +15,7 @@ func TestSearchExcludedSkipsTheCell(t *testing.T) {
 	if mv != rules.Move(mustCell(t, "I9")) {
 		t.Fatalf("setup: unexcluded move %d, want the mate I9", mv)
 	}
-	mv2, stats := e.SearchExcluded(b, NewFixedBudget(time.Second), mv)
+	mv2, stats := e.SearchExcluded(b, cappedBudget(time.Second), mv)
 	if mv2 == mv {
 		t.Fatalf("excluded move %d returned again", mv2)
 	}
@@ -35,7 +35,7 @@ func TestSMPSearchExcludedSkipsTheCell(t *testing.T) {
 	if mv != rules.Move(mustCell(t, "I9")) {
 		t.Fatalf("setup: unexcluded move %d, want the mate I9", mv)
 	}
-	mv2, stats := s.SearchExcluded(b, NewFixedBudget(2*time.Second), mv)
+	mv2, stats := s.SearchExcluded(b, cappedBudget(2*time.Second), mv)
 	if mv2 == mv {
 		t.Fatalf("excluded move %d returned again", mv2)
 	}

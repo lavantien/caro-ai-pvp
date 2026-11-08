@@ -149,7 +149,7 @@ func TestPVStaysLegal(t *testing.T) {
 	for seed := range uint64(12) {
 		b := playout(t, 300*seed+1, int(12+seed*4))
 		e := New(testTTBytes)
-		mv, stats := e.Search(b, NewFixedBudget(60*time.Millisecond))
+		mv, stats := e.Search(b, cappedNodeBudget(250_000))
 		if stats.PVLen == 0 {
 			t.Fatalf("seed %d: empty pv", seed)
 		}
@@ -217,7 +217,7 @@ func TestOrderingPrunesMoreAtEqualDepth(t *testing.T) {
 func TestStatsTTCountersPopulated(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
-	_, stats := e.Search(b, NewFixedBudget(scaledBudget(200*time.Millisecond)))
+	_, stats := e.Search(b, cappedNodeBudget(800_000))
 	if stats.TTHitPermille < 0 || stats.TTHitPermille > 1000 {
 		t.Errorf("tt hit permille %d out of range", stats.TTHitPermille)
 	}
@@ -248,7 +248,7 @@ func TestRootFillingMoveDraws(t *testing.T) {
 		t.Fatal("setup filled the board")
 	}
 	e := New(0)
-	mv, stats := e.Search(b, NewFixedBudget(10*time.Millisecond))
+	mv, stats := e.Search(b, cappedNodeBudget(60_000))
 	if mv != rules.Move(0) {
 		t.Fatalf("move %d, want the last empty cell A1", mv)
 	}

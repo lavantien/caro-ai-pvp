@@ -260,7 +260,7 @@ func TestPonderStopReturnsLegalMove(t *testing.T) {
 func TestStopPonderWhenNotPonderingReturnsZeros(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
-	if mv, _ := s.Search(midgameBoard(t), NewFixedBudget(time.Millisecond)); mv == moveNone {
+	if mv, _ := s.Search(midgameBoard(t), cappedProbe(time.Millisecond)); mv == moveNone {
 		t.Fatal("warmup search returned no move")
 	}
 	mv, stats := s.StopPonder()
@@ -275,7 +275,7 @@ func TestPonderImplicitStopOnSearch(t *testing.T) {
 	defer s.Close()
 	s.StartPonder(b)
 	time.Sleep(scaledBudget(20 * time.Millisecond))
-	mv, stats := s.Search(b, NewFixedBudget(scaledBudget(80*time.Millisecond)))
+	mv, stats := s.Search(b, cappedNodeBudget(300_000))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("search after ponder move %d illegal", mv)
 	}
@@ -423,11 +423,11 @@ func TestPonderStatsCoverOnlyTheLastJob(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
-	_, first := s.Search(b, NewFixedBudget(scaledBudget(120*time.Millisecond)))
+	_, first := s.Search(b, cappedNodeBudget(400_000))
 	s.StartPonder(b)
 	time.Sleep(scaledBudget(60 * time.Millisecond))
 	_, p1 := s.StopPonder()
-	_, second := s.Search(b, NewFixedBudget(scaledBudget(120*time.Millisecond)))
+	_, second := s.Search(b, cappedNodeBudget(400_000))
 	s.StartPonder(b)
 	time.Sleep(scaledBudget(60 * time.Millisecond))
 	mv, p2 := s.StopPonder()
@@ -450,7 +450,7 @@ func TestPonderStatsCoverOnlyTheLastJob(t *testing.T) {
 func TestPonderZeroAllocs(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(2, testTTBytes)
-	if mv, _ := s.Search(b, NewFixedBudget(time.Millisecond)); !b.IsLegal(rules.Cell(mv)) {
+	if mv, _ := s.Search(b, cappedProbe(time.Millisecond)); !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("warmup move %d illegal", mv)
 	}
 	defer s.Close()
@@ -471,7 +471,7 @@ func TestPonderZeroAllocs(t *testing.T) {
 }
 
 func TestEnginePonderLifecycle(t *testing.T) {
-	b := midgameBoard(t)
+	b := quietEndgameBoard(t)
 	e := New(testTTBytes)
 	defer e.Close()
 	var p Ponderer = e
@@ -501,12 +501,11 @@ func TestEnginePonderLifecycle(t *testing.T) {
 }
 
 func TestPonderOutlastsFundedGrant(t *testing.T) {
-	b := midgameBoard(t)
-	grant := scaledBudget(120 * time.Millisecond)
+	b := quietEndgameBoard(t)
 	pacer := New(testTTBytes)
 	pacerBoard := *b
 	paceOnce := func() {
-		pacer.Search(&pacerBoard, NewFixedBudget(grant))
+		pacer.Search(&pacerBoard, cappedNodeBudget(400_000))
 	}
 	fundedUnderPace := func(search func() SearchStats) int {
 		paced := make(chan struct{})
@@ -521,7 +520,7 @@ func TestPonderOutlastsFundedGrant(t *testing.T) {
 	e := New(testTTBytes)
 	defer e.Close()
 	engFunded := fundedUnderPace(func() SearchStats {
-		_, stats := e.Search(b, NewFixedBudget(grant))
+		_, stats := e.Search(b, cappedNodeBudget(400_000))
 		return stats
 	})
 	e.StartPonder(b)
@@ -543,7 +542,7 @@ func TestPonderOutlastsFundedGrant(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
 	smpFunded := fundedUnderPace(func() SearchStats {
-		_, stats := s.Search(b, NewFixedBudget(grant))
+		_, stats := s.Search(b, cappedNodeBudget(400_000))
 		return stats
 	})
 	s.StartPonder(b)
@@ -565,7 +564,7 @@ func TestPonderOutlastsFundedGrant(t *testing.T) {
 }
 
 func TestEnginePonderImplicitStopOnSearch(t *testing.T) {
-	b := midgameBoard(t)
+	b := quietEndgameBoard(t)
 	e := New(testTTBytes)
 	defer e.Close()
 	e.StartPonder(b)
@@ -575,7 +574,7 @@ func TestEnginePonderImplicitStopOnSearch(t *testing.T) {
 	if !ponding {
 		t.Fatal("StartPonder left the ponder latch unset")
 	}
-	mv, stats := e.Search(b, NewFixedBudget(scaledBudget(80*time.Millisecond)))
+	mv, stats := e.Search(b, cappedNodeBudget(300_000))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("search after ponder move %d illegal", mv)
 	}
@@ -597,7 +596,7 @@ func TestEnginePonderImplicitStopOnClose(t *testing.T) {
 	before := runtime.NumGoroutine()
 	for range 6 {
 		e := New(testTTBytes)
-		e.StartPonder(midgameBoard(t))
+		e.StartPonder(quietEndgameBoard(t))
 		e.Close()
 		e.Close()
 	}
@@ -653,7 +652,7 @@ func TestEngineStartPonderGuards(t *testing.T) {
 
 	hot := New(testTTBytes)
 	defer hot.Close()
-	hot.StartPonder(midgameBoard(t))
+	hot.StartPonder(quietEndgameBoard(t))
 	assertEnginePanic(t, "StartPonder while pondering", func() { hot.StartPonder(midgameBoard(t)) })
 	hot.StopPonder()
 

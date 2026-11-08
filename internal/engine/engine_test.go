@@ -82,7 +82,7 @@ func TestSearchReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
 	budget := scaledBudget(50 * time.Millisecond)
-	mv, stats := e.Search(b, NewFixedBudget(budget))
+	mv, stats := e.Search(b, cappedBudget(budget))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("search returned illegal move %d", mv)
 	}
@@ -105,7 +105,7 @@ func TestSearchReturnsLegalMove(t *testing.T) {
 
 func TestSearchEmptyBoardPlaysCenter(t *testing.T) {
 	e := New(testTTBytes)
-	mv, stats := e.Search(rules.NewBoard(), NewFixedBudget(scaledBudget(20*time.Millisecond)))
+	mv, stats := e.Search(rules.NewBoard(), cappedNodeBudget(400_000))
 	if mv != rules.Move(config.SearchEmptyBoardCell) {
 		t.Errorf("empty board move = %d, want center %d", mv, config.SearchEmptyBoardCell)
 	}
@@ -144,7 +144,7 @@ func TestSearchTinyBudgetStillLegal(t *testing.T) {
 	for _, budget := range []time.Duration{0, 1, 50} {
 		b := midgameBoard(t)
 		e := New(0)
-		mv, _ := e.Search(b, NewFixedBudget(budget*time.Microsecond))
+		mv, _ := e.Search(b, cappedProbe(budget*time.Microsecond))
 		if !b.IsLegal(rules.Cell(mv)) {
 			t.Fatalf("budget %d: illegal move %d", budget, mv)
 		}
@@ -154,7 +154,7 @@ func TestSearchTinyBudgetStillLegal(t *testing.T) {
 func TestSearchStoppedDeadlineReturnsFallback(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
-	dl := NewFixedBudget(time.Second)
+	dl := cappedProbe(time.Second)
 	dl.Stop()
 	mv, _ := e.Search(b, dl)
 	if !b.IsLegal(rules.Cell(mv)) {
@@ -166,7 +166,7 @@ func TestSearchGenerationWraps(t *testing.T) {
 	e := New(0)
 	b := midgameBoard(t)
 	for range 64 {
-		mv, _ := e.Search(b, NewFixedBudget(200*time.Microsecond))
+		mv, _ := e.Search(b, cappedProbe(200*time.Microsecond))
 		if !b.IsLegal(rules.Cell(mv)) {
 			t.Fatalf("generation wrap search returned illegal move %d", mv)
 		}
@@ -181,7 +181,7 @@ func TestSearchOpeningRuleSecondMove(t *testing.T) {
 	place(t, b, rules.Red, "H8")
 	place(t, b, rules.Blue, "I9")
 	e := New(testTTBytes)
-	mv, _ := e.Search(b, NewFixedBudget(30*time.Millisecond))
+	mv, _ := e.Search(b, cappedNodeBudget(400_000))
 	cell := rules.Cell(mv)
 	if !b.IsLegal(cell) {
 		t.Fatalf("move %d violates the opening rule", mv)

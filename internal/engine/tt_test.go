@@ -255,7 +255,7 @@ func TestTTLocklessConcurrentAccess(t *testing.T) {
 func TestSearchWorksWithoutTT(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
-	mv, stats := e.Search(b, NewFixedBudget(40*time.Millisecond))
+	mv, stats := e.Search(b, cappedNodeBudget(200_000))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("no-tt search returned illegal move %d", mv)
 	}
