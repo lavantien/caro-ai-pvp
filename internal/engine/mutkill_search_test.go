@@ -131,7 +131,7 @@ func TestMutKillFinishStatsPermilles(t *testing.T) {
 
 func TestMutKillMateEarlyBreakNodes(t *testing.T) {
 	e := New(0)
-	_, stats := e.SearchDepth(mate1Board(t), NewFixedBudget(time.Second), 4)
+	_, stats := e.SearchDepth(mate1Board(t), cappedNodeBudget(500_000), 4)
 	if stats.Depth != 2 || stats.Nodes != 3 || stats.RootIters != 2 {
 		t.Errorf("mate in 1 depth=%d nodes=%d rootiters=%d, want the verified halt at 2 3 2", stats.Depth, stats.Nodes, stats.RootIters)
 	}
@@ -140,12 +140,12 @@ func TestMutKillMateEarlyBreakNodes(t *testing.T) {
 func TestMutKillMidgameBarePins(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(0)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 2)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(500_000), 2)
 	if stats.Nodes != 142 || mv != rules.Move(mustCell(t, "G8")) || stats.Score != 300 || stats.PVLen != 2 {
 		t.Errorf("mid d2: nodes=%d mv=%d score=%d pvlen=%d, want 142 G8 300 2", stats.Nodes, mv, stats.Score, stats.PVLen)
 	}
 	e = New(0)
-	mv, stats = e.SearchDepth(b, NewFixedBudget(time.Second), 3)
+	mv, stats = e.SearchDepth(b, cappedNodeBudget(500_000), 3)
 	if stats.Nodes != 697 || mv != rules.Move(mustCell(t, "E3")) || stats.Score != 7700 || !pvEquals(&stats, mustCell(t, "E3"), mustCell(t, "F3"), mustCell(t, "G8")) {
 		t.Errorf("mid d3: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
 	}
@@ -154,11 +154,11 @@ func TestMutKillMidgameBarePins(t *testing.T) {
 func TestMutKillTTTraversalPins(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
-	_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 3)
+	_, stats := e.SearchDepth(b, cappedNodeBudget(500_000), 3)
 	if stats.Nodes != 486 || stats.FirstMoveFailHighPermille != 770 {
 		t.Errorf("mid d3 tt: nodes=%d fh1=%d, want 486 and 770", stats.Nodes, stats.FirstMoveFailHighPermille)
 	}
-	_, stats = e.SearchDepth(b, NewFixedBudget(time.Second), 3)
+	_, stats = e.SearchDepth(b, cappedNodeBudget(500_000), 3)
 	if stats.Nodes != 44 {
 		t.Errorf("mid d3 tt warm: nodes=%d, want 44", stats.Nodes)
 	}
@@ -177,7 +177,7 @@ func TestMutKillTwoHoleDrawPins(t *testing.T) {
 	}
 	b.Side = rules.Red
 	e := New(0)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 2)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(500_000), 2)
 	if stats.Score != 0 || mv != 0 || stats.PVLen != 2 || stats.PV[0] != 0 || stats.PV[1] != rules.Move(mustCell(t, "H8")) {
 		t.Errorf("two hole draw: score=%d mv=%d pvlen=%d pv=%v, want 0 A1 2 [A1 H8]", stats.Score, mv, stats.PVLen, stats.PV[:stats.PVLen])
 	}
@@ -196,7 +196,7 @@ func TestMutKillFillingDrawPVLen(t *testing.T) {
 	}
 	b.Side = rules.Red
 	e := New(0)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 2)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(500_000), 2)
 	if stats.PVLen != 1 || stats.PV[0] != mv {
 		t.Errorf("filling draw: pvlen=%d pv0=%d mv=%d, want 1 and mv", stats.PVLen, stats.PV[0], mv)
 	}
@@ -208,7 +208,7 @@ func TestMutKillDecoyRootWinPVLen(t *testing.T) {
 	place(t, b, rules.Blue, "D9", "F2", "G2", "H2", "I2")
 	b.Side = rules.Red
 	e := New(0)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 3)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(500_000), 3)
 	if mv != rules.Move(mustCell(t, "I9")) || stats.Score != config.EvalMateMax-config.EvalMateScoreStep || stats.PVLen != 1 {
 		t.Errorf("decoy: mv=%d score=%d pvlen=%d, want I9 mate pvlen 1", mv, stats.Score, stats.PVLen)
 	}
@@ -216,7 +216,7 @@ func TestMutKillDecoyRootWinPVLen(t *testing.T) {
 
 func TestMutKillMate2Depth3Pins(t *testing.T) {
 	e := New(0)
-	mv, stats := e.SearchDepth(mate2Board(t), NewFixedBudget(time.Second), 3)
+	mv, stats := e.SearchDepth(mate2Board(t), cappedNodeBudget(500_000), 3)
 	want := config.EvalMateMax - 3*config.EvalMateScoreStep
 	if stats.Nodes != 345 || mv != rules.Move(mustCell(t, "I9")) || stats.Score != want || !pvEquals(&stats, mustCell(t, "I9"), mustCell(t, "E9"), mustCell(t, "J9")) {
 		t.Errorf("mate2 d3: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
@@ -225,7 +225,7 @@ func TestMutKillMate2Depth3Pins(t *testing.T) {
 
 func TestMutKillMate3Depth4Pins(t *testing.T) {
 	e := New(0)
-	mv, stats := e.SearchDepth(mate3Board(t), NewFixedBudget(time.Second), 4)
+	mv, stats := e.SearchDepth(mate3Board(t), cappedNodeBudget(500_000), 4)
 	want := config.EvalMateMax - 5*config.EvalMateScoreStep
 	if stats.Nodes != 1976 || mv != rules.Move(mustCell(t, "H9")) || stats.Score != want || !pvEquals(&stats, mustCell(t, "H9"), mustCell(t, "I9"), mustCell(t, "H10"), mustCell(t, "H11"), mustCell(t, "H6")) {
 		t.Errorf("mate3 d4: nodes=%d mv=%d score=%d pvlen=%d pv=%v", stats.Nodes, mv, stats.Score, stats.PVLen, stats.PV[:stats.PVLen])
@@ -250,7 +250,7 @@ func TestMutKillTTMoveZeroAdopted(t *testing.T) {
 	h := b.Hash
 	b.Unmake()
 	e.tt.store(h, 0, 0, 0, ttBoundLower, 1)
-	_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 3)
+	_, stats := e.SearchDepth(b, cappedNodeBudget(500_000), 3)
 	if stats.Nodes != 217 {
 		t.Errorf("seeded A1 ttm: nodes=%d, want 217", stats.Nodes)
 	}
@@ -270,7 +270,7 @@ func TestMutKillMaxPlyLeafGuard(t *testing.T) {
 func TestMutKillRootStorePlyDecodes(t *testing.T) {
 	b := mate1Board(t)
 	e := New(testTTBytes)
-	_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 4)
+	_, stats := e.SearchDepth(b, cappedNodeBudget(500_000), 4)
 	score, _, cutoff := e.tt.probe(b.Hash, 1, -config.EvalMateMax, config.EvalMateMax, 0)
 	if !cutoff || score != stats.Score || score != config.EvalMateMax-config.EvalMateScoreStep {
 		t.Errorf("root entry decode: cutoff=%v score=%d, want exact %d", cutoff, score, config.EvalMateMax-config.EvalMateScoreStep)
@@ -311,7 +311,7 @@ func TestMutKillRootSentinelCraft(t *testing.T) {
 	seedChildTT(t, e, fb, mustCell(t, "E5"), m-config.EvalMateScoreStep, 2)
 	seedChildTT(t, e, fb, mustCell(t, "F5"), m-config.EvalMateScoreStep, 2)
 	e.tt.gen--
-	mv, stats := e.SearchDepth(fb, NewFixedBudget(time.Second), 3)
+	mv, stats := e.SearchDepth(fb, cappedNodeBudget(500_000), 3)
 	if mv != rules.Move(mustCell(t, "E5")) || stats.Score != -m || stats.PVLen != 0 || stats.Depth != 3 {
 		t.Errorf("root sentinel craft: mv=%d score=%d pvlen=%d depth=%d, want E5 -M 0 3", mv, stats.Score, stats.PVLen, stats.Depth)
 	}

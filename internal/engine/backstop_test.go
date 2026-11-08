@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-const ladderBackstopNodes = 16_000_000
-
 const probeBackstopNodes = 65_536
 
 type backstoppedFixed struct {
@@ -15,8 +13,8 @@ type backstoppedFixed struct {
 	limit uint64
 }
 
-func cappedBudget(d time.Duration) *backstoppedFixed {
-	return &backstoppedFixed{inner: NewFixedBudget(d), limit: ladderBackstopNodes}
+func cappedBudget(d time.Duration, limit uint64) *backstoppedFixed {
+	return &backstoppedFixed{inner: NewFixedBudget(d), limit: limit}
 }
 
 func cappedProbe(d time.Duration) *backstoppedFixed {

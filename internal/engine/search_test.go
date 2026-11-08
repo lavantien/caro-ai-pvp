@@ -2,7 +2,6 @@ package engine
 
 import (
 	"testing"
-	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -59,7 +58,7 @@ func TestSearchFindsMateInOne(t *testing.T) {
 		t.Fatalf("setup: win-in-1 cells %v, want exactly I9", wins)
 	}
 	e := New(testTTBytes)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 4)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 4)
 	if mv != rules.Move(mustCell(t, "I9")) {
 		t.Fatalf("mate in 1 move %d, want I9", mv)
 	}
@@ -78,7 +77,7 @@ func TestSearchDeclinesOverlineTrap(t *testing.T) {
 		t.Fatalf("setup: win-in-1 cells %v, want exactly E9", wins)
 	}
 	e := New(testTTBytes)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 4)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 4)
 	if mv != rules.Move(mustCell(t, "E9")) {
 		t.Fatalf("trap move %d returned, want E9: J9 overlines into a dead six", mv)
 	}
@@ -93,7 +92,7 @@ func TestSearchFindsMateInTwo(t *testing.T) {
 		t.Fatalf("setup: unexpected win-in-1 cells %v", wins)
 	}
 	e := New(testTTBytes)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 6)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 6)
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("mate in 2 move %d illegal", mv)
 	}
@@ -111,7 +110,7 @@ func TestSearchFindsMateInThree(t *testing.T) {
 		t.Fatalf("setup: unexpected win-in-1 cells %v", wins)
 	}
 	e := New(testTTBytes)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(2*time.Second), 8)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 8)
 	if mv != rules.Move(mustCell(t, "H9")) {
 		t.Fatalf("mate in 3 move %d, want the cross point H9", mv)
 	}
@@ -126,7 +125,7 @@ func TestSearchNoPhantomMateOnDeadLine(t *testing.T) {
 		t.Fatalf("setup: dead row still has win-in-1 cells %v", wins)
 	}
 	e := New(testTTBytes)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(300*time.Millisecond), 5)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 5)
 	if stats.Score >= config.EvalMateMax-config.SearchMaxPly*config.EvalMateScoreStep {
 		t.Errorf("dead line scored as mate: %d", stats.Score)
 	}
@@ -137,9 +136,9 @@ func TestSearchNoPhantomMateOnDeadLine(t *testing.T) {
 
 func TestMateDistanceMonotonicity(t *testing.T) {
 	e := New(testTTBytes)
-	_, s1 := e.SearchDepth(mate1Board(t), NewFixedBudget(time.Second), 4)
-	_, s2 := e.SearchDepth(mate2Board(t), NewFixedBudget(time.Second), 6)
-	_, s3 := e.SearchDepth(mate3Board(t), NewFixedBudget(2*time.Second), 8)
+	_, s1 := e.SearchDepth(mate1Board(t), cappedNodeBudget(1_000_000), 4)
+	_, s2 := e.SearchDepth(mate2Board(t), cappedNodeBudget(1_000_000), 6)
+	_, s3 := e.SearchDepth(mate3Board(t), cappedNodeBudget(1_000_000), 8)
 	if s1.Score <= s2.Score || s2.Score <= s3.Score {
 		t.Errorf("mate scores not monotone in distance: %d %d %d", s1.Score, s2.Score, s3.Score)
 	}
@@ -197,10 +196,10 @@ func TestOrderingPrunesMoreAtEqualDepth(t *testing.T) {
 	b := midgameBoard(t)
 	const depth = 5
 	ordered := New(testTTBytes)
-	_, statsOrdered := ordered.SearchDepth(b, cappedNodeBudget(4_000_000), depth)
+	_, statsOrdered := ordered.SearchDepth(b, cappedNodeBudget(1_000_000), depth)
 	bare := New(testTTBytes)
 	bare.noOrder = true
-	_, statsBare := bare.SearchDepth(b, cappedNodeBudget(4_000_000), depth)
+	_, statsBare := bare.SearchDepth(b, cappedNodeBudget(1_000_000), depth)
 	if statsOrdered.Depth != depth || statsBare.Depth != depth {
 		t.Fatalf("completed depths = %d and %d, want both %d (budget starved?)",
 			statsOrdered.Depth, statsBare.Depth, depth)
@@ -274,7 +273,7 @@ func TestInteriorFillingMoveDraws(t *testing.T) {
 	}
 	b.Side = rules.Red
 	e := New(0)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 2)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 2)
 	if stats.Depth != 2 {
 		t.Fatalf("depth %d, want the capped 2", stats.Depth)
 	}

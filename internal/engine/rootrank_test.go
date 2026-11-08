@@ -2,7 +2,6 @@ package engine
 
 import (
 	"testing"
-	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -22,7 +21,7 @@ func TestRootRankingWinIn1First(t *testing.T) {
 		t.Fatalf("side to move = %d, want red", b.Side)
 	}
 	e := New(testTTBytes)
-	mv, _ := e.SearchDepth(b, cappedNodeBudget(4_000_000), 2)
+	mv, _ := e.SearchDepth(b, cappedNodeBudget(1_000_000), 2)
 	if want := rules.Move(mustCell(t, "H12")); mv != want {
 		t.Fatalf("best move = %v, want the win in 1 %v", mv, want)
 	}
@@ -70,7 +69,7 @@ func TestRootRankingClampsAndEmpty(t *testing.T) {
 	}
 	b := midgameBoard(t)
 	e2 := New(testTTBytes)
-	_, _ = e2.SearchDepth(b, cappedNodeBudget(4_000_000), 3)
+	_, _ = e2.SearchDepth(b, cappedNodeBudget(1_000_000), 3)
 	if got := e2.RootRanking(dst[:], 0); len(got) != 0 {
 		t.Fatalf("k 0 ranking length = %d, want 0", len(got))
 	}
@@ -105,7 +104,7 @@ func TestRootRankingHoldsLastCompletedIteration(t *testing.T) {
 func TestRootMovesRingUnchanged(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
-	mv, stats := e.SearchDepth(b, cappedNodeBudget(4_000_000), 3)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 3)
 	if stats.RootIters != 3 {
 		t.Fatalf("root iters = %d, want 3", stats.RootIters)
 	}
@@ -120,7 +119,7 @@ func TestRootMovesRingUnchanged(t *testing.T) {
 func TestFixedBudgetSearchUnchanged(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
-	mv, stats := e.SearchDepth(b, cappedNodeBudget(4_000_000), 4)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 4)
 	if stats.Depth != 4 {
 		t.Fatalf("depth = %d, want 4", stats.Depth)
 	}
@@ -138,7 +137,7 @@ func TestFixedBudgetSearchUnchanged(t *testing.T) {
 func TestZeroAllocsRootRanking(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
-	_, _ = e.SearchDepth(b, NewFixedBudget(time.Second), 2)
+	_, _ = e.SearchDepth(b, cappedNodeBudget(1_000_000), 2)
 	var dst [config.SearchMaxMovesPerPly]RankedMove
 	if n := testing.AllocsPerRun(1000, func() { _ = e.RootRanking(dst[:], 4) }); n != 0 {
 		t.Fatalf("RootRanking: %v allocs, want 0", n)
@@ -161,7 +160,7 @@ func exactRanked(t *testing.T, b *rules.Board, depth int, bare bool) (rules.Move
 	if bare {
 		e.noOrder = true
 	}
-	mv, st := e.SearchDepth(b, cappedNodeBudget(4_000_000), depth)
+	mv, st := e.SearchDepth(b, cappedNodeBudget(1_000_000), depth)
 	var dst [config.SearchMaxMovesPerPly]RankedMove
 	return mv, st.Score, e.RootRanking(dst[:], 6)
 }
@@ -202,7 +201,7 @@ func TestDefaultRankingTailCarriesNullWindowBounds(t *testing.T) {
 	_, _, exact := exactRanked(t, b, 3, false)
 	e := New(testTTBytes)
 	defer e.Close()
-	_, st := e.SearchDepth(b, cappedNodeBudget(4_000_000), 3)
+	_, st := e.SearchDepth(b, cappedNodeBudget(1_000_000), 3)
 	if st.Depth != 3 {
 		t.Fatalf("depth = %d, want 3", st.Depth)
 	}
@@ -230,7 +229,7 @@ func TestExactRankingFlagLeavesDefaultPathPinned(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
 	defer e.Close()
-	mv, stats := e.SearchDepth(b, cappedNodeBudget(4_000_000), 4)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 4)
 	if got, want := int(mv), 36; got != want {
 		t.Fatalf("pinned move = %d, want %d", got, want)
 	}

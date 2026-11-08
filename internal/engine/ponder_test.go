@@ -29,7 +29,7 @@ func TestSMPPonderWidthReportsActiveWorkers(t *testing.T) {
 	if stats.Threads != 2 {
 		t.Fatalf("ponder stop threads = %d, want the 2-worker ponder width", stats.Threads)
 	}
-	_, stats = s.SearchDepth(midgameBoard(t), NewFixedBudget(scaledBudget(120*time.Millisecond)), 4)
+	_, stats = s.SearchDepth(midgameBoard(t), cappedNodeBudget(2_000_000), 4)
 	if stats.Threads != 4 {
 		t.Fatalf("post-ponder search threads = %d, want the full 4-worker width", stats.Threads)
 	}

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"testing"
-	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -53,7 +52,7 @@ func TestSearchStaleMateClaimIgnored(t *testing.T) {
 	cb := *b
 	cb.Make(poison)
 	e.tt.store(cb.Hash, -(config.EvalMateMax - 4*config.EvalMateScoreStep), rules.Move(poison), 12, ttBoundExact, 1)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 6)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 6)
 	if stats.Score >= config.EvalMateFloor {
 		t.Fatalf("warm stale mate claim survived the probe, score %d", stats.Score)
 	}

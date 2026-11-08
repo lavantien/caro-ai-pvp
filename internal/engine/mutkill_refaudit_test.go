@@ -43,7 +43,7 @@ func TestMutKillEvalUnitWeightDeltaGuards(t *testing.T) {
 func TestMutKillSingleCandidateExclusionSearched(t *testing.T) {
 	b := floodBoard(t, "E5")
 	e := New(0)
-	mv, stats := e.SearchExcluded(b, cappedNodeBudget(4_000_000), rules.Move(mustCell(t, "E5")))
+	mv, stats := e.SearchExcluded(b, cappedNodeBudget(1_000_000), rules.Move(mustCell(t, "E5")))
 	want := rules.Move(mustCell(t, "E5"))
 	if mv != want || stats.Score != 0 {
 		t.Errorf("single candidate exclusion: mv=%d score=%d, want %d and the drawn 0", mv, stats.Score, want)
@@ -52,7 +52,7 @@ func TestMutKillSingleCandidateExclusionSearched(t *testing.T) {
 
 func TestMutKillRankResetClearsRanking(t *testing.T) {
 	e := New(0)
-	e.SearchDepth(midgameBoard(t), cappedNodeBudget(4_000_000), 2)
+	e.SearchDepth(midgameBoard(t), cappedNodeBudget(1_000_000), 2)
 	e.beginSearch(midgameBoard(t))
 	var dst [4]RankedMove
 	if got := e.RootRanking(dst[:], 4); len(got) != 0 {
@@ -62,7 +62,7 @@ func TestMutKillRankResetClearsRanking(t *testing.T) {
 
 func TestMutKillSingleMoveRootRankingContract(t *testing.T) {
 	e := New(0)
-	e.SearchDepth(floodBoard(t, "E5"), cappedNodeBudget(4_000_000), 2)
+	e.SearchDepth(floodBoard(t, "E5"), cappedNodeBudget(1_000_000), 2)
 	want := rules.Move(mustCell(t, "E5"))
 	var dst [4]RankedMove
 	top := e.RootRanking(dst[:], 4)

@@ -67,7 +67,7 @@ func TestSMPKillServeHotReportsServedJob(t *testing.T) {
 func TestSMPKillSearchReportsGrantedBudget(t *testing.T) {
 	s := newSMP(1, 0)
 	defer s.Close()
-	_, stats := s.SearchDepth(farCornerBoard(t), NewFixedBudget(7*time.Millisecond), 1)
+	_, stats := s.SearchDepth(farCornerBoard(t), cappedBudget(7*time.Millisecond, 1_000_000), 1)
 	if stats.AllocNs != int64(7*time.Millisecond) {
 		t.Errorf("alloc ns = %d, want the granted budget %d", stats.AllocNs, int64(7*time.Millisecond))
 	}
@@ -272,7 +272,7 @@ func TestSMPKillTTHitPermilleSingleProbe(t *testing.T) {
 	bc := *b
 	bc.Make(rules.Cell(config.SearchEmptyBoardCell))
 	s.tt.store(bc.Hash, 37, rules.Move(1), 8, ttBoundExact, 1)
-	_, stats := s.SearchDepth(b, NewFixedBudget(time.Second), 2)
+	_, stats := s.SearchDepth(b, cappedNodeBudget(500_000), 2)
 	r := &s.results[0]
 	if r.ttProbes != 1 || r.ttHits != 1 {
 		t.Fatalf("setup: probes %d hits %d, want exactly 1 and 1", r.ttProbes, r.ttHits)
@@ -285,7 +285,7 @@ func TestSMPKillTTHitPermilleSingleProbe(t *testing.T) {
 func TestSMPKillTTHitPermilleMatchesWorkers(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
-	_, stats := s.SearchDepth(midgameBoard(t), NewFixedBudget(time.Second), 3)
+	_, stats := s.SearchDepth(midgameBoard(t), cappedNodeBudget(500_000), 3)
 	r := &s.results[0]
 	if r.ttProbes < 2 || r.ttHits == 0 {
 		t.Fatalf("setup: probes %d hits %d, want a multi-probe run with hits", r.ttProbes, r.ttHits)
@@ -298,7 +298,7 @@ func TestSMPKillTTHitPermilleMatchesWorkers(t *testing.T) {
 func TestSMPKillCutPermilleAllFirstMoveCuts(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
-	_, stats := s.SearchDepth(mate2Board(t), NewFixedBudget(time.Second), 1)
+	_, stats := s.SearchDepth(mate2Board(t), cappedNodeBudget(500_000), 1)
 	r := &s.results[0]
 	if r.cutNodes != 3 || r.cutFirst != 3 {
 		t.Fatalf("setup: cut nodes %d first %d, want exactly 3 and 3", r.cutNodes, r.cutFirst)
@@ -311,7 +311,7 @@ func TestSMPKillCutPermilleAllFirstMoveCuts(t *testing.T) {
 func TestSMPKillCutPermilleMatchesWorkers(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
-	_, stats := s.SearchDepth(midgameBoard(t), NewFixedBudget(time.Second), 3)
+	_, stats := s.SearchDepth(midgameBoard(t), cappedNodeBudget(500_000), 3)
 	r := &s.results[0]
 	if r.cutNodes < 2 || r.cutFirst == 0 {
 		t.Fatalf("setup: cut nodes %d first %d, want a multi-cutoff run", r.cutNodes, r.cutFirst)
@@ -326,7 +326,7 @@ func TestSMPKillPVLenFromRootSlot(t *testing.T) {
 	b := farCornerBoard(t)
 	s := newSMP(1, testTTBytes)
 	defer s.Close()
-	mv, stats := s.SearchDepth(b, NewFixedBudget(time.Second), 1)
+	mv, stats := s.SearchDepth(b, cappedNodeBudget(500_000), 1)
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("move %d illegal", mv)
 	}

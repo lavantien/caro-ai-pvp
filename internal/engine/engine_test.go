@@ -82,7 +82,7 @@ func TestSearchReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
 	budget := scaledBudget(50 * time.Millisecond)
-	mv, stats := e.Search(b, cappedBudget(budget))
+	mv, stats := e.Search(b, cappedBudget(budget, 2_000_000))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("search returned illegal move %d", mv)
 	}

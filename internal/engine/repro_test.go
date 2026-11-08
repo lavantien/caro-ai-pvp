@@ -15,7 +15,7 @@ func reproProfile(mv rules.Move, st SearchStats) (rules.Move, SearchStats) {
 func TestSearchReproducibleAcrossRuns(t *testing.T) {
 	b := midgameBoard(t)
 	const depth = 6
-	dl := cappedNodeBudget(4_000_000)
+	dl := cappedNodeBudget(1_000_000)
 	wantMv, want := reproProfile(New(testTTBytes).SearchDepth(b, dl, depth))
 	if want.Depth != depth {
 		t.Fatalf("completed depth %d, want the capped %d (budget starved?)", want.Depth, depth)
@@ -39,12 +39,12 @@ func TestSMPWidthOneReproducibleAcrossRuns(t *testing.T) {
 	var want SearchStats
 	for run := range 3 {
 		s := newSMP(1, testTTBytes)
-		dl := cappedNodeBudget(4_000_000)
+		dl := cappedNodeBudget(1_000_000)
 		mv, st := s.SearchDepth(b, dl, depth)
 		s.Close()
 		if st.Depth != depth {
 			s2 := newSMP(1, testTTBytes)
-			_, probe := s2.SearchDepth(b, cappedNodeBudget(4_000_000), depth)
+			_, probe := s2.SearchDepth(b, cappedNodeBudget(1_000_000), depth)
 			s2.Close()
 			t.Fatalf("run %d completed depth %d, want the capped %d (starved; probe reached %d)",
 				run, st.Depth, depth, probe.Depth)

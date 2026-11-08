@@ -2,13 +2,12 @@ package engine
 
 import (
 	"testing"
-	"time"
 )
 
 func TestSearchMateHaltWaitsForVerificationIteration(t *testing.T) {
 	b := mate1Board(t)
 	e := New(testTTBytes)
-	_, stats := e.SearchDepth(b, NewFixedBudget(time.Second), 4)
+	_, stats := e.SearchDepth(b, cappedNodeBudget(1_000_000), 4)
 	if stats.RootIters < 2 {
 		t.Fatalf("mate in 1 halted after %d iterations, want the verification iteration first", stats.RootIters)
 	}
@@ -21,7 +20,7 @@ func TestSMPMateHaltWaitsForVerificationIteration(t *testing.T) {
 	b := mate1Board(t)
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
-	_, stats := s.SearchDepth(b, NewFixedBudget(2*time.Second), 4)
+	_, stats := s.SearchDepth(b, cappedNodeBudget(2_000_000), 4)
 	if stats.RootIters < 2 {
 		t.Fatalf("smp mate in 1 halted after %d iterations, want the verification iteration first", stats.RootIters)
 	}

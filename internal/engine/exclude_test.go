@@ -11,11 +11,11 @@ import (
 func TestSearchExcludedSkipsTheCell(t *testing.T) {
 	b := mate1Board(t)
 	e := New(testTTBytes)
-	mv, _ := e.SearchDepth(b, NewFixedBudget(time.Second), 4)
+	mv, _ := e.SearchDepth(b, cappedNodeBudget(1_000_000), 4)
 	if mv != rules.Move(mustCell(t, "I9")) {
 		t.Fatalf("setup: unexcluded move %d, want the mate I9", mv)
 	}
-	mv2, stats := e.SearchExcluded(b, cappedBudget(time.Second), mv)
+	mv2, stats := e.SearchExcluded(b, cappedBudget(time.Second, 2_000_000), mv)
 	if mv2 == mv {
 		t.Fatalf("excluded move %d returned again", mv2)
 	}
@@ -31,11 +31,11 @@ func TestSMPSearchExcludedSkipsTheCell(t *testing.T) {
 	b := mate1Board(t)
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
-	mv, _ := s.SearchDepth(b, NewFixedBudget(2*time.Second), 4)
+	mv, _ := s.SearchDepth(b, cappedNodeBudget(2_000_000), 4)
 	if mv != rules.Move(mustCell(t, "I9")) {
 		t.Fatalf("setup: unexcluded move %d, want the mate I9", mv)
 	}
-	mv2, stats := s.SearchExcluded(b, cappedBudget(2*time.Second), mv)
+	mv2, stats := s.SearchExcluded(b, cappedBudget(2*time.Second, 2_000_000), mv)
 	if mv2 == mv {
 		t.Fatalf("excluded move %d returned again", mv2)
 	}

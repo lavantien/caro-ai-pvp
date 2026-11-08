@@ -272,7 +272,7 @@ func TestSearchSoftStopEndsInsideGrant(t *testing.T) {
 	b := midgameBoard(t)
 	e := New(testTTBytes)
 	budget := scaledBudget(250 * time.Millisecond)
-	mv, stats := e.Search(b, cappedBudget(budget))
+	mv, stats := e.Search(b, cappedBudget(budget, 4_000_000))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("soft-stopped search returned illegal move %d", mv)
 	}
@@ -292,7 +292,7 @@ func TestSMPSoftStopSearchCoversWorkers(t *testing.T) {
 	b := midgameBoard(t)
 	s := newSMP(4, testTTBytes)
 	defer s.Close()
-	mv, stats := s.Search(b, cappedBudget(scaledBudget(80*time.Millisecond)))
+	mv, stats := s.Search(b, cappedBudget(scaledBudget(80*time.Millisecond), 4_000_000))
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("smp soft-stopped search returned illegal move %d", mv)
 	}
