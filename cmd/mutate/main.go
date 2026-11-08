@@ -82,6 +82,9 @@ func runCLI(args []string, stdout, stderr io.Writer, workDir string) int {
 		_, _ = fmt.Fprintln(stderr, usage)
 		return 2
 	}
+	if *timeout <= time.Duration(config.MutateTestTimeoutSlack+config.MutateCompileReserveMs)*time.Millisecond {
+		_, _ = fmt.Fprintf(stderr, "mutate: window %s cannot afford the %s compile reserve, suite alarms fall back to window minus slack\n", *timeout, time.Duration(config.MutateCompileReserveMs)*time.Millisecond)
+	}
 	allows, aerr := loadAllowlist(*allowPath)
 	if aerr != nil {
 		_, _ = fmt.Fprintln(stderr, "mutate:", aerr)

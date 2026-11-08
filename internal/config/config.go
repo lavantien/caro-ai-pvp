@@ -1,6 +1,9 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 const (
 	BoardSize           = 16
@@ -321,6 +324,15 @@ const (
 	MutateRemoveRetryAttempts = 5
 	MutateRemoveRetryDelayMs  = 200
 )
+
+func SuiteTimeout(outer time.Duration) time.Duration {
+	inner := outer - time.Duration(MutateTestTimeoutSlack+MutateCompileReserveMs)*time.Millisecond
+	if inner <= 0 {
+		return outer - time.Duration(MutateTestTimeoutSlack)*time.Millisecond
+	}
+	return inner
+}
+
 const (
 	PatternWindowLen      = 2*WinLength - 1
 	PatternCellBits       = 2

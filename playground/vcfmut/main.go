@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 var binarySwaps = map[token.Token]token.Token{
@@ -450,7 +452,7 @@ func main() {
 					results[idx] = fmt.Sprintf("ERROR %s %v", m.key(), err)
 					continue
 				}
-				testArgs := []string{"test", "-count=1", "-short", "-timeout", (*timeout).String()}
+				testArgs := []string{"test", "-count=1", "-short", "-timeout", config.SuiteTimeout(*timeout).String()}
 				if *runRE != "" {
 					testArgs = append(testArgs, "-run", *runRE)
 				}

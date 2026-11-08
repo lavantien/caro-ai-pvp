@@ -129,3 +129,17 @@ func TestRunCLIParallelNoMutantsStillGates(t *testing.T) {
 		t.Errorf("stdout missing the no-mutants verdict:\n%s", out.String())
 	}
 }
+
+func TestRunCLIWarnsWhenWindowCannotAffordReserve(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod":  "module probe\n\ngo 1.27\n",
+		"decl.go": "package probe\n\ntype T struct{ A int }\n",
+	})
+	var out, errOut strings.Builder
+	if code := runCLI([]string{"-pkgs", ".", "-timeout", "30s"}, &out, &errOut, dir); code != 1 {
+		t.Fatalf("runCLI(no mutants, tight window) = %d, want 1", code)
+	}
+	if !strings.Contains(errOut.String(), "compile reserve") {
+		t.Errorf("stderr missing the unaffordable-reserve warning:\n%s", errOut.String())
+	}
+}

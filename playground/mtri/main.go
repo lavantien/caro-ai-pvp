@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 var binarySwaps = map[token.Token]token.Token{
@@ -443,7 +445,7 @@ func runOne(wd string, args []string) error {
 	}
 	defer os.WriteFile(m.file, orig, 0o644)
 
-	testArgs := []string{"test", "-count=1", "-short", "-timeout", timeout.String()}
+	testArgs := []string{"test", "-count=1", "-short", "-timeout", config.SuiteTimeout(*timeout).String()}
 	if *runRE != "" {
 		testArgs = append(testArgs, "-run", *runRE)
 	}

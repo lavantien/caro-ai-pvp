@@ -32,7 +32,7 @@ func TestEndToEndFixtureModule(t *testing.T) {
 		}
 	}
 	var out, errOut strings.Builder
-	code := runCLI([]string{"-pkgs", ".", "-timeout", "60s"}, &out, &errOut, dir)
+	code := runCLI([]string{"-pkgs", ".", "-timeout", "90s"}, &out, &errOut, dir)
 	if code != 1 {
 		t.Fatalf("runCLI code = %d, want 1 (weak tests leave survivors)\nstdout:\n%s\nstderr:\n%s", code, out.String(), errOut.String())
 	}
@@ -70,7 +70,7 @@ func TestEndToEndStillbornBuildFailureKills(t *testing.T) {
 		}
 	}
 	var out, errOut strings.Builder
-	code := runCLI([]string{"-pkgs", ".", "-timeout", "60s"}, &out, &errOut, dir)
+	code := runCLI([]string{"-pkgs", ".", "-timeout", "90s"}, &out, &errOut, dir)
 	s := out.String()
 	if code != 0 {
 		t.Fatalf("runCLI code = %d, want 0 (the stillborn and the real kill both score killed, no allow entry needed)\nstdout:\n%s\nstderr:\n%s", code, s, errOut.String())
@@ -95,7 +95,7 @@ func TestEndToEndStillbornBuildFailureKills(t *testing.T) {
 	}
 	out.Reset()
 	errOut.Reset()
-	code = runCLI([]string{"-pkgs", ".", "-timeout", "60s", "-allow", allowPath, "-challenge"}, &out, &errOut, dir)
+	code = runCLI([]string{"-pkgs", ".", "-timeout", "90s", "-allow", allowPath, "-challenge"}, &out, &errOut, dir)
 	s = out.String()
 	if code != 1 {
 		t.Fatalf("runCLI(challenge) code = %d, want 1 (the killed entry demotes)\nstdout:\n%s\nstderr:\n%s", code, s, errOut.String())
@@ -140,7 +140,7 @@ func TestEndToEndAllowlistGreensGate(t *testing.T) {
 		t.Fatalf("WriteFile(allow) err = %v", err)
 	}
 	var out, errOut strings.Builder
-	code := runCLI([]string{"-pkgs", ".", "-timeout", "60s", "-allow", allowPath}, &out, &errOut, dir)
+	code := runCLI([]string{"-pkgs", ".", "-timeout", "90s", "-allow", allowPath}, &out, &errOut, dir)
 	s := out.String()
 	if code != 0 {
 		t.Fatalf("runCLI code = %d, want 0 (every survivor allowed)\nstdout:\n%s\nstderr:\n%s", code, s, errOut.String())
@@ -164,7 +164,7 @@ func TestEndToEndAllowlistGreensGate(t *testing.T) {
 	}
 	out.Reset()
 	errOut.Reset()
-	code = runCLI([]string{"-pkgs", ".", "-timeout", "60s", "-allow", stale}, &out, &errOut, dir)
+	code = runCLI([]string{"-pkgs", ".", "-timeout", "90s", "-allow", stale}, &out, &errOut, dir)
 	if code != 1 {
 		t.Errorf("runCLI(stale allowlist) = %d, want 1", code)
 	}

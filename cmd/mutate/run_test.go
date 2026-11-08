@@ -526,20 +526,11 @@ func TestExecRunnerCommandShape(t *testing.T) {
 	}
 }
 
-func TestSuiteTimeoutKeepsAlarmInsideOuterWindow(t *testing.T) {
-	slack := time.Duration(config.MutateTestTimeoutSlack) * time.Millisecond
-	reserve := time.Duration(config.MutateCompileReserveMs) * time.Millisecond
-	for _, outer := range []time.Duration{2 * time.Second, 5 * time.Second, 2 * time.Minute, 5 * time.Minute} {
-		inner := suiteTimeout(outer)
-		if outer > slack+reserve {
-			if inner != outer-slack-reserve {
-				t.Fatalf("outer %s: inner = %s, want %s", outer, inner, outer-slack-reserve)
-			}
-			continue
-		}
-		if inner != outer-slack {
-			t.Fatalf("outer %s: inner = %s, want the slack-only fallback %s", outer, inner, outer-slack)
-		}
+func TestRunTestWiresSuiteTimeoutIntoArgv(t *testing.T) {
+	outer := 5 * time.Minute
+	argv := testArgv(outer, "example.com/p")
+	if len(argv) != 7 || argv[4] != "-timeout" || argv[5] != config.SuiteTimeout(outer).String() || argv[5] == outer.String() {
+		t.Fatalf("argv = %v, want the suite timeout %s wired after -timeout and derived below the outer window", argv, config.SuiteTimeout(outer))
 	}
 }
 

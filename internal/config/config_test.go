@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBoardMatchesSpec(t *testing.T) {
@@ -139,6 +140,24 @@ func TestClockLawConstants(t *testing.T) {
 	}
 	if MutateCompileReserveMs < 60_000 {
 		t.Errorf("MutateCompileReserveMs = %d, want at least the 60000 ms compile reserve so the suite alarm fires before the outer window ends", MutateCompileReserveMs)
+	}
+}
+
+func TestSuiteTimeoutKeepsAlarmInsideOuterWindow(t *testing.T) {
+	slack := time.Duration(MutateTestTimeoutSlack) * time.Millisecond
+	reserve := time.Duration(MutateCompileReserveMs) * time.Millisecond
+	edges := []time.Duration{2 * time.Second, slack + reserve, slack + reserve + time.Millisecond, 2 * time.Minute, 5 * time.Minute}
+	for _, outer := range edges {
+		inner := SuiteTimeout(outer)
+		if outer > slack+reserve {
+			if inner != outer-slack-reserve {
+				t.Fatalf("outer %s: inner = %s, want %s", outer, inner, outer-slack-reserve)
+			}
+			continue
+		}
+		if inner != outer-slack {
+			t.Fatalf("outer %s: inner = %s, want the slack-only fallback %s", outer, inner, outer-slack)
+		}
 	}
 }
 func TestMutateMemCapLaw(t *testing.T) {
