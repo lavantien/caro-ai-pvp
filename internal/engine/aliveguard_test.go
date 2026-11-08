@@ -19,6 +19,7 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	done := make(chan struct{})
 	panicked := make(chan any, 1)
 	workerPanics := 0
+	guardEBF := 0
 	go func() {
 		defer func() {
 			close(done)
@@ -26,6 +27,7 @@ func TestMoveGenerationTerminates(t *testing.T) {
 				panicked <- r
 			}
 		}()
+		guardEBF = EBFMilli(3, 1)
 		for _, b := range boards {
 			e.eval.reset(b)
 			near := e.nearMask(b)
@@ -58,7 +60,7 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	case r := <-panicked:
 		t.Fatalf("move generation panicked on a guard board: %v", r)
 	case <-time.After(scaledBudget(2 * time.Second)):
-		t.Fatal("move generation did not terminate across the guard boards")
+		t.Fatal("guard body did not terminate")
 	}
 	select {
 	case r := <-panicked:
@@ -67,6 +69,9 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	}
 	if workerPanics != 0 {
 		t.Fatalf("smp search on a guard board recovered %d worker panics, want 0", workerPanics)
+	}
+	if guardEBF != 2999 {
+		t.Fatalf("EBFMilli(3, 1) = %d, want 2999", guardEBF)
 	}
 	for _, pin := range []struct {
 		b    *rules.Board
