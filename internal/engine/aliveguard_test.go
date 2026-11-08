@@ -7,7 +7,7 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-func TestLiveWin1TerminatesOnAWin(t *testing.T) {
+func TestMoveGenerationTerminates(t *testing.T) {
 	quiet := rules.NewBoard()
 	place(t, quiet, rules.Red, "F4", "H12", "H13", "H14")
 	place(t, quiet, rules.Blue, "B2")
@@ -30,18 +30,19 @@ func TestLiveWin1TerminatesOnAWin(t *testing.T) {
 			near := e.nearMask(b)
 			e.eval.liveWin1(b, rules.Red, near)
 			e.eval.liveWin1(b, rules.Blue, near)
+			e.generate(b, 0, moveNone)
 		}
 	}()
 	select {
 	case <-done:
 	case r := <-panicked:
-		t.Fatalf("liveWin1 panicked on a guard board: %v", r)
+		t.Fatalf("move generation panicked on a guard board: %v", r)
 	case <-time.After(2 * time.Second):
-		t.Fatal("liveWin1 did not terminate across the guard boards")
+		t.Fatal("move generation did not terminate across the guard boards")
 	}
 	select {
 	case r := <-panicked:
-		t.Fatalf("liveWin1 panicked on a guard board: %v", r)
+		t.Fatalf("move generation panicked on a guard board: %v", r)
 	default:
 	}
 	for _, pin := range []struct {
@@ -52,6 +53,12 @@ func TestLiveWin1TerminatesOnAWin(t *testing.T) {
 		e.eval.reset(pin.b)
 		if got := e.eval.liveWin1(pin.b, pin.side, e.nearMask(pin.b)); got != pin.want {
 			t.Fatalf("liveWin1 on a guard board = %v, want %v", got, pin.want)
+		}
+	}
+	for _, b := range boards {
+		e.eval.reset(b)
+		if n := e.generate(b, 0, moveNone); n < 1 {
+			t.Fatal("move generation returned no candidates on a guard board")
 		}
 	}
 }

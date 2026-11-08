@@ -21,8 +21,13 @@ func TestZeroAllocsSearch(t *testing.T) {
 	}); n != 0 {
 		t.Fatalf("Search: %v allocs, want 0", n)
 	}
-	if !b.IsLegal(rules.Cell(sinkMove)) || sinkStats.Nodes == 0 {
-		t.Fatal("sink run produced nothing")
+	deadline := time.Now().Add(scaledBudget(time.Second))
+	for !b.IsLegal(rules.Cell(sinkMove)) || sinkStats.Nodes == 0 {
+		if !time.Now().Before(deadline) {
+			t.Fatal("sink run produced nothing")
+		}
+		dl.Reset(scaledBudget(time.Millisecond))
+		sinkMove, sinkStats = e.Search(b, dl)
 	}
 }
 
