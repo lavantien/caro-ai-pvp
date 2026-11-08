@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -18,7 +19,7 @@ type Ponderer interface {
 type workerResult struct {
 	seq        uint32
 	completed  int
-	panicked   bool
+	panicNote  string
 	score      int
 	move       rules.Move
 	pvLen      int
@@ -55,6 +56,7 @@ type SMP struct {
 	results  []workerResult
 	seq      atomic.Uint32
 	halt     atomic.Bool
+	panics   atomic.Int32
 	haltDL   haltDeadline
 	ponderDL Stoppable
 
@@ -223,9 +225,10 @@ func (s *SMP) serveJob(w *Engine, b *rules.Board, res *workerResult) {
 	defer s.runWG.Done()
 	defer func() {
 		if r := recover(); r != nil {
-			res.panicked = true
+			res.panicNote = fmt.Sprint(r)
 			res.completed = 0
 			res.move = moveNone
+			s.panics.Add(1)
 		}
 	}()
 	s.runWorker(w, b, res)
@@ -303,6 +306,7 @@ func (s *SMP) setupJob(b *rules.Board, maxDepth int, soft bool, dl Deadline, exc
 	s.tt.bumpGen()
 	s.halt.Store(false)
 	s.seq.Store(0)
+	s.panics.Store(0)
 	s.haltDL.inner = dl
 	s.jobMaxDepth = maxDepth
 	s.jobSoft = soft
@@ -326,12 +330,13 @@ func (s *SMP) stopPonderLocked() {
 func (s *SMP) collectResults(start time.Time) (rules.Move, SearchStats) {
 	var stats SearchStats
 	stats.Threads = s.jobThreads
+	stats.PanickedWorkers = int(s.panics.Load())
 	best := -1
 	var ttProbes, ttHits, cutNodes, cutFirst uint64
 	for i := range s.results {
 		r := &s.results[i]
-		if r.panicked {
-			stats.PanickedWorkers++
+		if r.panicNote != "" && stats.PanicNote == "" {
+			stats.PanicNote = r.panicNote
 		}
 		stats.Nodes += r.nodes
 		ttProbes += r.ttProbes

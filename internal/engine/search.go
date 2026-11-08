@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -126,9 +127,15 @@ func (e *Engine) StartPonder(b *rules.Board) {
 	board := *b
 	e.mu.Unlock()
 	go func() {
+		defer close(done)
+		defer func() {
+			if r := recover(); r != nil {
+				e.ponderStats = SearchStats{PanickedWorkers: 1, PanicNote: fmt.Sprint(r)}
+				e.ponderMove = moveNone
+			}
+		}()
 		mv, stats := e.runSearch(&board, &e.ponderDL, config.SearchMaxPly, false, moveNone)
 		e.ponderMove, e.ponderStats = mv, stats
-		close(done)
 	}()
 }
 

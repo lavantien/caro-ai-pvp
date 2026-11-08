@@ -25,6 +25,7 @@ type SearchStats struct {
 	RootScores                [config.PonderDepthHistory]int
 	RootIters                 int
 	PanickedWorkers           int
+	PanicNote                 string
 }
 
 func NpsReport(nodes uint64, elapsedNs int64) uint64 {

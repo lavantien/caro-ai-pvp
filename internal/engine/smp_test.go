@@ -2,6 +2,7 @@ package engine
 
 import (
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -10,6 +11,35 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
+
+type panickingDeadline struct{}
+
+func (panickingDeadline) Exceeded() bool        { panic("engine: injected worker panic") }
+func (panickingDeadline) Stop()                 {}
+func (panickingDeadline) Budget() time.Duration { return time.Nanosecond }
+
+func TestSMPWorkerPanicRecoversIntoObservableResult(t *testing.T) {
+	s := newSMP(2, 0)
+	defer s.Close()
+	b := midgameBoard(t)
+	mv, stats := s.Search(b, panickingDeadline{})
+	if stats.PanickedWorkers != s.Workers() {
+		t.Fatalf("recovered worker panics = %d, want %d", stats.PanickedWorkers, s.Workers())
+	}
+	if !strings.Contains(stats.PanicNote, "injected worker panic") {
+		t.Fatalf("panic note = %q, want the injected panic value", stats.PanicNote)
+	}
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("fallback move %d illegal after a recovered panic", mv)
+	}
+	mv, stats = s.Search(b, cappedNodeBudget(2048))
+	if stats.PanickedWorkers != 0 || stats.PanicNote != "" {
+		t.Fatalf("clean search after recovery saw panics = %d note = %q", stats.PanickedWorkers, stats.PanicNote)
+	}
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("pool move %d illegal after a recovered panic", mv)
+	}
+}
 
 func TestNewTieredMapsConfig(t *testing.T) {
 	cases := [...]struct {
