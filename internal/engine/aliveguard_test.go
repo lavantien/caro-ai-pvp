@@ -34,6 +34,9 @@ func TestMoveGenerationTerminates(t *testing.T) {
 		}
 		e.Search(boards[0], cappedNodeBudget(2048))
 		e.Search(boards[3], cappedNodeBudget(2048))
+		smpE := newSMP(1, 0)
+		smpE.Search(boards[3], cappedNodeBudget(2048))
+		smpE.Close()
 		fresh := New(0)
 		fresh.StopPonder()
 		fresh.Close()
