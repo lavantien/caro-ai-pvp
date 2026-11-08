@@ -260,6 +260,9 @@ func TestMLinePinnedToRealEmitter(t *testing.T) {
 			}},
 		{name: "zeroed empty pv", num: 1, side: rules.Red, move: "A1", flat: 0, tag: "",
 			st: engine.SearchStats{Depth: 1, Threads: 1}},
+		{name: "book hit", num: 2, side: rules.Blue, move: "K12", flat: 186, tag: config.BotLogTagBook,
+			st: engine.SearchStats{Threads: 6, AllocNs: 2_000_000_000},
+			pv: []string{"K12"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -308,22 +311,67 @@ func TestMLinePinnedToRealEmitter(t *testing.T) {
 	}
 }
 
+func TestMLinePanicNoteRoundTrip(t *testing.T) {
+	cases := []struct {
+		name   string
+		tag    string
+		panics int
+		note   string
+	}{
+		{name: "comma note", tag: "", panics: 2, note: "interface conversion: interface {} is nil, not int"},
+		{name: "newline note", tag: "", panics: 1, note: "runtime error: boom\nsecond frame"},
+		{name: "comma and newline", tag: config.BotLogTagVCF, panics: 3, note: "a, b\nc, d"},
+		{name: "empty note", tag: "", panics: 1, note: ""},
+		{name: "carriage return line feed", tag: "", panics: 1, note: "win\r\nline"},
+		{name: "field forgery attempt", tag: config.BotLogTagPonder, panics: 2, note: "x, pv=H8"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			st := engine.SearchStats{Depth: 1, Threads: 2, PanickedWorkers: c.panics, PanicNote: c.note}
+			st.PV[0], st.PVLen = mustMove(t, "A1"), 1
+			line := server.MLine(1, rules.Red, mustMove(t, "A1"), &st, c.tag)
+			m, ok := parseMLine(line, geom.Default())
+			if !ok {
+				t.Fatalf("parseMLine(%q) rejected the emitter's line", line)
+			}
+			if m.panickedWorkers != c.panics {
+				t.Errorf("panics = %d, want %d (line %q)", m.panickedWorkers, c.panics, line)
+			}
+			if m.panicNote != c.note {
+				t.Errorf("note = %q, want the original %q restored byte-exactly (line %q)", m.panicNote, c.note, line)
+			}
+			if m.tag != strings.TrimPrefix(c.tag, ", ") {
+				t.Errorf("tag = %q, want %q (line %q)", m.tag, strings.TrimPrefix(c.tag, ", "), line)
+			}
+			if m.pv != "A1" {
+				t.Errorf("pv = %q, want the pv field untouched by the note (line %q)", m.pv, line)
+			}
+			if strings.Contains(line, "\n") {
+				t.Errorf("emitted line carries a raw newline: %q", line)
+			}
+		})
+	}
+}
+
 func TestMLineRejectsCorruption(t *testing.T) {
 	good := "M4, Red, C3, d=2, n=100, nps=50, ebf=1.2, tt=10%, hf=20%, fh1=30%, s=+5, thr=1, t=0.10, alloc=1.00, pv=D4"
 	for what, bad := range map[string]string{
-		"truncated":       "M4, Red, C3, d=2",
-		"move zero":       strings.Replace(good, "M4", "M0", 1),
-		"side":            strings.Replace(good, ", Red,", ", Green,", 1),
-		"cell":            strings.Replace(good, ", C3,", ", C33,", 1),
-		"depth":           strings.Replace(good, "d=2", "d=x", 1),
-		"nodes":           strings.Replace(good, "n=100", "n=-5k", 1),
-		"nps suffix":      strings.Replace(good, "nps=50", "nps=50q", 1),
-		"tt percent":      strings.Replace(good, "tt=10%", "tt=10", 1),
-		"score":           strings.Replace(good, "s=+5", "s=banana", 1),
-		"threads":         strings.Replace(good, "thr=1", "thr=x", 1),
-		"negative time":   strings.Replace(good, "t=0.10", "t=-1.00", 1),
-		"unknown tag":     strings.Replace(good, "alloc=1.00,", "alloc=1.00, [BOGUS],", 1),
-		"corrupt pv cell": strings.Replace(good, "pv=D4", "pv=Z1", 1),
+		"truncated":              "M4, Red, C3, d=2",
+		"move zero":              strings.Replace(good, "M4", "M0", 1),
+		"side":                   strings.Replace(good, ", Red,", ", Green,", 1),
+		"cell":                   strings.Replace(good, ", C3,", ", C33,", 1),
+		"depth":                  strings.Replace(good, "d=2", "d=x", 1),
+		"nodes":                  strings.Replace(good, "n=100", "n=-5k", 1),
+		"nps suffix":             strings.Replace(good, "nps=50", "nps=50q", 1),
+		"tt percent":             strings.Replace(good, "tt=10%", "tt=10", 1),
+		"score":                  strings.Replace(good, "s=+5", "s=banana", 1),
+		"threads":                strings.Replace(good, "thr=1", "thr=x", 1),
+		"negative time":          strings.Replace(good, "t=0.10", "t=-1.00", 1),
+		"unknown tag":            strings.Replace(good, "alloc=1.00,", "alloc=1.00, [BOGUS],", 1),
+		"corrupt pv cell":        strings.Replace(good, "pv=D4", "pv=Z1", 1),
+		"unsanitized comma note": strings.Replace(good, ", pv=D4", ", panics=1, panicNote=nil, not int, pv=D4", 1),
+		"panics without note":    strings.Replace(good, ", pv=D4", ", panics=1, pv=D4", 1),
+		"note without panics":    strings.Replace(good, ", pv=D4", ", panicNote=boom, pv=D4", 1),
 	} {
 		if _, ok := parseMLine(bad, geom.Default()); ok {
 			t.Errorf("%s: parseMLine(%q) accepted a corrupt line", what, bad)
@@ -331,6 +379,21 @@ func TestMLineRejectsCorruption(t *testing.T) {
 	}
 	if _, ok := parseMLine(good, geom.Default()); !ok {
 		t.Errorf("parseMLine(%q) rejected a healthy line", good)
+	}
+}
+
+func TestMLineTagAndPanicsOrderIndependent(t *testing.T) {
+	tagFirst := "M6, Red, E5, d=1, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=2, t=0.00, alloc=0.00, [PONDER], panics=2, panicNote=boom, pv=E5"
+	pairFirst := "M6, Red, E5, d=1, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=2, t=0.00, alloc=0.00, panics=2, panicNote=boom, [PONDER], pv=E5"
+	for _, line := range []string{tagFirst, pairFirst} {
+		m, ok := parseMLine(line, geom.Default())
+		if !ok {
+			t.Errorf("parseMLine(%q) rejected a tagged panic line", line)
+			continue
+		}
+		if m.tag != "[PONDER]" || m.panickedWorkers != 2 || m.panicNote != "boom" || m.pv != "E5" {
+			t.Errorf("parseMLine(%q) = tag %q panics %d note %q pv %q", line, m.tag, m.panickedWorkers, m.panicNote, m.pv)
+		}
 	}
 }
 

@@ -669,6 +669,26 @@ func TestBotLogFormatMatchesImplication15(t *testing.T) {
 			"M8, Blue, H6, d=1, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=4, t=0.00, alloc=0.00, panics=2, panicNote=runtime error: index out of range [-1], pv=",
 			[]any{8, "Blue", "H6", 1, "0", "0", 0.0, 0, 0, 0, "+0", 4, 0.00, 0.00, "", ", panics=2, panicNote=runtime error: index out of range [-1]", ""},
 		},
+		{
+			"book hit",
+			"M2, Blue, K12, d=0, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=6, t=0.00, alloc=2.00, [BOOK], pv=K12",
+			[]any{2, "Blue", "K12", 0, "0", "0", 0.0, 0, 0, 0, "+0", 6, 0.00, 2.00, BotLogTagBook, "", "K12"},
+		},
+		{
+			"tagged panics with comma-bearing note",
+			"M15, Red, H8, d=2, n=1k, nps=500, ebf=1.5, tt=10%, hf=20%, fh1=30%, s=+7, thr=4, t=0.50, alloc=1.00, [PONDER], panics=2, panicNote=interface conversion: interface {} is nil; not int, pv=H8",
+			[]any{15, "Red", "H8", 2, "1k", "500", 1.5, 10, 20, 30, "+7", 4, 0.50, 1.00, BotLogTagPonder, ", panics=2, panicNote=interface conversion: interface {} is nil; not int", "H8"},
+		},
+		{
+			"newline-bearing note",
+			"M9, Red, C3, d=1, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=2, t=0.00, alloc=0.00, panics=1, panicNote=boom\\nstage two, pv=",
+			[]any{9, "Red", "C3", 1, "0", "0", 0.0, 0, 0, 0, "+0", 2, 0.00, 0.00, "", ", panics=1, panicNote=boom\\nstage two", ""},
+		},
+		{
+			"empty note",
+			"M4, Blue, F6, d=1, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=1, t=0.00, alloc=0.00, panics=1, panicNote=, pv=F6",
+			[]any{4, "Blue", "F6", 1, "0", "0", 0.0, 0, 0, 0, "+0", 1, 0.00, 0.00, "", ", panics=1, panicNote=", "F6"},
+		},
 	}
 	for _, c := range cases {
 		if got := fmt.Sprintf(BotLogFormat, c.args...); got != c.line {
@@ -677,6 +697,11 @@ func TestBotLogFormatMatchesImplication15(t *testing.T) {
 	}
 	if BotLogTagVCF != ", [VCF]" || BotLogTagVCT != ", [VCT]" || BotLogTagPonder != ", [PONDER]" {
 		t.Errorf("bot log tags = %q %q %q", BotLogTagVCF, BotLogTagVCT, BotLogTagPonder)
+	}
+	if BotLogPanicNoteSep != ", " || BotLogPanicNoteSepEsc != "; " ||
+		BotLogPanicNoteNewline != "\n" || BotLogPanicNoteNewlineEsc != `\n` {
+		t.Errorf("panic note escapes = %q %q %q %q", BotLogPanicNoteSep, BotLogPanicNoteSepEsc,
+			BotLogPanicNoteNewline, BotLogPanicNoteNewlineEsc)
 	}
 }
 func TestQualityGates(t *testing.T) {

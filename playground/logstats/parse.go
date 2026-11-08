@@ -79,6 +79,7 @@ var tagBodies = []string{
 	strings.TrimPrefix(config.BotLogTagVCF, ", "),
 	strings.TrimPrefix(config.BotLogTagVCT, ", "),
 	strings.TrimPrefix(config.BotLogTagPonder, ", "),
+	strings.TrimPrefix(config.BotLogTagBook, ", "),
 }
 
 func parseFile(path string) (seriesFile, error) {
@@ -339,12 +340,12 @@ func parseMLine(line string, g *geom.Geometry) (m mLine, ok bool) {
 		switch {
 		case slices.Contains(tagBodies, mid[13]):
 			m.tag = mid[13]
-			mid = mid[:13]
+			mid = append(mid[:13], mid[14:]...)
 		case strings.HasPrefix(mid[13], "panics=") && len(mid) >= 15 && strings.HasPrefix(mid[14], "panicNote="):
 			if m.panickedWorkers, ok = intField(mid[13], "panics="); !ok {
 				return m, false
 			}
-			m.panicNote = strings.TrimPrefix(mid[14], "panicNote=")
+			m.panicNote = decodePanicNote(strings.TrimPrefix(mid[14], "panicNote="))
 			mid = append(mid[:13], mid[15:]...)
 		default:
 			return m, false
@@ -413,6 +414,11 @@ func parseMLine(line string, g *geom.Geometry) (m mLine, ok bool) {
 func intAt(s string) (int, bool) {
 	n, err := strconv.Atoi(s)
 	return n, err == nil && n >= 0
+}
+
+func decodePanicNote(note string) string {
+	note = strings.ReplaceAll(note, config.BotLogPanicNoteNewlineEsc, config.BotLogPanicNoteNewline)
+	return strings.ReplaceAll(note, config.BotLogPanicNoteSepEsc, config.BotLogPanicNoteSep)
 }
 
 func intField(tok, key string) (int, bool) {

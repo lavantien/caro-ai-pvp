@@ -2,6 +2,7 @@ package server
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
@@ -51,7 +52,7 @@ func AppendMLine(dst []byte, g *geom.Geometry, moveNumber int, side rules.Color,
 		dst = append(dst, ", panics="...)
 		dst = strconv.AppendInt(dst, int64(st.PanickedWorkers), 10)
 		dst = append(dst, ", panicNote="...)
-		dst = append(dst, st.PanicNote...)
+		dst = append(dst, sanitizePanicNote(st.PanicNote)...)
 	}
 	dst = append(dst, ", pv="...)
 	for i := 0; i < st.PVLen && i < len(st.PV); i++ {
@@ -76,6 +77,11 @@ func sideName(c rules.Color) string {
 		return "Blue"
 	}
 	return "Red"
+}
+
+func sanitizePanicNote(note string) string {
+	note = strings.ReplaceAll(note, config.BotLogPanicNoteSep, config.BotLogPanicNoteSepEsc)
+	return strings.ReplaceAll(note, config.BotLogPanicNoteNewline, config.BotLogPanicNoteNewlineEsc)
 }
 
 func appendCellName(dst []byte, m rules.Move) []byte {

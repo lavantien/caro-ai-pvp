@@ -169,6 +169,52 @@ func TestMLineMatchesBotLogFormat(t *testing.T) {
 	}
 }
 
+func TestMLinePanicNoteSanitization(t *testing.T) {
+	cases := []struct {
+		name string
+		note string
+		want string
+	}{
+		{name: "comma pair", note: "interface conversion: interface {} is nil, not int",
+			want: ", panics=2, panicNote=interface conversion: interface {} is nil; not int"},
+		{name: "newline", note: "runtime error: boom\nsecond frame",
+			want: ", panics=2, panicNote=runtime error: boom\\nsecond frame"},
+		{name: "comma and newline", note: "a, b\nc, d",
+			want: ", panics=2, panicNote=a; b\\nc; d"},
+		{name: "carriage return line feed", note: "win\r\nline",
+			want: ", panics=2, panicNote=win\r\\nline"},
+		{name: "empty", note: "", want: ", panics=2, panicNote="},
+		{name: "field forgery attempt", note: "x, pv=H8",
+			want: ", panics=2, panicNote=x; pv=H8"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			st := &engine.SearchStats{Depth: 1, Threads: 2, PanickedWorkers: 2, PanicNote: c.note}
+			setPV(t, st, "A1")
+			line := MLine(3, rules.Red, mustMove(t, "A1"), st, "")
+			if !strings.Contains(line, c.want+", pv=A1") {
+				t.Errorf("%s:\n got %q\nwant segment %q", c.name, line, c.want+", pv=A1")
+			}
+			if strings.Contains(line, "\n") {
+				t.Errorf("%s: emitted line carries a raw newline: %q", c.name, line)
+			}
+		})
+	}
+}
+
+func TestMLineTaggedPanicGolden(t *testing.T) {
+	st := &engine.SearchStats{
+		Depth: 3, Nodes: 10, Nps: 20, EBFMilli: 1000,
+		Score: 0, Threads: 2, ElapsedNs: 10_000_000, AllocNs: 20_000_000,
+		PanickedWorkers: 2, PanicNote: "interface conversion: interface {} is nil, not int",
+	}
+	setPV(t, st, "J10", "K9")
+	want := "M21, Red, J10, d=3, n=10, nps=20, ebf=1.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=2, t=0.01, alloc=0.02, [PONDER], panics=2, panicNote=interface conversion: interface {} is nil; not int, pv=J10 K9"
+	if got := MLine(21, rules.Red, mustMove(t, "J10"), st, config.BotLogTagPonder); got != want {
+		t.Errorf("MLine:\n got %q\nwant %q", got, want)
+	}
+}
+
 func TestMoveStatTagNameStripsDerivedDecoration(t *testing.T) {
 	cases := []struct{ tag, want string }{
 		{config.BotLogTagVCF, "VCF"},

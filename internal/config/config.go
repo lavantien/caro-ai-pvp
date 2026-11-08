@@ -227,11 +227,15 @@ const (
 	SearchClockQuantumMs    = 16
 )
 const (
-	BotLogFormat    = "M%d, %s, %s, d=%d, n=%s, nps=%s, ebf=%.1f, tt=%d%%, hf=%d%%, fh1=%d%%, s=%s, thr=%d, t=%.2f, alloc=%.2f%s%s, pv=%s"
-	BotLogTagVCF    = ", [VCF]"
-	BotLogTagVCT    = ", [VCT]"
-	BotLogTagPonder = ", [PONDER]"
-	BotLogTagBook   = ", [BOOK]"
+	BotLogFormat              = "M%d, %s, %s, d=%d, n=%s, nps=%s, ebf=%.1f, tt=%d%%, hf=%d%%, fh1=%d%%, s=%s, thr=%d, t=%.2f, alloc=%.2f%s%s, pv=%s"
+	BotLogTagVCF              = ", [VCF]"
+	BotLogTagVCT              = ", [VCT]"
+	BotLogTagPonder           = ", [PONDER]"
+	BotLogTagBook             = ", [BOOK]"
+	BotLogPanicNoteSep        = ", "
+	BotLogPanicNoteSepEsc     = "; "
+	BotLogPanicNoteNewline    = "\n"
+	BotLogPanicNoteNewlineEsc = `\n`
 )
 const (
 	BookFileMagic        = "CAROBOOK1"
