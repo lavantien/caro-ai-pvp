@@ -43,7 +43,7 @@ type Engine struct {
 	closed      bool
 	searching   bool
 	ponding     bool
-	ponderDL    Stoppable
+	ponderDL    ponderDeadline
 	ponderDone  chan struct{}
 	ponderMove  rules.Move
 	ponderStats SearchStats
@@ -63,7 +63,7 @@ func NewEval(ttBytes int64, w *[config.PatternClassCount]int) *Engine {
 
 func newEngineShared(tt *ttTable) *Engine {
 	buildStateTables()
-	return &Engine{radius: config.SearchRingRadius, tt: tt}
+	return &Engine{radius: config.SearchRingRadius, tt: tt, ponderDL: NewStoppable()}
 }
 
 func mateWin(ply int) int {
@@ -134,7 +134,7 @@ func (e *Engine) StartPonder(b *rules.Board) {
 				e.ponderMove = moveNone
 			}
 		}()
-		mv, stats := e.runSearch(&board, &e.ponderDL, config.SearchMaxPly, false, moveNone)
+		mv, stats := e.runSearch(&board, e.ponderDL, config.SearchMaxPly, false, moveNone)
 		e.ponderMove, e.ponderStats = mv, stats
 	}()
 }

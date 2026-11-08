@@ -14,6 +14,11 @@ type Budgeter interface {
 	Budget() time.Duration
 }
 
+type ponderDeadline interface {
+	Deadline
+	Reset()
+}
+
 type FixedBudget struct {
 	until    time.Time
 	duration time.Duration
