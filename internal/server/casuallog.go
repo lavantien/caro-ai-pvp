@@ -6,13 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 type casualLogs struct {
-	mu     sync.Mutex
 	dir    string
 	format string
 }
@@ -43,15 +41,10 @@ func (c *casualLogs) WriteGame(h casualGameHeader, lines []GameStat) error {
 	if h.TCIdx < 0 || h.TCIdx >= len(config.TimeControls) {
 		return fmt.Errorf("server: casual log tc index %d outside the %d configured controls", h.TCIdx, len(config.TimeControls))
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if err := os.MkdirAll(c.dir, 0o755); err != nil {
 		return fmt.Errorf("server: casual log mkdir %s: %w", c.dir, err)
 	}
 	path := filepath.Join(c.dir, fmt.Sprintf(c.format, h.SeriesID, sanitizeLogName(h.Red), sanitizeLogName(h.Blue)))
-	if err := trimTornTail(path); err != nil {
-		return fmt.Errorf("server: casual log recover %s: %w", path, err)
-	}
 	var b []byte
 	b = appendCasualHeader(b, h)
 	for _, s := range lines {
@@ -59,7 +52,7 @@ func (c *casualLogs) WriteGame(h casualGameHeader, lines []GameStat) error {
 		b = append(b, '\n')
 	}
 	b = append(b, '\n')
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return fmt.Errorf("server: casual log open %s: %w", path, err)
 	}
@@ -68,7 +61,22 @@ func (c *casualLogs) WriteGame(h casualGameHeader, lines []GameStat) error {
 			fmt.Fprintf(os.Stderr, "server: casual log close %s: %v\n", path, cerr)
 		}
 	}()
-	if _, err := f.Write(b); err != nil {
+	if err := lockExclusive(f, 0); err != nil {
+		return fmt.Errorf("server: casual log lock %s: %w", path, err)
+	}
+	defer func() {
+		if uerr := unlockExclusive(f); uerr != nil {
+			fmt.Fprintf(os.Stderr, "server: casual log unlock %s: %v\n", path, uerr)
+		}
+	}()
+	if err := trimTornTail(f); err != nil {
+		return fmt.Errorf("server: casual log recover %s: %w", path, err)
+	}
+	end, err := f.Seek(0, io.SeekEnd)
+	if err != nil {
+		return fmt.Errorf("server: casual log seek %s: %w", path, err)
+	}
+	if _, err := f.WriteAt(b, end); err != nil {
 		return fmt.Errorf("server: casual log write %s: %w", path, err)
 	}
 	return nil
@@ -109,15 +117,7 @@ func appendCasualHeader(dst []byte, h casualGameHeader) []byte {
 
 const casualTailScan = 4096
 
-func trimTornTail(path string) error {
-	f, err := os.OpenFile(path, os.O_RDWR, 0o644)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	defer func() { _ = f.Close() }()
+func trimTornTail(f *os.File) error {
 	info, err := f.Stat()
 	if err != nil {
 		return err
@@ -131,14 +131,15 @@ func trimTornTail(path string) error {
 		scan = size
 	}
 	buf := make([]byte, scan)
-	if _, err := f.ReadAt(buf, size-scan); err != nil && err != io.EOF {
+	n, err := f.ReadAt(buf, size-scan)
+	if err != nil && err != io.EOF {
 		return err
 	}
-	if buf[len(buf)-1] == '\n' {
+	if n > 0 && buf[n-1] == '\n' {
 		return nil
 	}
 	cut := int64(-1)
-	for i := len(buf) - 2; i >= 0; i-- {
+	for i := n - 2; i >= 0; i-- {
 		if buf[i] == '\n' {
 			cut = size - scan + int64(i) + 1
 			break

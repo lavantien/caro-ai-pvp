@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -336,7 +337,12 @@ func TestTrimTornTailKeepsWholeLinesAndDropsFragments(t *testing.T) {
 			if err := os.WriteFile(path, []byte(row.seed), 0o644); err != nil {
 				t.Fatalf("seed: %v", err)
 			}
-			if err := trimTornTail(path); err != nil {
+			f, err := os.OpenFile(path, os.O_RDWR, 0o644)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			defer func() { _ = f.Close() }()
+			if err := trimTornTail(f); err != nil {
 				t.Fatalf("trim: %v", err)
 			}
 			if got := readCasualFile(t, path); got != row.want {
@@ -352,7 +358,12 @@ func TestTrimTornTailCutsExactlyTheWindowWhenNoNewlineRemains(t *testing.T) {
 	if err := os.WriteFile(path, []byte(seed), 0o644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := trimTornTail(path); err != nil {
+	f, err := os.OpenFile(path, os.O_RDWR, 0o644)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+	if err := trimTornTail(f); err != nil {
 		t.Fatalf("trim: %v", err)
 	}
 	info, err := os.Stat(path)
@@ -690,6 +701,46 @@ func TestCasualLogConcurrentInstancesOnOneRootLoseNothing(t *testing.T) {
 	}
 	if n := strings.Count(got, "M4, Blue, P8, d=9"); n != instances*perInstance {
 		t.Errorf("intact M4 lines = %d, want %d", n, instances*perInstance)
+	}
+}
+
+func TestCasualLogConcurrentInstancesUnderMinimalProcsLoseNothing(t *testing.T) {
+	if old := runtime.GOMAXPROCS(2); old != 2 {
+		t.Cleanup(func() { runtime.GOMAXPROCS(old) })
+	}
+	dir := t.TempDir()
+	const instances = 8
+	const perInstance = 25
+	h := casualHeader()
+	var wg sync.WaitGroup
+	for i := range instances {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			c := newCasualLogs(dir, casualTestFormat)
+			for g := range perInstance {
+				gm := h
+				gm.GameNo = i*perInstance + g + 1
+				gm.Outcome = OutcomeDraw
+				if err := c.WriteGame(gm, twoLines()); err != nil {
+					t.Errorf("instance %d game %d: %v", i, g+1, err)
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
+	got := readCasualFile(t, casualFilePath(dir, h))
+	if n := strings.Count(got, "game "); n != instances*perInstance {
+		t.Errorf("blocks = %d, want %d", n, instances*perInstance)
+	}
+	if n := strings.Count(got, "M2, Blue, P12, d=9"); n != instances*perInstance {
+		t.Errorf("intact M2 lines = %d, want %d", n, instances*perInstance)
+	}
+	if n := strings.Count(got, "M4, Blue, P8, d=9"); n != instances*perInstance {
+		t.Errorf("intact M4 lines = %d, want %d", n, instances*perInstance)
+	}
+	if !strings.HasSuffix(got, "\n\n") {
+		t.Errorf("tail = %q, want the blank separator", got[len(got)-4:])
 	}
 }
 
