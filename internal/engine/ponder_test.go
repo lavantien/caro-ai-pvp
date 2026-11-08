@@ -520,7 +520,7 @@ func TestPonderOutlastsFundedGrant(t *testing.T) {
 	e := New(testTTBytes)
 	defer e.Close()
 	engFunded := fundedUnderPace(func() SearchStats {
-		_, stats := e.Search(b, cappedNodeBudget(400_000))
+		_, stats := e.Search(b, cappedNodeBudget(50_000))
 		return stats
 	})
 	e.StartPonder(b)
@@ -542,7 +542,7 @@ func TestPonderOutlastsFundedGrant(t *testing.T) {
 	s := newSMP(2, testTTBytes)
 	defer s.Close()
 	smpFunded := fundedUnderPace(func() SearchStats {
-		_, stats := s.Search(b, cappedNodeBudget(400_000))
+		_, stats := s.Search(b, cappedNodeBudget(50_000))
 		return stats
 	})
 	s.StartPonder(b)

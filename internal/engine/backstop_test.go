@@ -54,3 +54,9 @@ func (b *backstoppedNodes) Add(nodes uint64) {
 	b.nodes.Add(nodes)
 	b.inner.Add(nodes)
 }
+
+func (b *backstoppedNodes) Reset(limit uint64) {
+	b.nodes.Store(0)
+	b.inner.Reset(limit)
+	b.limit = 2 * limit
+}

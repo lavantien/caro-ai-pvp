@@ -197,10 +197,10 @@ func TestOrderingPrunesMoreAtEqualDepth(t *testing.T) {
 	b := midgameBoard(t)
 	const depth = 5
 	ordered := New(testTTBytes)
-	_, statsOrdered := ordered.SearchDepth(b, NewFixedBudget(10*time.Second), depth)
+	_, statsOrdered := ordered.SearchDepth(b, cappedNodeBudget(4_000_000), depth)
 	bare := New(testTTBytes)
 	bare.noOrder = true
-	_, statsBare := bare.SearchDepth(b, NewFixedBudget(10*time.Second), depth)
+	_, statsBare := bare.SearchDepth(b, cappedNodeBudget(4_000_000), depth)
 	if statsOrdered.Depth != depth || statsBare.Depth != depth {
 		t.Fatalf("completed depths = %d and %d, want both %d (budget starved?)",
 			statsOrdered.Depth, statsBare.Depth, depth)

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"testing"
-	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -134,7 +133,7 @@ func TestNewTieredEvalWeightsReachWorkers(t *testing.T) {
 
 func TestNewEvalWeightsReachSearch(t *testing.T) {
 	b := midgameBoard(t)
-	dl := NewFixedBudget(30 * time.Second)
+	dl := cappedNodeBudget(4_000_000)
 	_, over := NewEval(1<<16, &[config.PatternClassCount]int{}).SearchDepth(b, dl, 2)
 	leaf := *b
 	for i := range over.PVLen {

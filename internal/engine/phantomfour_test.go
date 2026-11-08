@@ -2,7 +2,6 @@ package engine
 
 import (
 	"testing"
-	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
@@ -52,7 +51,7 @@ func TestPhantomFourLeavesDefenseUnrestricted(t *testing.T) {
 func TestSearchFindsKillBehindPhantomFour(t *testing.T) {
 	b := phantomFourBoard(t, "I11")
 	e := New(testTTBytes)
-	mv, stats := e.SearchDepth(b, NewFixedBudget(30*time.Second), 4)
+	mv, stats := e.SearchDepth(b, cappedNodeBudget(4_000_000), 4)
 	if stats.Score < config.EvalMateFloor {
 		t.Fatalf("depth 6 score %d on move %d, want a mate score for blue's forced N7-J11-O6 kill", stats.Score, mv)
 	}

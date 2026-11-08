@@ -2,7 +2,6 @@ package engine
 
 import (
 	"testing"
-	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
@@ -108,7 +107,7 @@ func TestNodeBudgetSearchStopsAndRepeats(t *testing.T) {
 func TestNodeBudgetNoStopAtExactConsumption(t *testing.T) {
 	b := midgameBoard(t)
 	ref := New(testTTBytes)
-	refMv, refStats := ref.SearchDepth(b, NewFixedBudget(30*time.Second), 4)
+	refMv, refStats := ref.SearchDepth(b, cappedNodeBudget(4_000_000), 4)
 	e := New(testTTBytes)
 	mv, stats := e.SearchDepth(b, NewNodeBudget(refStats.Nodes), 4)
 	if mv != refMv || stats.Score != refStats.Score || stats.Depth != refStats.Depth || stats.Nodes != refStats.Nodes {
