@@ -2,7 +2,7 @@
 !include common.iuml
 title Move stats, 2 views of 1 lossless capture
 
-participant "engine search\nSearchStats: depth, nodes, nps, ebf_milli,\ntt, hf, fh1 permilles, score, threads,\nelapsed_ns, alloc_ns, pv" as engine
+participant "engine search\nSearchStats: depth, nodes, nps, ebf_milli,\ntt, hf, fh1 permilles, score, threads,\nelapsed_ns, alloc_ns, pv, panicked\nworkers, panic note" as engine
 participant "room\nMoveStat capture: move number, side,\nmove, tag, captured before the M-line renders" as room
 participant "hub" as hub
 participant "SSE stream\nroom M-line log" as sse
@@ -19,6 +19,6 @@ else series log
   hub -> log : Rendered payload as series lines
 else persistence
   room -> wq : Structured stat buffered per game,\n1 row per move in the same transaction as the game row
-  wq -> store : tournament_game_stats, schema v11
+  wq -> store : tournament_game_stats, schema v13
 end
 @enduml
