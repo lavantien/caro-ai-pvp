@@ -33,6 +33,9 @@ func TestMoveGenerationTerminates(t *testing.T) {
 			e.generate(b, 0, moveNone)
 			e.Search(b, cappedNodeBudget(50_000))
 		}
+		fresh := New(0)
+		fresh.StopPonder()
+		fresh.Close()
 	}()
 	select {
 	case <-done:
