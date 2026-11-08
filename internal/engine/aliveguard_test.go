@@ -1,0 +1,57 @@
+package engine
+
+import (
+	"testing"
+	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/rules"
+)
+
+func TestLiveWin1TerminatesOnAWin(t *testing.T) {
+	quiet := rules.NewBoard()
+	place(t, quiet, rules.Red, "F4", "H12", "H13", "H14")
+	place(t, quiet, rules.Blue, "B2")
+	boards := []*rules.Board{redWinIn1Board(t), forcedBoard(t), quiet}
+	for seed := range uint64(12) {
+		boards = append(boards, playout(t, 613*seed+5, int(9+seed*11)))
+	}
+	e := New(0)
+	done := make(chan struct{})
+	panicked := make(chan any, 1)
+	go func() {
+		defer func() {
+			close(done)
+			if r := recover(); r != nil {
+				panicked <- r
+			}
+		}()
+		for _, b := range boards {
+			e.eval.reset(b)
+			near := e.nearMask(b)
+			e.eval.liveWin1(b, rules.Red, near)
+			e.eval.liveWin1(b, rules.Blue, near)
+		}
+	}()
+	select {
+	case <-done:
+	case r := <-panicked:
+		t.Fatalf("liveWin1 panicked on a guard board: %v", r)
+	case <-time.After(2 * time.Second):
+		t.Fatal("liveWin1 did not terminate across the guard boards")
+	}
+	select {
+	case r := <-panicked:
+		t.Fatalf("liveWin1 panicked on a guard board: %v", r)
+	default:
+	}
+	for _, pin := range []struct {
+		b    *rules.Board
+		side rules.Color
+		want bool
+	}{{boards[0], rules.Red, true}, {boards[1], rules.Blue, true}, {boards[2], rules.Red, false}} {
+		e.eval.reset(pin.b)
+		if got := e.eval.liveWin1(pin.b, pin.side, e.nearMask(pin.b)); got != pin.want {
+			t.Fatalf("liveWin1 on a guard board = %v, want %v", got, pin.want)
+		}
+	}
+}
