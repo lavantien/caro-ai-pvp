@@ -33,6 +33,7 @@ func TestMoveGenerationTerminates(t *testing.T) {
 			e.generate(b, 0, moveNone)
 		}
 		e.Search(boards[0], cappedNodeBudget(2048))
+		e.Search(boards[3], cappedNodeBudget(2048))
 		fresh := New(0)
 		fresh.StopPonder()
 		fresh.Close()
