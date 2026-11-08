@@ -43,6 +43,7 @@ func boxedWalk(b *rules.Board, side rules.Color) int {
 }
 
 func TestEvalBoxedClassificationWitnesses(t *testing.T) {
+	buildStateTables()
 	ladder := boardFromMoves(t, geom.Default(), "H8", "I9", "K8", "I8", "I11", "I7")
 	for _, name := range [...]string{"I7", "I8", "I9"} {
 		if got := boxedPairs[windowAt(t, ladder, name, 1)]; got&2 == 0 {

@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"sync"
+
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/pattern"
@@ -13,38 +15,42 @@ var cleanBits [config.PatternTableEntries]uint8
 
 var boxedPairs [config.PatternTableEntries]uint8
 
-func init() {
-	for idx := range config.PatternTableEntries {
-		swapped := swapStates(uint32(idx))
-		red := pattern.Lookup(uint32(idx)).Class
-		blue := pattern.Lookup(swapped).Class
-		classPairs[idx] = red | blue<<3
-		var hasOwn, hasOpp bool
-		for _, s := range pattern.Unpack(uint32(idx)) {
-			switch s {
-			case config.PatternStateOwn:
-				hasOwn = true
-			case config.PatternStateOpp:
-				hasOpp = true
+var tableOnce sync.Once
+
+func buildStateTables() {
+	tableOnce.Do(func() {
+		for idx := range config.PatternTableEntries {
+			swapped := swapStates(uint32(idx))
+			red := pattern.Lookup(uint32(idx)).Class
+			blue := pattern.Lookup(swapped).Class
+			classPairs[idx] = red | blue<<3
+			var hasOwn, hasOpp bool
+			for _, s := range pattern.Unpack(uint32(idx)) {
+				switch s {
+				case config.PatternStateOwn:
+					hasOwn = true
+				case config.PatternStateOpp:
+					hasOpp = true
+				}
 			}
+			var bits uint8
+			if hasOwn && !hasOpp {
+				bits |= 1
+			}
+			if hasOpp && !hasOwn {
+				bits |= 2
+			}
+			cleanBits[idx] = bits
+			var bx uint8
+			if boxedEngaged(uint32(idx), red) {
+				bx |= 1
+			}
+			if boxedEngaged(swapped, blue) {
+				bx |= 2
+			}
+			boxedPairs[idx] = bx
 		}
-		var bits uint8
-		if hasOwn && !hasOpp {
-			bits |= 1
-		}
-		if hasOpp && !hasOwn {
-			bits |= 2
-		}
-		cleanBits[idx] = bits
-		var bx uint8
-		if boxedEngaged(uint32(idx), red) {
-			bx |= 1
-		}
-		if boxedEngaged(swapped, blue) {
-			bx |= 2
-		}
-		boxedPairs[idx] = bx
-	}
+	})
 }
 
 func boxedEngaged(idx uint32, cls uint8) bool {

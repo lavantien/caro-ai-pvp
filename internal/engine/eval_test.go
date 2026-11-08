@@ -28,6 +28,7 @@ func TestSwapStates(t *testing.T) {
 }
 
 func TestClassPairsMatchUnifiedTable(t *testing.T) {
+	buildStateTables()
 	rng := rand.New(rand.NewPCG(5, 55))
 	probes := []uint32{0, 1, 2, 3, 0xFFFF, config.PatternTableEntries - 1}
 	for range 1000 {

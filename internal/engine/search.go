@@ -61,6 +61,7 @@ func NewEval(ttBytes int64, w *[config.PatternClassCount]int) *Engine {
 }
 
 func newEngineShared(tt *ttTable) *Engine {
+	buildStateTables()
 	return &Engine{radius: config.SearchRingRadius, tt: tt}
 }
 
