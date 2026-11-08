@@ -73,6 +73,10 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	if guardEBF != 2999 {
 		t.Fatalf("EBFMilli(3, 1) = %d, want 2999", guardEBF)
 	}
+	ttE := New(1 << 16)
+	if used := int64(len(ttE.tt.entries)) * 8; used > 1<<16 {
+		t.Fatalf("transposition table used %d bytes for a %d byte budget", used, 1<<16)
+	}
 	for _, pin := range []struct {
 		b    *rules.Board
 		side rules.Color
