@@ -9,6 +9,33 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
+func TestGenerateOpeningGatedRefill(t *testing.T) {
+	b := rules.NewBoard()
+	b.Side = rules.Red
+	b.Make(rules.Cell(7*16 + 5))
+	for _, c := range []int{8*16 + 3, 8*16 + 4, 8*16 + 6, 8*16 + 7} {
+		b.Side = rules.Blue
+		b.Make(rules.Cell(c))
+	}
+	b.Side = rules.Red
+	e := New(0)
+	e.eval.reset(b)
+	n := e.generate(b, 0, moveNone)
+	got := map[rules.Move]bool{}
+	for _, m := range e.moves[0][:n] {
+		got[m] = true
+	}
+	want := map[rules.Move]bool{129: true, 130: true, 136: true, 137: true}
+	if n != len(want) {
+		t.Fatalf("generate returned %d moves %v, want the 4 opening-gated refill cells %v", n, e.moves[0][:n], want)
+	}
+	for m := range want {
+		if !got[m] {
+			t.Fatalf("move %d missing from generate output %v", m, e.moves[0][:n])
+		}
+	}
+}
+
 func TestLiveWin1MatchesFoursOverPlayouts(t *testing.T) {
 	e := New(0)
 	for seed := range uint64(64) {

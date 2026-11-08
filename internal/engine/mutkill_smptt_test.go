@@ -321,6 +321,69 @@ func TestSMPKillCutPermilleMatchesWorkers(t *testing.T) {
 
 }
 
+func singleCutBoard(t testing.TB) *rules.Board {
+	t.Helper()
+	b := rules.NewBoard()
+	for r := 0; r < 16; r++ {
+		for c := 0; c < 16; c++ {
+			var color rules.Color
+			switch {
+			case r == 0 && c == 0:
+				color = rules.Red
+			case r == 0 && c >= 1 && c <= 4:
+				color = rules.Blue
+			case r == 0 && (c == 5 || c == 6):
+				continue
+			case r == 0 && c >= 7 && c <= 10:
+				color = rules.Blue
+			case r == 0 && c == 11:
+				color = rules.Red
+			default:
+				if (3*r+5*c)%7 < 3 {
+					color = rules.Red
+				} else {
+					color = rules.Blue
+				}
+			}
+			b.Side = color
+			b.Make(rules.Cell(r*16 + c))
+		}
+	}
+	b.Side = rules.Red
+	return b
+}
+
+func TestSMPKillSingleCutPermille(t *testing.T) {
+	b := singleCutBoard(t)
+	if b.MoveCount != 254 {
+		t.Fatalf("stone count %d, want 254", b.MoveCount)
+	}
+	for _, cell := range []rules.Cell{5, 6} {
+		b.Side = rules.Blue
+		b.Make(cell)
+		wonBlue := b.FastLastMoveWin(rules.Blue, cell)
+		b.Unmake()
+		b.Side = rules.Red
+		b.Make(cell)
+		wonRed := b.FastLastMoveWin(rules.Red, cell)
+		b.Unmake()
+		if !wonBlue || wonRed {
+			t.Fatalf("cell %d: blue win-in-1 %v red win %v, want a blue-only immediate win", cell, wonBlue, wonRed)
+		}
+	}
+	b.Side = rules.Red
+	s := newSMP(1, testTTBytes)
+	defer s.Close()
+	_, stats := s.SearchDepth(b, cappedNodeBudget(500_000), 2)
+	r := &s.results[0]
+	if r.cutNodes != 1 || r.cutFirst != 1 {
+		t.Fatalf("setup: cut nodes %d first %d, want exactly 1 and 1", r.cutNodes, r.cutFirst)
+	}
+	if stats.FirstMoveFailHighPermille != 1000 {
+		t.Fatalf("single-cut fh1 permille = %d, want 1000", stats.FirstMoveFailHighPermille)
+	}
+}
+
 func TestSMPKillPVLenFromRootSlot(t *testing.T) {
 	b := farCornerBoard(t)
 	s := newSMP(1, testTTBytes)
