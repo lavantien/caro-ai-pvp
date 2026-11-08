@@ -1,12 +1,37 @@
 package engine
 
 import (
+	"math/rand/v2"
 	"testing"
 	"time"
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
+
+func TestLiveWin1MatchesFoursOverPlayouts(t *testing.T) {
+	e := New(0)
+	for seed := range uint64(64) {
+		b := rules.NewBoard()
+		rng := rand.New(rand.NewPCG(seed, seed*2+1))
+		var buf [config.BoardCells]rules.Move
+		for range 24 {
+			e.eval.reset(b)
+			near := e.nearMask(b)
+			for _, side := range []rules.Color{rules.Red, rules.Blue} {
+				want := e.eval.fours[side] > 0
+				if got := e.eval.liveWin1(b, side, near); got != want {
+					t.Fatalf("seed %d move %d side %d: liveWin1 = %v, fours > 0 = %v", seed, b.MoveCount, side, got, want)
+				}
+			}
+			n := b.LegalMoves(buf[:])
+			if n == 0 {
+				break
+			}
+			b.Make(rules.Cell(buf[rng.IntN(n)]))
+		}
+	}
+}
 
 func TestCandidateSetCoversAllWinInOneCells(t *testing.T) {
 	for seed := range uint64(10) {

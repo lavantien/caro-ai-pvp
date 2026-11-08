@@ -75,6 +75,9 @@ func TestNewTieredMapsConfig(t *testing.T) {
 	if s := newSMP(0, 0); s.Workers() != 1 {
 		t.Errorf("worker clamp = %d, want 1", s.Workers())
 	}
+	if s := newSMPPonder(0, 0, 0); s.Workers() != 1 {
+		t.Errorf("ponder worker clamp = %d, want 1", s.Workers())
+	}
 }
 func TestSMPSearchReturnsLegalMove(t *testing.T) {
 	b := midgameBoard(t)

@@ -63,6 +63,18 @@ func TestEvalBoxedClassificationWitnesses(t *testing.T) {
 	}
 }
 
+func TestEvalBoxedProximityBoundary(t *testing.T) {
+	buildStateTables()
+	sep3 := boardFromMoves(t, geom.Default(), "I4", "I7", "I3", "I8", "I2", "I9")
+	blueIdx := pattern.Index(sep3, rules.Cell(mustCell(t, "I7")), 1, rules.Blue)
+	if pattern.Lookup(blueIdx).Class != config.PatternClassThree {
+		t.Fatalf("window at I7 must hold the live blue three (class %d)", pattern.Lookup(blueIdx).Class)
+	}
+	if got := boxedPairs[windowAt(t, sep3, "I7", 1)]; got&2 != 0 {
+		t.Fatalf("the blue three with the nearest red three slots away must stay unboxed (%02b)", got)
+	}
+}
+
 func TestEvalBoxedCountsMatchWindowWalk(t *testing.T) {
 	for seed := range uint64(5) {
 		b := playout(t, 900*seed+31, int(11+seed*9))
