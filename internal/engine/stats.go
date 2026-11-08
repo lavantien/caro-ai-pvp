@@ -24,6 +24,7 @@ type SearchStats struct {
 	RootMoves                 [config.PonderDepthHistory]rules.Move
 	RootScores                [config.PonderDepthHistory]int
 	RootIters                 int
+	PanickedWorkers           int
 }
 
 func NpsReport(nodes uint64, elapsedNs int64) uint64 {

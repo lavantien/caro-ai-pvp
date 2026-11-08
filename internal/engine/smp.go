@@ -18,6 +18,7 @@ type Ponderer interface {
 type workerResult struct {
 	seq        uint32
 	completed  int
+	panicked   bool
 	score      int
 	move       rules.Move
 	pvLen      int
@@ -220,6 +221,13 @@ func (s *SMP) serveQueuedJob(w *Engine, b *rules.Board, res *workerResult) bool 
 
 func (s *SMP) serveJob(w *Engine, b *rules.Board, res *workerResult) {
 	defer s.runWG.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			res.panicked = true
+			res.completed = 0
+			res.move = moveNone
+		}
+	}()
 	s.runWorker(w, b, res)
 }
 
@@ -322,6 +330,9 @@ func (s *SMP) collectResults(start time.Time) (rules.Move, SearchStats) {
 	var ttProbes, ttHits, cutNodes, cutFirst uint64
 	for i := range s.results {
 		r := &s.results[i]
+		if r.panicked {
+			stats.PanickedWorkers++
+		}
 		stats.Nodes += r.nodes
 		ttProbes += r.ttProbes
 		ttHits += r.ttHits

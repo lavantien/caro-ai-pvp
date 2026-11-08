@@ -18,6 +18,7 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	e := New(0)
 	done := make(chan struct{})
 	panicked := make(chan any, 1)
+	workerPanics := 0
 	go func() {
 		defer func() {
 			close(done)
@@ -35,7 +36,8 @@ func TestMoveGenerationTerminates(t *testing.T) {
 		e.Search(boards[0], cappedNodeBudget(2048))
 		e.Search(boards[3], cappedNodeBudget(2048))
 		smpE := newSMP(1, 0)
-		smpE.Search(boards[3], cappedNodeBudget(2048))
+		_, smpStats := smpE.Search(boards[3], cappedNodeBudget(2048))
+		workerPanics = smpStats.PanickedWorkers
 		smpE.Close()
 		smpP := newSMP(1, 0)
 		smpP.StartPonder(boards[3])
@@ -62,6 +64,9 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	case r := <-panicked:
 		t.Fatalf("move generation panicked on a guard board: %v", r)
 	default:
+	}
+	if workerPanics != 0 {
+		t.Fatalf("smp search on a guard board recovered %d worker panics, want 0", workerPanics)
 	}
 	for _, pin := range []struct {
 		b    *rules.Board
