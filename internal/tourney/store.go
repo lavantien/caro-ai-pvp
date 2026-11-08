@@ -263,11 +263,12 @@ func (t *Store) AppendGame(ctx context.Context, g Game) (Game, error) {
 				pv.WriteString(name)
 			}
 			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO tournament_game_stats (tournament_game_id, move_no, mover, move, depth, nodes, nps, ebf_milli, tt_permille, hf_permille, fh1_permille, score, threads, elapsed_ns, alloc_ns, tag, pv)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO tournament_game_stats (tournament_game_id, move_no, mover, move, depth, nodes, nps, ebf_milli, tt_permille, hf_permille, fh1_permille, score, threads, elapsed_ns, alloc_ns, tag, pv, panicked_workers, panic_note)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				g.ID, i+1, mover, int(st.Move), st.Stats.Depth, st.Stats.Nodes, st.Stats.Nps, st.Stats.EBFMilli,
 				st.Stats.TTHitPermille, st.Stats.HashFullPermille, st.Stats.FirstMoveFailHighPermille,
 				st.Stats.Score, st.Stats.Threads, st.Stats.ElapsedNs, st.Stats.AllocNs, st.TagName(), pv.String(),
+				st.Stats.PanickedWorkers, st.Stats.PanicNote,
 			); err != nil {
 				return fmt.Errorf("tourney: append m-line %d of game %d: %w", i+1, g.ID, err)
 			}

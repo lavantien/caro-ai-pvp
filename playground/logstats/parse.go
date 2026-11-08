@@ -21,17 +21,19 @@ type header struct {
 }
 
 type mLine struct {
-	move        int
-	side, cell  string
-	cellFlat    int
-	depth       int
-	nodes, nps  uint64
-	ebf         float64
-	tt, hf, fh1 int
-	score       int
-	thr         int
-	t, alloc    float64
-	tag, pv     string
+	move            int
+	side, cell      string
+	cellFlat        int
+	depth           int
+	nodes, nps      uint64
+	ebf             float64
+	tt, hf, fh1     int
+	score           int
+	thr             int
+	t, alloc        float64
+	tag, pv         string
+	panickedWorkers int
+	panicNote       string
 }
 
 type gameLine struct {
@@ -333,12 +335,20 @@ func parseMLine(line string, g *geom.Geometry) (m mLine, ok bool) {
 		return m, false
 	}
 	mid := parts[1 : len(parts)-1]
-	if len(mid) == 14 {
-		if !slices.Contains(tagBodies, mid[13]) {
+	for len(mid) > 13 {
+		switch {
+		case slices.Contains(tagBodies, mid[13]):
+			m.tag = mid[13]
+			mid = mid[:13]
+		case strings.HasPrefix(mid[13], "panics=") && len(mid) >= 15 && strings.HasPrefix(mid[14], "panicNote="):
+			if m.panickedWorkers, ok = intField(mid[13], "panics="); !ok {
+				return m, false
+			}
+			m.panicNote = strings.TrimPrefix(mid[14], "panicNote=")
+			mid = append(mid[:13], mid[15:]...)
+		default:
 			return m, false
 		}
-		m.tag = mid[13]
-		mid = mid[:13]
 	}
 	if len(mid) != 13 {
 		return m, false

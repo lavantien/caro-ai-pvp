@@ -9,12 +9,11 @@ import (
 
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 	"github.com/lavantien/caro-ai-pvp/internal/engine"
+	"github.com/lavantien/caro-ai-pvp/internal/geom"
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// writeSyntheticLogs writes raw log files into a fresh dir, the shapes no
-// real writer emits (corruption, missing verdicts) included.
 func writeSyntheticLogs(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -26,7 +25,6 @@ func writeSyntheticLogs(t *testing.T, files map[string]string) string {
 	return dir
 }
 
-// analyzeDir runs the tool's whole read-parse-analyze pipeline over dir.
 func analyzeDir(t *testing.T, dir string) *analysis {
 	t.Helper()
 	paths, err := readSeriesLogs(dir)
@@ -44,16 +42,12 @@ func analyzeDir(t *testing.T, dir string) *analysis {
 	return analyze(dir, files)
 }
 
-// headerBlock spells the three header lines the tourney writer emits, with
-// the first listed time control and a bo3.
 func headerBlock(run, series int, redName, redTier, blueName, blueTier string) string {
 	tc := config.TimeControls[0]
 	return fmt.Sprintf("run %d series %d\npairing %s (%s) vs %s (%s)\ntc %d+%d bo3\n",
 		run, series, redName, redTier, blueName, blueTier, tc.InitialMin, tc.IncrementSec)
 }
 
-// mlineOf builds one M-line through the real emitter, its shape trimmed to
-// the fields the telemetry section reads.
 func mlineOf(t *testing.T, num int, side rules.Color, cell string, depth, score int, nps uint64) string {
 	t.Helper()
 	st := engine.SearchStats{
@@ -64,6 +58,23 @@ func mlineOf(t *testing.T, num int, side rules.Color, cell string, depth, score 
 	st.PV[0] = mustMove(t, cell)
 	st.PVLen = 1
 	return server.MLine(num, side, mustMove(t, cell), &st, "")
+}
+
+func TestParseMLineCarriesRecoveredPanics(t *testing.T) {
+	st := engine.SearchStats{Depth: 3, Nodes: 10, Nps: 5, Threads: 2, PanickedWorkers: 1, PanicNote: "runtime error: index out of range [-1]"}
+	st.PV[0] = mustMove(t, "H8")
+	st.PVLen = 1
+	line := server.MLine(4, rules.Red, mustMove(t, "H8"), &st, "")
+	m, ok := parseMLine(line, geom.Default())
+	if !ok {
+		t.Fatalf("panic m-line did not parse: %q", line)
+	}
+	if m.panickedWorkers != 1 || m.panicNote != "runtime error: index out of range [-1]" {
+		t.Errorf("parsed panic trace = %d %q", m.panickedWorkers, m.panicNote)
+	}
+	if m.pv != "H8" {
+		t.Errorf("parsed pv = %q, want H8", m.pv)
+	}
 }
 
 func findParticipant(t *testing.T, a *analysis, name string) participantStats {
@@ -88,10 +99,6 @@ func findTelemetry(t *testing.T, a *analysis, tier string) *tierTelemetry {
 	return nil
 }
 
-// TestSeatFoldBo3WithDraw walks the fold law of internal/tourney/runner.go
-// through a bo3 with a draw: red alternates after every game, so alpha
-// holds red in games 1 and 3, beta in game 2, and the series settles drawn
-// at 1-1.
 func TestSeatFoldBo3WithDraw(t *testing.T) {
 	body := headerBlock(1, 0, "alpha", "easy", "beta", "hard") +
 		"game 1: alpha (red) beat beta (blue), 9 moves, won by 4\n" +
@@ -115,18 +122,13 @@ func TestSeatFoldBo3WithDraw(t *testing.T) {
 	}
 }
 
-// TestAnalyzeFullReport drives the whole pipeline over two series logs: a
-// finished medium-vs-easy series with telemetry anomalies and a corrupt
-// line, and an unfinished hard-vs-hard series, then checks the inventory,
-// the fold, the inversion verdicts, the integrity ledgers, and that the
-// rendered markdown is complete and deterministic.
 func TestAnalyzeFullReport(t *testing.T) {
 	finished := headerBlock(1, 0, "gamma", "medium", "delta", "easy") +
 		mlineOf(t, 1, rules.Red, "C3", 4, 10, 1000) + "\n" +
 		mlineOf(t, 2, rules.Blue, "D4", 2, -10, 1000) + "\n" +
-		mlineOf(t, 3, rules.Red, "E5", 1, 7, 1000) + "\n" + // d=1 on a non-first move
-		mlineOf(t, 4, rules.Blue, "F6", 2, -7, 0) + "\n" + // zero nps
-		mlineOf(t, 5, rules.Red, "E5", 3, 7, 1000) + "\n" + // dup pair with M6
+		mlineOf(t, 3, rules.Red, "E5", 1, 7, 1000) + "\n" +
+		mlineOf(t, 4, rules.Blue, "F6", 2, -7, 0) + "\n" +
+		mlineOf(t, 5, rules.Red, "E5", 3, 7, 1000) + "\n" +
 		mlineOf(t, 6, rules.Blue, "E5", 3, 7, 1000) + "\n" +
 		"game 1: gamma (red) beat delta (blue), 6 moves, won by 4\n" +
 		"M9, Red, corrupted\n" +
@@ -216,7 +218,7 @@ func TestAnalyzeFullReport(t *testing.T) {
 	for _, want := range []string{
 		"- m-lines: 8",
 		"### tier medium",
-		"- anomalies: d=1 non-first 1, zero nps 0, dup consecutive 0",
+		"- anomalies: d=1 non-first 1, zero nps 0, dup consecutive 0, recovered panics 0",
 		"- unparsable lines: 2",
 		"- unfinished series (no verdict): 1",
 		"zero-sum: wins 3, losses 3, draws 0: zero-sum holds",
@@ -227,7 +229,6 @@ func TestAnalyzeFullReport(t *testing.T) {
 	}
 }
 
-// TestAnalyzeEmptyDir renders the zero report over a dir with no logs.
 func TestAnalyzeEmptyDir(t *testing.T) {
 	a := analyzeDir(t, writeSyntheticLogs(t, map[string]string{}))
 	if a.files != 0 || a.games != 0 || a.mlines != 0 || len(a.participants) != 0 {
@@ -240,9 +241,6 @@ func TestAnalyzeEmptyDir(t *testing.T) {
 	}
 }
 
-// TestAnalyzeHeaderlessFile checks the never-dropped rule at file scale: a
-// log with data lines but no header still counts its inventory and lands in
-// the missing-header ledger without attributing anything.
 func TestAnalyzeHeaderlessFile(t *testing.T) {
 	body := mlineOf(t, 1, rules.Red, "A1", 2, 5, 1000) + "\ngame 1: a (red) beat b (blue), 1 moves\n"
 	a := analyzeDir(t, writeSyntheticLogs(t, map[string]string{"stray.txt": body}))
@@ -254,8 +252,6 @@ func TestAnalyzeHeaderlessFile(t *testing.T) {
 	}
 }
 
-// TestAnalyzeFoldMismatchDetected flags a verdict that disagrees with the
-// billed games.
 func TestAnalyzeFoldMismatchDetected(t *testing.T) {
 	body := headerBlock(1, 0, "a", "easy", "b", "hard") +
 		"game 1: a (red) beat b (blue), 9 moves, won by 4\n" +
@@ -269,7 +265,6 @@ func TestAnalyzeFoldMismatchDetected(t *testing.T) {
 	}
 }
 
-// TestReadSeriesLogsMissingDir errors instead of reporting an empty run.
 func TestReadSeriesLogsMissingDir(t *testing.T) {
 	if _, err := readSeriesLogs(filepath.Join(t.TempDir(), "nope")); err == nil {
 		t.Errorf("readSeriesLogs over a missing dir succeeded")

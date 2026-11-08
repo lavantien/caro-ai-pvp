@@ -227,7 +227,7 @@ const (
 	SearchClockQuantumMs    = 16
 )
 const (
-	BotLogFormat    = "M%d, %s, %s, d=%d, n=%s, nps=%s, ebf=%.1f, tt=%d%%, hf=%d%%, fh1=%d%%, s=%s, thr=%d, t=%.2f, alloc=%.2f%s, pv=%s"
+	BotLogFormat    = "M%d, %s, %s, d=%d, n=%s, nps=%s, ebf=%.1f, tt=%d%%, hf=%d%%, fh1=%d%%, s=%s, thr=%d, t=%.2f, alloc=%.2f%s%s, pv=%s"
 	BotLogTagVCF    = ", [VCF]"
 	BotLogTagVCT    = ", [VCT]"
 	BotLogTagPonder = ", [PONDER]"
@@ -396,7 +396,7 @@ const (
 	UsernameMaxBytes         = 32
 	AdminName                = "admin"
 	AdminPassword            = "1234qwerasdfzxcv"
-	SQLiteSchemaVersion      = 12
+	SQLiteSchemaVersion      = 13
 	SQLiteBusyTimeoutMs      = 5000
 	SQLiteJournalWAL         = "wal"
 	SQLiteSyncNormal         = "normal"

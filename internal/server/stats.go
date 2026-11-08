@@ -47,6 +47,12 @@ func AppendMLine(dst []byte, g *geom.Geometry, moveNumber int, side rules.Color,
 	dst = append(dst, ", alloc="...)
 	dst = strconv.AppendFloat(dst, float64(st.AllocNs)/float64(time.Second), 'f', 2, 64)
 	dst = append(dst, tag...)
+	if st.PanickedWorkers > 0 {
+		dst = append(dst, ", panics="...)
+		dst = strconv.AppendInt(dst, int64(st.PanickedWorkers), 10)
+		dst = append(dst, ", panicNote="...)
+		dst = append(dst, st.PanicNote...)
+	}
 	dst = append(dst, ", pv="...)
 	for i := 0; i < st.PVLen && i < len(st.PV); i++ {
 		if i > 0 {

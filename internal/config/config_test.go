@@ -652,17 +652,22 @@ func TestBotLogFormatMatchesImplication15(t *testing.T) {
 		{
 			"healthy",
 			"M24, Red, J9, d=14, n=6.25m, nps=2.5m, ebf=2.1, tt=38%, hf=45%, fh1=93%, s=+150, thr=4, t=2.50, alloc=2.50, pv=J9 K10 K9 L9 M8 L8",
-			[]any{24, "Red", "J9", 14, "6.25m", "2.5m", 2.1, 38, 45, 93, "+150", 4, 2.50, 2.50, "", "J9 K10 K9 L9 M8 L8"},
+			[]any{24, "Red", "J9", 14, "6.25m", "2.5m", 2.1, 38, 45, 93, "+150", 4, 2.50, 2.50, "", "", "J9 K10 K9 L9 M8 L8"},
 		},
 		{
 			"vct hit",
 			"M31, Blue, G7, d=9, n=45k, nps=1.2m, ebf=1.4, tt=18%, hf=60%, fh1=88%, s=M9, thr=4, t=0.03, alloc=3.00, [VCT], pv=G7 H7 G8 G6 G9 G10 F8 E9 I8",
-			[]any{31, "Blue", "G7", 9, "45k", "1.2m", 1.4, 18, 60, 88, "M9", 4, 0.03, 3.00, BotLogTagVCT, "G7 H7 G8 G6 G9 G10 F8 E9 I8"},
+			[]any{31, "Blue", "G7", 9, "45k", "1.2m", 1.4, 18, 60, 88, "M9", 4, 0.03, 3.00, BotLogTagVCT, "", "G7 H7 G8 G6 G9 G10 F8 E9 I8"},
 		},
 		{
 			"ponder hit",
 			"M12, Red, H10, d=16, n=18m, nps=2.8m, ebf=2.0, tt=44%, hf=78%, fh1=91%, s=-25, thr=4, t=0.01, alloc=4.00, [PONDER], pv=H10 I9 J8 K7 J10",
-			[]any{12, "Red", "H10", 16, "18m", "2.8m", 2.0, 44, 78, 91, "-25", 4, 0.01, 4.00, BotLogTagPonder, "H10 I9 J8 K7 J10"},
+			[]any{12, "Red", "H10", 16, "18m", "2.8m", 2.0, 44, 78, 91, "-25", 4, 0.01, 4.00, BotLogTagPonder, "", "H10 I9 J8 K7 J10"},
+		},
+		{
+			"recovered worker panics",
+			"M8, Blue, H6, d=1, n=0, nps=0, ebf=0.0, tt=0%, hf=0%, fh1=0%, s=+0, thr=4, t=0.00, alloc=0.00, panics=2, panicNote=runtime error: index out of range [-1], pv=",
+			[]any{8, "Blue", "H6", 1, "0", "0", 0.0, 0, 0, 0, "+0", 4, 0.00, 0.00, "", ", panics=2, panicNote=runtime error: index out of range [-1]", ""},
 		},
 	}
 	for _, c := range cases {
@@ -841,8 +846,8 @@ func TestServerConstants(t *testing.T) {
 	if len(AdminName) > UsernameMaxBytes {
 		t.Errorf("AdminName %d bytes over the UsernameMaxBytes ceiling %d", len(AdminName), UsernameMaxBytes)
 	}
-	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 12 {
-		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 12]: raise the ceiling with the next migration", SQLiteSchemaVersion)
+	if SQLiteSchemaVersion < 1 || SQLiteSchemaVersion > 13 {
+		t.Errorf("SQLiteSchemaVersion = %d, want in [1, 13]: raise the ceiling with the next migration", SQLiteSchemaVersion)
 	}
 	if SQLiteBusyTimeoutMs < 1000 || SQLiteBusyTimeoutMs > 60000 {
 		t.Errorf("SQLiteBusyTimeoutMs = %d, want in [1000, 60000]", SQLiteBusyTimeoutMs)

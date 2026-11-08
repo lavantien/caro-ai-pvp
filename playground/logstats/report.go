@@ -11,8 +11,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
-// renderReport writes the markdown evidence report; every list arrives
-// sorted, so the same logs render identical bytes.
 func renderReport(w io.Writer, a *analysis) {
 	fmt.Fprintf(w, "# logstats report\n\n")
 	fmt.Fprintf(w, "- dir: %s\n- files: %d\n- runs: %d (%s)\n- series: %d\n- games: %d\n- m-lines: %d\n\n",
@@ -39,15 +37,13 @@ func renderReport(w io.Writer, a *analysis) {
 		fmt.Fprintf(w, "- mean t: %.2f s, mean alloc: %.2f s, mean alloc/t: %s\n",
 			meanF(t.ts), meanF(t.allocs), displayUtil(t))
 		fmt.Fprintf(w, "- mean tt: %.1f%%\n", meanInt(t.tts))
-		// The score mean excludes mate-band lines: their mega-magnitudes
-		// would drown the milliunit leaf scores the mean exists to show.
 		nonMate := nonMateScores(t.scores)
 		fmt.Fprintf(w, "- score: min %s, max %s, mean %.1f over %d non-mate lines\n",
 			displayScore(minOf(t.scores)), displayScore(maxOf(t.scores)),
 			meanInt(nonMate), len(nonMate))
 		fmt.Fprintf(w, "- mate markers: +M %d, -M %d\n", t.matePos, t.mateNeg)
-		fmt.Fprintf(w, "- anomalies: d=1 non-first %d, zero nps %d, dup consecutive %d\n\n",
-			t.anomD1, t.anomZeroNps, t.anomDup)
+		fmt.Fprintf(w, "- anomalies: d=1 non-first %d, zero nps %d, dup consecutive %d, recovered panics %d\n\n",
+			t.anomD1, t.anomZeroNps, t.anomDup, t.recoveredPanics)
 	}
 
 	fmt.Fprintf(w, "## strength verdict\n\n")
@@ -108,8 +104,6 @@ func maxOf(s []int) int {
 	return slices.Max(s)
 }
 
-// displayUtil renders the mean granted-budget utilization alloc/t; lines
-// with zero elapsed time carry no ratio.
 func displayUtil(t *tierTelemetry) string {
 	if t.utilN == 0 {
 		return "n/a"
@@ -117,9 +111,6 @@ func displayUtil(t *tierTelemetry) string {
 	return fmt.Sprintf("%.2f", t.utilSum/float64(t.utilN))
 }
 
-// displayCompact renders a mean count on the emitter's compact scales
-// (compactK, compactM in parse.go), the way the M-lines themselves write
-// counts.
 func displayCompact(f float64) string {
 	switch {
 	case f >= compactM:
@@ -134,9 +125,6 @@ func trimZero(f float64) string {
 	return strings.TrimRight(strings.TrimRight(strconv.FormatFloat(f, 'f', 2, 64), "0"), ".")
 }
 
-// displayScore renders a parsed score back on the emitter's law
-// (internal/server/stats.go appendScore): the mate band as its M-distance,
-// everything inside as the signed milliunit integer.
 func displayScore(v int) string {
 	switch {
 	case v >= mateFloor:

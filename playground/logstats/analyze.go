@@ -10,13 +10,6 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/server"
 )
 
-// The aggregation laws, all mirroring the conductor of
-// internal/tourney/runner.go: game 1 seats the pairing's first name on red
-// and the benchmark alternation passes red to the other participant after
-// every game, draws included; the verdict line names the winning
-// participant (or "drawn") and its billed wins must match the fold.
-
-// participantStats is one participant's folded record across every series.
 type participantStats struct {
 	name, tier   string
 	tierRank     int
@@ -27,32 +20,27 @@ type participantStats struct {
 	gameDraws    int
 }
 
-// tierTelemetry aggregates the M-lines attributed to one tier's seats.
 type tierTelemetry struct {
-	tier  string
-	rank  int
-	moves int
-	// Sample slices keep the medians honest; means come off them too.
-	depths  []int
-	nodes   []uint64
-	nps     []uint64
-	ts      []float64
-	allocs  []float64
-	tts     []int
-	scores  []int
-	matePos int
-	mateNeg int
-	// Anomalies: depth 1 on a non-first move, zero node rate, and two
-	// consecutive M-lines repeating the same cell and score.
-	anomD1      int
-	anomZeroNps int
-	anomDup     int
-	utilSum     float64
-	utilN       int
+	tier            string
+	rank            int
+	moves           int
+	depths          []int
+	nodes           []uint64
+	nps             []uint64
+	ts              []float64
+	allocs          []float64
+	tts             []int
+	scores          []int
+	matePos         int
+	mateNeg         int
+	anomD1          int
+	anomZeroNps     int
+	anomDup         int
+	recoveredPanics int
+	utilSum         float64
+	utilN           int
 }
 
-// analysis is the whole report's data, every list pre-sorted for
-// deterministic rendering.
 type analysis struct {
 	dir           string
 	files         int
@@ -71,9 +59,6 @@ type analysis struct {
 	foldMismatch  []string
 }
 
-// analyze folds every parsed file into the report's data. Files without a
-// full header still count their games and M-lines in the inventory but
-// attribute nothing; the integrity lists carry them.
 func analyze(dir string, files []seriesFile) *analysis {
 	a := &analysis{dir: dir, files: len(files)}
 	parts := map[string]*participantStats{}
@@ -157,6 +142,9 @@ func analyze(dir string, files []seriesFile) *analysis {
 				}
 				if r.ml.nps == 0 {
 					t.anomZeroNps++
+				}
+				if r.ml.panickedWorkers > 0 {
+					t.recoveredPanics++
 				}
 				if r.ml.t > 0 {
 					t.utilSum += r.ml.alloc / r.ml.t
@@ -244,7 +232,6 @@ func analyze(dir string, files []seriesFile) *analysis {
 		return strings.Compare(x.name, y.name)
 	})
 
-	// Telemetry in ladder order, unknown tiers after, by name.
 	for i := range config.Tiers {
 		if t, ok := tiers[config.Tiers[i].Name]; ok {
 			a.telemetry = append(a.telemetry, *t)
@@ -261,7 +248,6 @@ func analyze(dir string, files []seriesFile) *analysis {
 		a.telemetry = append(a.telemetry, *tiers[name])
 	}
 
-	// Inversions: a weaker tier's participant ranked above a stronger one's.
 	for i := range a.participants {
 		for j := i + 1; j < len(a.participants); j++ {
 			pi, pj := a.participants[i], a.participants[j]
@@ -289,9 +275,6 @@ func analyze(dir string, files []seriesFile) *analysis {
 	return a
 }
 
-// tierRank maps a tier name onto the config.Tiers strength ladder index
-// (easy < medium < hard); unknown names rank -1 and sit outside every
-// inversion check.
 func tierRank(name string) int {
 	for i := range config.Tiers {
 		if config.Tiers[i].Name == name {
@@ -301,8 +284,6 @@ func tierRank(name string) int {
 	return -1
 }
 
-// mean and median helpers over the telemetry samples; empty slices report
-// zero so the renderer never divides by nothing.
 func meanInt(s []int) float64 {
 	if len(s) == 0 {
 		return 0
@@ -336,8 +317,6 @@ func meanF(s []float64) float64 {
 	return sum / float64(len(s))
 }
 
-// nonMateScores filters the mate band out of a score sample: those lines
-// are mate distances on the mateWin lattice, not milliunit leaf scores.
 func nonMateScores(s []int) []int {
 	out := make([]int, 0, len(s))
 	for _, v := range s {

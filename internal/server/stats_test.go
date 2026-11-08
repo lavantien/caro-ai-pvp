@@ -119,6 +119,9 @@ func TestMLineMatchesBotLogFormat(t *testing.T) {
 	}
 	booked := engine.SearchStats{Threads: 6, AllocNs: 2_000_000_000}
 	setPV(t, &booked, "K12")
+	panicked := engine.SearchStats{Depth: 1, Threads: 4, PanickedWorkers: 2, PanicNote: "runtime error: index out of range [-1]"}
+	setPV(t, &panicked, "A1")
+	panicSeg := ", panics=2, panicNote=runtime error: index out of range [-1]"
 	cases := []struct {
 		name string
 		num  int
@@ -134,17 +137,22 @@ func TestMLineMatchesBotLogFormat(t *testing.T) {
 			args: []any{7, "Blue", "A1", 7, "1.05m", "1m", 1.5, 39, 45, 93, "-M3", 8,
 				float64(rich.ElapsedNs) / float64(time.Second),
 				float64(rich.AllocNs) / float64(time.Second),
-				config.BotLogTagVCF, "A1"},
+				config.BotLogTagVCF, "", "A1"},
 		},
 		{
 			name: "zeroed empty pv", num: 1, side: rules.Red, move: "A1",
 			tag: "", st: &empty,
-			args: []any{1, "Red", "A1", 1, "0", "0", 0.0, 0, 0, 0, "+0", 1, 0.0, 0.0, "", ""},
+			args: []any{1, "Red", "A1", 1, "0", "0", 0.0, 0, 0, 0, "+0", 1, 0.0, 0.0, "", "", ""},
 		},
 		{
 			name: "zero-cost book tag", num: 2, side: rules.Blue, move: "K12",
 			tag: config.BotLogTagBook, st: &booked,
-			args: []any{2, "Blue", "K12", 0, "0", "0", 0.0, 0, 0, 0, "+0", 6, 0.0, 2.0, config.BotLogTagBook, "K12"},
+			args: []any{2, "Blue", "K12", 0, "0", "0", 0.0, 0, 0, 0, "+0", 6, 0.0, 2.0, config.BotLogTagBook, "", "K12"},
+		},
+		{
+			name: "recovered worker panics", num: 3, side: rules.Red, move: "A1",
+			tag: "", st: &panicked,
+			args: []any{3, "Red", "A1", 1, "0", "0", 0.0, 0, 0, 0, "+0", 4, 0.0, 0.0, "", panicSeg, "A1"},
 		},
 	}
 	for _, c := range cases {

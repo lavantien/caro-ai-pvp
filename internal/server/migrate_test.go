@@ -31,6 +31,15 @@ func dropV12Columns(t *testing.T, s *Store) {
 	}
 }
 
+func dropV13Columns(t *testing.T, s *Store) {
+	t.Helper()
+	for _, col := range []string{"panic_note", "panicked_workers"} {
+		if _, err := s.db.Exec(`ALTER TABLE tournament_game_stats DROP COLUMN ` + col); err != nil {
+			t.Fatalf("drop the v13 column %s: %v", col, err)
+		}
+	}
+}
+
 func schemaCount(t *testing.T, s *Store, kind string, names string) int {
 	t.Helper()
 	var n int
@@ -228,6 +237,7 @@ func TestMigrateV1DatabaseUpgradesToV2(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 2`); err != nil {
 		t.Fatalf("roll ledger back to v1: %v", err)
 	}
+	dropV13Columns(t, s)
 	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
 		t.Fatalf("drop the v5 column: %v", err)
 	}
@@ -277,6 +287,7 @@ func TestMigrateV2DatabaseUpgradesToV3(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 3`); err != nil {
 		t.Fatalf("roll ledger back to v2: %v", err)
 	}
+	dropV13Columns(t, s)
 	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
 		t.Fatalf("drop the v5 column: %v", err)
 	}
@@ -324,6 +335,7 @@ func TestMigrateV3DatabaseUpgradesToV4(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 4`); err != nil {
 		t.Fatalf("roll ledger back to v3: %v", err)
 	}
+	dropV13Columns(t, s)
 	if _, err := s.db.Exec(`ALTER TABLE games DROP COLUMN bot_name`); err != nil {
 		t.Fatalf("drop the v5 column: %v", err)
 	}
@@ -389,6 +401,7 @@ func TestMigrateV6DatabaseUpgradesToV7(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 7`); err != nil {
 		t.Fatalf("roll ledger back to v6: %v", err)
 	}
+	dropV13Columns(t, s)
 	if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN label`); err != nil {
 		t.Fatalf("drop the v7 column: %v", err)
 	}
@@ -436,6 +449,7 @@ func TestMigrateV7DatabaseUpgradesToV8(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 8`); err != nil {
 		t.Fatalf("roll ledger back to v7: %v", err)
 	}
+	dropV13Columns(t, s)
 	for _, col := range []string{"drive_pid", "drive_heartbeat"} {
 		if _, err := s.db.Exec(`ALTER TABLE tournament_runs DROP COLUMN ` + col); err != nil {
 			t.Fatalf("drop the v8 column %s: %v", col, err)
@@ -494,6 +508,7 @@ func TestMigrateV8DatabaseUpgradesToV9(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 9`); err != nil {
 		t.Fatalf("roll ledger back to v8: %v", err)
 	}
+	dropV13Columns(t, s)
 	if _, err := s.db.Exec(`DELETE FROM users WHERE username = ?`, config.BotAccountName(len(config.Tiers)-1)); err != nil {
 		t.Fatalf("remove the master seat a legacy v4 seed never wrote: %v", err)
 	}
@@ -592,7 +607,7 @@ func TestMigrateV10DatabaseUpgradesToV11(t *testing.T) {
 	}
 	wantCols := []string{"tournament_game_id", "move_no", "mover", "move", "depth", "nodes", "nps",
 		"ebf_milli", "tt_permille", "hf_permille", "fh1_permille", "score", "threads",
-		"elapsed_ns", "alloc_ns", "tag", "pv"}
+		"elapsed_ns", "alloc_ns", "tag", "pv", "panicked_workers", "panic_note"}
 	if !slices.Equal(cols, wantCols) {
 		t.Errorf("tournament_game_stats columns = %v, want %v", cols, wantCols)
 	}
@@ -610,6 +625,75 @@ func TestMigrateV10DatabaseUpgradesToV11(t *testing.T) {
 	back, err := DecodeMoves(blob, geom.Default())
 	if err != nil || len(back) != 2 || back[0] != rules.Move(7) || back[1] != rules.Move(120) {
 		t.Errorf("v10-era moves after upgrade = %v err %v, want the seeded pair intact", back, err)
+	}
+}
+
+func TestMigrateV12DatabaseUpgradesToV13(t *testing.T) {
+	path := dbPath(t)
+	s := mustOpen(t, path)
+	if _, err := s.db.Exec(
+		`INSERT INTO tournament_runs (tc_idx, bo_len, start_rating, status, label) VALUES (?, ?, ?, ?, ?)`,
+		1, config.SeriesBO3, config.TournamentStartRating, "finished", "v12era",
+	); err != nil {
+		t.Fatalf("seed v12-era run: %v", err)
+	}
+	var runID int64
+	if err := s.db.QueryRow(`SELECT id FROM tournament_runs WHERE label = 'v12era'`).Scan(&runID); err != nil {
+		t.Fatalf("read seeded run: %v", err)
+	}
+	if _, err := s.db.Exec(
+		`INSERT INTO tournament_participants (run_id, slot, name, tier) VALUES (?, 0, 'a', 'easy'), (?, 1, 'b', 'easy')`,
+		runID, runID,
+	); err != nil {
+		t.Fatalf("seed v12-era participants: %v", err)
+	}
+	var seriesID int64
+	if err := s.db.QueryRow(
+		`INSERT INTO tournament_series (run_id, pairing_slot, red_first_slot, blue_first_slot, winner_slot, red_first_wins, blue_first_wins, finished_at)
+		VALUES (?, 0, 0, 1, 0, 2, 1, 111) RETURNING id`, runID,
+	).Scan(&seriesID); err != nil {
+		t.Fatalf("seed v12-era series: %v", err)
+	}
+	seedMoves := EncodeMoves(nil, []rules.Move{rules.Move(7), rules.Move(120)})
+	var gameID int64
+	if err := s.db.QueryRow(
+		`INSERT INTO tournament_games (run_id, series_id, idx_in_series, red_slot, blue_slot, outcome, won_by, full_turns, moves)
+		VALUES (?, ?, 0, 0, 1, 'red', 'a', 3, ?) RETURNING id`, runID, seriesID, seedMoves,
+	).Scan(&gameID); err != nil {
+		t.Fatalf("seed v12-era game: %v", err)
+	}
+	if _, err := s.db.Exec(
+		`INSERT INTO tournament_game_stats (tournament_game_id, move_no, mover, move, depth, nodes, nps, ebf_milli, tt_permille, hf_permille, fh1_permille, score, threads, elapsed_ns, alloc_ns, tag, pv)
+		VALUES (?, 1, 'red', 7, 5, 100, 50, 2000, 10, 20, 30, 0, 1, 10, 10, '', '')`, gameID,
+	); err != nil {
+		t.Fatalf("seed v12-era stat row: %v", err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 13`); err != nil {
+		t.Fatalf("roll ledger back to v12: %v", err)
+	}
+	for _, col := range []string{"panic_note", "panicked_workers"} {
+		if _, err := s.db.Exec(`ALTER TABLE tournament_game_stats DROP COLUMN ` + col); err != nil {
+			t.Fatalf("drop the v13 column %s: %v", col, err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	again := mustOpen(t, path)
+	defer func() { _ = again.Close() }()
+	count, max := schemaVersionRows(t, again)
+	if count != config.SQLiteSchemaVersion || max != config.SQLiteSchemaVersion {
+		t.Errorf("after upgrade: schema_version rows = %d max = %d, want %d and %d",
+			count, max, config.SQLiteSchemaVersion, config.SQLiteSchemaVersion)
+	}
+	var panicked int
+	var note string
+	if err := again.db.QueryRow(`SELECT panicked_workers, panic_note FROM tournament_game_stats WHERE tournament_game_id = ?`, gameID).Scan(&panicked, &note); err != nil {
+		t.Fatalf("read the v13 columns after upgrade: %v", err)
+	}
+	if panicked != 0 || note != "" {
+		t.Errorf("v13 defaults after upgrade = %d %q, want 0 and empty", panicked, note)
 	}
 }
 
@@ -645,6 +729,7 @@ func TestMigrateV11DatabaseUpgradesToV12(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM schema_version WHERE version >= 12`); err != nil {
 		t.Fatalf("roll ledger back to v11: %v", err)
 	}
+	dropV13Columns(t, s)
 	dropV12Columns(t, s)
 	if err := s.Close(); err != nil {
 		t.Fatalf("close: %v", err)

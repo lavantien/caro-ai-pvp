@@ -168,8 +168,9 @@ func gameOf(runID, seriesID int64, idx, red, blue int, outcome server.Outcome) G
 
 type statRow struct {
 	moveNo, move, depth, nodes, nps, ebfMilli, ttPm, hfPm, fh1Pm, score, threads int
+	panickedWorkers                                                              int
 	elapsedNs, allocNs                                                           int64
-	mover, tag, pv                                                               string
+	mover, tag, pv, panicNote                                                    string
 }
 
 func statsOf(t *testing.T, srv *server.Store, gameID int64) []statRow {
@@ -177,7 +178,7 @@ func statsOf(t *testing.T, srv *server.Store, gameID int64) []statRow {
 	var out []statRow
 	err := srv.WithinTx(context.Background(), func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(context.Background(),
-			`SELECT move_no, mover, move, depth, nodes, nps, ebf_milli, tt_permille, hf_permille, fh1_permille, score, threads, elapsed_ns, alloc_ns, tag, pv
+			`SELECT move_no, mover, move, depth, nodes, nps, ebf_milli, tt_permille, hf_permille, fh1_permille, score, threads, elapsed_ns, alloc_ns, tag, pv, panicked_workers, panic_note
 			FROM tournament_game_stats WHERE tournament_game_id = ? ORDER BY move_no`, gameID)
 		if err != nil {
 			return err
@@ -187,7 +188,7 @@ func statsOf(t *testing.T, srv *server.Store, gameID int64) []statRow {
 		for rows.Next() {
 			var r statRow
 			if err := rows.Scan(&r.moveNo, &r.mover, &r.move, &r.depth, &r.nodes, &r.nps, &r.ebfMilli,
-				&r.ttPm, &r.hfPm, &r.fh1Pm, &r.score, &r.threads, &r.elapsedNs, &r.allocNs, &r.tag, &r.pv); err != nil {
+				&r.ttPm, &r.hfPm, &r.fh1Pm, &r.score, &r.threads, &r.elapsedNs, &r.allocNs, &r.tag, &r.pv, &r.panickedWorkers, &r.panicNote); err != nil {
 				return err
 			}
 			if r.moveNo != wantNo {
@@ -215,6 +216,7 @@ func sampleStats() []server.MoveStat {
 			Depth: 11, Nodes: 42_345_678, Nps: 6_055_432, EBFMilli: 4900,
 			TTHitPermille: 123, HashFullPermille: 987, FirstMoveFailHighPermille: 500,
 			Score: -1400, Threads: 6, ElapsedNs: 2_680_000_011, AllocNs: 5_000_000_023,
+			PanickedWorkers: 2, PanicNote: "runtime error: index out of range [-1]",
 		}, Tag: config.BotLogTagVCF},
 	}
 }
@@ -248,6 +250,9 @@ func TestAppendGamePersistsMoveStats(t *testing.T) {
 	}
 	if second.elapsedNs != want.Stats.ElapsedNs || second.allocNs != want.Stats.AllocNs {
 		t.Errorf("row ns = elapsed %d alloc %d, want %d %d", second.elapsedNs, second.allocNs, want.Stats.ElapsedNs, want.Stats.AllocNs)
+	}
+	if second.panickedWorkers != want.Stats.PanickedWorkers || second.panicNote != want.Stats.PanicNote {
+		t.Errorf("row panic trace = %d %q, want %d %q", second.panickedWorkers, second.panicNote, want.Stats.PanickedWorkers, want.Stats.PanicNote)
 	}
 	if rows[0].pv != "H8 H6" || rows[0].mover != "red" {
 		t.Errorf("pv row = %+v, want red H8 H6", rows[0])
