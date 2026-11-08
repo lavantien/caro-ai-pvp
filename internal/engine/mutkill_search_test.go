@@ -515,7 +515,10 @@ type consultDL struct {
 	calls    int
 }
 
-func (d *consultDL) Exceeded() bool        { d.calls++; return d.exceeded }
+func (d *consultDL) Exceeded() bool {
+	d.calls++
+	return d.calls > fakeDeadlineCallCap || d.exceeded
+}
 func (d *consultDL) Stop()                 {}
 func (d *consultDL) Budget() time.Duration { return time.Nanosecond }
 

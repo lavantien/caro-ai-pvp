@@ -31,6 +31,7 @@ func TestMoveGenerationTerminates(t *testing.T) {
 			e.eval.liveWin1(b, rules.Red, near)
 			e.eval.liveWin1(b, rules.Blue, near)
 			e.generate(b, 0, moveNone)
+			e.Search(b, cappedNodeBudget(50_000))
 		}
 	}()
 	select {

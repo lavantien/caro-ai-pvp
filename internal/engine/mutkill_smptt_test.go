@@ -109,8 +109,7 @@ type countingBudgetDeadline struct {
 }
 
 func (d *countingBudgetDeadline) Exceeded() bool {
-	d.calls.Add(1)
-	return false
+	return d.calls.Add(1) > int32(fakeDeadlineCallCap)
 }
 
 func (d *countingBudgetDeadline) Stop()                 {}

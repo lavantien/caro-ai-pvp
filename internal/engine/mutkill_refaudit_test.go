@@ -142,22 +142,34 @@ func TestMutKillNegativeStaticFallsBackClean(t *testing.T) {
 	}
 }
 
-type mutNeverDL struct{}
+type mutNeverDL struct{ calls int32 }
 
-func (mutNeverDL) Exceeded() bool        { return false }
-func (mutNeverDL) Stop()                 {}
-func (mutNeverDL) Budget() time.Duration { return time.Nanosecond }
+func (d *mutNeverDL) Exceeded() bool        { d.calls++; return d.calls > fakeDeadlineCallCap }
+func (d *mutNeverDL) Stop()                 {}
+func (d *mutNeverDL) Budget() time.Duration { return time.Nanosecond }
 
 func TestMutKillSMPSoftExcludedStopsAtBudget(t *testing.T) {
 	s := newSMP(1, 0)
 	defer s.Close()
 	b := floodBoard(t, "E5", "F5")
-	mv, stats := s.SearchExcluded(b, mutNeverDL{}, moveNone)
+	mv, stats := s.SearchExcluded(b, &mutNeverDL{}, moveNone)
 	if !b.IsLegal(rules.Cell(mv)) {
 		t.Fatalf("soft excluded move %d illegal", mv)
 	}
 	if stats.Depth != 1 || stats.RootIters != 1 {
 		t.Errorf("soft excluded search depth=%d rootiters=%d, want the soft stop after the first completed iteration at 1 1", stats.Depth, stats.RootIters)
+	}
+}
+
+func TestMutKillEngineSoftExcludedStopsAtBudget(t *testing.T) {
+	b := floodBoard(t, "E5", "F5")
+	e := New(0)
+	mv, stats := e.SearchExcluded(b, &mutNeverDL{}, moveNone)
+	if !b.IsLegal(rules.Cell(mv)) {
+		t.Fatalf("soft excluded engine move %d illegal", mv)
+	}
+	if stats.Depth != 1 || stats.RootIters != 1 {
+		t.Errorf("soft excluded engine search depth=%d rootiters=%d, want the soft stop after the first completed iteration at 1 1", stats.Depth, stats.RootIters)
 	}
 }
 

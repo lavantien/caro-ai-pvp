@@ -7,6 +7,8 @@ import (
 
 const probeBackstopNodes = 65_536
 
+const fakeDeadlineCallCap = 64
+
 type backstoppedFixed struct {
 	inner *FixedBudget
 	nodes atomic.Uint64
