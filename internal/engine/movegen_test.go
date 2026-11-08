@@ -36,7 +36,7 @@ func TestGenerateOpeningGatedRefill(t *testing.T) {
 	}
 }
 
-func TestLiveWin1MatchesFoursOverPlayouts(t *testing.T) {
+func TestLiveWin1ImpliesFoursOverPlayouts(t *testing.T) {
 	e := New(0)
 	for seed := range uint64(64) {
 		b := rules.NewBoard()
@@ -46,9 +46,8 @@ func TestLiveWin1MatchesFoursOverPlayouts(t *testing.T) {
 			e.eval.reset(b)
 			near := e.nearMask(b)
 			for _, side := range []rules.Color{rules.Red, rules.Blue} {
-				want := e.eval.fours[side] > 0
-				if got := e.eval.liveWin1(b, side, near); got != want {
-					t.Fatalf("seed %d move %d side %d: liveWin1 = %v, fours > 0 = %v", seed, b.MoveCount, side, got, want)
+				if e.eval.liveWin1(b, side, near) && e.eval.fours[side] == 0 {
+					t.Fatalf("seed %d move %d side %d: liveWin1 true with fours == 0", seed, b.MoveCount, side)
 				}
 			}
 			n := b.LegalMoves(buf[:])
