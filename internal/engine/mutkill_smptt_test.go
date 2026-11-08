@@ -334,6 +334,18 @@ func TestSMPKillPVLenFromRootSlot(t *testing.T) {
 	}
 }
 
+func TestSMPKillPVHeadIsChosenMoveAtDepth2(t *testing.T) {
+	s := newSMP(1, testTTBytes)
+	defer s.Close()
+	mv, stats := s.SearchDepth(midgameBoard(t), cappedNodeBudget(1_000_000), 2)
+	if stats.PVLen != 2 {
+		t.Fatalf("pv len = %d, want the full depth-2 line of 2 plies", stats.PVLen)
+	}
+	if stats.PV[0] != mv {
+		t.Fatalf("pv head = %d, want the chosen move %d", stats.PV[0], mv)
+	}
+}
+
 func TestSMPKillImmediateWinHaltsPool(t *testing.T) {
 	s := newSMP(1, testTTBytes)
 	w, b, res := s.workers[0], &s.boards[0], &s.results[0]
