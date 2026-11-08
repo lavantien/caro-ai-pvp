@@ -43,6 +43,10 @@ func TestMoveGenerationTerminates(t *testing.T) {
 		smpW := newSMPPonder(2, 0, 1)
 		smpW.StartPonder(boards[3])
 		smpW.Close()
+		smpQ := newSMP(1, 0)
+		smpQ.StartPonder(boards[0])
+		smpQ.Search(boards[3], cappedNodeBudget(2048))
+		smpQ.Close()
 		fresh := New(0)
 		fresh.StopPonder()
 		fresh.Close()
@@ -84,5 +88,15 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	defer smp.Close()
 	if mv, _ := smp.Search(boards[0], cappedNodeBudget(2048)); mv != rules.Move(mustCell(t, "H12")) {
 		t.Fatalf("smp search on the win in 1 board returned %v, want the winning cell H12", mv)
+	}
+	smpD := newSMP(1, 0)
+	smpD.StartPonder(boards[0])
+	smpD.Search(boards[3], cappedNodeBudget(2048))
+	smpD.mu.Lock()
+	drained := smpD.ponding
+	smpD.mu.Unlock()
+	smpD.Close()
+	if drained {
+		t.Fatal("search left the ponder latch set")
 	}
 }
