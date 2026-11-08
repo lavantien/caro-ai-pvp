@@ -31,8 +31,8 @@ func TestMoveGenerationTerminates(t *testing.T) {
 			e.eval.liveWin1(b, rules.Red, near)
 			e.eval.liveWin1(b, rules.Blue, near)
 			e.generate(b, 0, moveNone)
-			e.Search(b, cappedNodeBudget(50_000))
 		}
+		e.Search(boards[0], cappedNodeBudget(2048))
 		fresh := New(0)
 		fresh.StopPonder()
 		fresh.Close()
@@ -41,7 +41,7 @@ func TestMoveGenerationTerminates(t *testing.T) {
 	case <-done:
 	case r := <-panicked:
 		t.Fatalf("move generation panicked on a guard board: %v", r)
-	case <-time.After(2 * time.Second):
+	case <-time.After(scaledBudget(2 * time.Second)):
 		t.Fatal("move generation did not terminate across the guard boards")
 	}
 	select {

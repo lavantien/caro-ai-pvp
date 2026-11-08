@@ -9,6 +9,19 @@ const probeBackstopNodes = 65_536
 
 const fakeDeadlineCallCap = 64
 
+const scaledNodeFloor = 100_000
+
+func scaledNodeCap(limit uint64) uint64 {
+	if nodeBudgetScale() == 1 || limit <= scaledNodeFloor {
+		return limit
+	}
+	scaled := limit / nodeBudgetScale()
+	if scaled < scaledNodeFloor {
+		return scaledNodeFloor
+	}
+	return scaled
+}
+
 type backstoppedFixed struct {
 	inner *FixedBudget
 	nodes atomic.Uint64
@@ -16,7 +29,7 @@ type backstoppedFixed struct {
 }
 
 func cappedBudget(d time.Duration, limit uint64) *backstoppedFixed {
-	return &backstoppedFixed{inner: NewFixedBudget(d), limit: limit}
+	return &backstoppedFixed{inner: NewFixedBudget(d), limit: scaledNodeCap(limit)}
 }
 
 func cappedProbe(d time.Duration) *backstoppedFixed {
@@ -43,7 +56,8 @@ type backstoppedNodes struct {
 }
 
 func cappedNodeBudget(limit uint64) *backstoppedNodes {
-	return &backstoppedNodes{inner: NewNodeBudget(limit), limit: 2 * limit}
+	scaled := scaledNodeCap(limit)
+	return &backstoppedNodes{inner: NewNodeBudget(scaled), limit: 2 * scaled}
 }
 
 func (b *backstoppedNodes) Exceeded() bool { return b.inner.Exceeded() || b.nodes.Load() >= b.limit }

@@ -23,3 +23,11 @@ func scaledBudget(d time.Duration) time.Duration {
 	}
 	return d * raceBudgetScale
 }
+
+func nodeBudgetScale() uint64 {
+	coverOnce.Do(func() { coverScaled = testing.Coverage() > 0 })
+	if coverScaled {
+		return coverBudgetScale
+	}
+	return raceBudgetScale
+}

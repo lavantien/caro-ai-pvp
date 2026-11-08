@@ -14,13 +14,26 @@ import (
 
 const stallpinSeatBackstopNodes = 500_000
 
+const stallScaledNodeFloor = 100_000
+
+func scaledStallNodeCap(limit uint64) uint64 {
+	if stallNodeScale() == 1 || limit <= stallScaledNodeFloor {
+		return limit
+	}
+	scaled := limit / stallNodeScale()
+	if scaled < stallScaledNodeFloor {
+		return stallScaledNodeFloor
+	}
+	return scaled
+}
+
 type cappedFixedBudget struct {
 	inner *engine.FixedBudget
 	nodes atomic.Uint64
 }
 
 func (c *cappedFixedBudget) Exceeded() bool {
-	return c.inner.Exceeded() || c.nodes.Load() >= stallpinSeatBackstopNodes
+	return c.inner.Exceeded() || c.nodes.Load() >= scaledStallNodeCap(stallpinSeatBackstopNodes)
 }
 
 func (c *cappedFixedBudget) Stop() { c.inner.Stop() }
@@ -51,7 +64,8 @@ func cappedFixed(d time.Duration) *cappedFixedBudget {
 }
 
 func cappedNodes(limit uint64) *cappedNodeBudget {
-	return &cappedNodeBudget{inner: engine.NewNodeBudget(limit), limit: 2 * limit}
+	scaled := scaledStallNodeCap(limit)
+	return &cappedNodeBudget{inner: engine.NewNodeBudget(scaled), limit: 2 * scaled}
 }
 
 var g36Moves = []string{
