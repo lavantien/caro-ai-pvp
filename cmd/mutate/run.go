@@ -59,10 +59,18 @@ func goEnv(cacheDir, tmpDir string) []string {
 	return append(env, "CGO_ENABLED=1", "GOCACHE="+cacheDir, "GOTMPDIR="+tmpDir)
 }
 
+func suiteTimeout(outer time.Duration) time.Duration {
+	inner := outer - time.Duration(config.MutateTestTimeoutSlack+config.MutateCompileReserveMs)*time.Millisecond
+	if inner <= 0 {
+		return outer - time.Duration(config.MutateTestTimeoutSlack)*time.Millisecond
+	}
+	return inner
+}
+
 func (r execRunner) runTest(ctx context.Context, pkg string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	argv := []string{"go", "test", "-count=1", "-short", "-timeout", (r.timeout - time.Duration(config.MutateTestTimeoutSlack)*time.Millisecond).String(), pkg}
+	argv := []string{"go", "test", "-count=1", "-short", "-timeout", suiteTimeout(r.timeout).String(), pkg}
 	wrapped := cappedArgv(argv, config.MutateTreeMemCapBytes)
 	cmd := exec.CommandContext(ctx, wrapped[0], wrapped[1:]...)
 	cmd.Dir = r.dir

@@ -137,6 +137,9 @@ func TestClockLawConstants(t *testing.T) {
 	if MutateMaxParallel < 1 || MutateMaxParallel > 64 {
 		t.Errorf("MutateMaxParallel = %d, want a sane bound in [1, 64]", MutateMaxParallel)
 	}
+	if MutateCompileReserveMs < 60_000 {
+		t.Errorf("MutateCompileReserveMs = %d, want at least the 60000 ms compile reserve so the suite alarm fires before the outer window ends", MutateCompileReserveMs)
+	}
 }
 func TestMutateMemCapLaw(t *testing.T) {
 	if MutateTreeMemCapBytes != 2<<30 {

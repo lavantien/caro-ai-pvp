@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 const (
@@ -521,6 +523,23 @@ func TestExecRunnerCommandShape(t *testing.T) {
 	cancel()
 	if _, err := r.runTest(ctx, "example.com/p"); err == nil {
 		t.Error("runTest with canceled ctx err = nil, want error")
+	}
+}
+
+func TestSuiteTimeoutKeepsAlarmInsideOuterWindow(t *testing.T) {
+	slack := time.Duration(config.MutateTestTimeoutSlack) * time.Millisecond
+	reserve := time.Duration(config.MutateCompileReserveMs) * time.Millisecond
+	for _, outer := range []time.Duration{2 * time.Second, 5 * time.Second, 2 * time.Minute, 5 * time.Minute} {
+		inner := suiteTimeout(outer)
+		if outer > slack+reserve {
+			if inner != outer-slack-reserve {
+				t.Fatalf("outer %s: inner = %s, want %s", outer, inner, outer-slack-reserve)
+			}
+			continue
+		}
+		if inner != outer-slack {
+			t.Fatalf("outer %s: inner = %s, want the slack-only fallback %s", outer, inner, outer-slack)
+		}
 	}
 }
 
