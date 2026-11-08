@@ -65,4 +65,14 @@ func TestMoveGenerationTerminates(t *testing.T) {
 			t.Fatal("move generation returned no candidates on a guard board")
 		}
 	}
+	searchE := New(0)
+	mv, stats := searchE.Search(boards[0], cappedNodeBudget(2048))
+	if mv != rules.Move(mustCell(t, "H12")) || stats.Nodes == 0 {
+		t.Fatalf("search on the win in 1 board returned %v with %d nodes, want H12 after a real search", mv, stats.Nodes)
+	}
+	smp := newSMP(1, 0)
+	defer smp.Close()
+	if mv, _ := smp.Search(boards[0], cappedNodeBudget(2048)); mv != rules.Move(mustCell(t, "H12")) {
+		t.Fatalf("smp search on the win in 1 board returned %v, want the winning cell H12", mv)
+	}
 }
