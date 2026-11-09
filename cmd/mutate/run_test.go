@@ -25,6 +25,7 @@ const (
 	toolFailOut      = "# probe [probe.test]\ncompile: out of memory\nFAIL\tprobe [build failed]\nFAIL\n"
 	mixedFailOut     = "--- FAIL: TestF (0.00s)\n    a_test.go:7: F(1) = 0, want 2\nFAIL\tprobe [build failed]\nFAIL\n"
 	timedOutOut      = "panic: test timed out after 1s\n\trunning tests:\n\t\tTestSlow (1s)\nFAIL\tprobe\t1.375s\nFAIL\n"
+	workerPanicOut   = "panic: runtime error: slice bounds out of range [:1] with capacity 0\n\ngoroutine 68 [running]:\nFAIL\tprobe\t1.289s\nFAIL\n"
 	greenSuiteOut    = "ok  probe 0.321s\n"
 )
 
@@ -77,6 +78,8 @@ func TestClassify(t *testing.T) {
 		{"toolchain failure behind the build marker", &exec.ExitError{}, toolFailOut, "probe", green, verdictRunError},
 		{"test failure signature outranks the build marker", &exec.ExitError{}, mixedFailOut, "probe", green, verdictKilled},
 		{"test timeout panic", &exec.ExitError{}, timedOutOut, "probe", green, verdictRunError},
+		{"runtime panic on a background goroutine under a green baseline", &exec.ExitError{}, workerPanicOut, "probe", green, verdictKilled},
+		{"runtime panic without a green baseline", &exec.ExitError{}, workerPanicOut, "probe", nil, verdictRunError},
 		{"exit with no output", &exec.ExitError{}, "", "probe", green, verdictRunError},
 		{"deadline with no output", context.DeadlineExceeded, "", "probe", green, verdictRunError},
 	} {

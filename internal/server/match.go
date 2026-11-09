@@ -652,6 +652,12 @@ func (r *Room) startBotWorker() {
 func (r *Room) botLoop() {
 	defer r.wg.Done()
 	defer r.closeEnginesAtExit()
+	defer func() {
+		if p := recover(); p != nil {
+			log.Printf("server: bot worker panic retired the room: %v", p)
+			r.finishLifecycle()
+		}
+	}()
 	for {
 		if r.runBotTurn() {
 			r.maybeFinish()
@@ -732,9 +738,18 @@ func (r *Room) runBotTurn() bool {
 	}
 
 	r.mu.Lock()
-	if r.over || r.finished || r.quitClosed() || r.board == nil || r.board.MoveCount != moveCount || r.board.Side != side {
-		r.mu.Unlock()
+	armed, proceed := r.commitBotTurnLocked(side, eng, mv, st, tag, budget, moveCount)
+	if !proceed {
 		return false
+	}
+	r.dispatchPonderArm(&armed)
+	return true
+}
+
+func (r *Room) commitBotTurnLocked(side rules.Color, eng searcher, mv rules.Move, st engine.SearchStats, tag string, budget time.Duration, moveCount int) (ponderArm, bool) {
+	defer r.mu.Unlock()
+	if r.over || r.finished || r.quitClosed() || r.board == nil || r.board.MoveCount != moveCount || r.board.Side != side {
+		return ponderArm{}, false
 	}
 	if !r.board.IsLegal(rules.Cell(mv)) {
 		mv = r.firstLegalLocked()
@@ -751,20 +766,15 @@ func (r *Room) runBotTurn() bool {
 	}
 	if r.board.FastLastMoveWin(side, cell) {
 		logBotCompletion(r.completeGameLocked(side, cell))
-		r.mu.Unlock()
-		return true
+		return ponderArm{}, true
 	}
 	if r.board.IsFull() {
 		logBotCompletion(r.completeGameLocked(rules.Empty, cell))
-		r.mu.Unlock()
-		return true
+		return ponderArm{}, true
 	}
 	r.turnStart = time.Now()
 	r.wakeBotLocked()
-	arm := r.ponderArmLocked(side, eng, &st)
-	r.mu.Unlock()
-	r.dispatchPonderArm(&arm)
-	return true
+	return r.ponderArmLocked(side, eng, &st), true
 }
 func (r *Room) firstLegalLocked() rules.Move {
 	n := r.board.LegalMoves(r.legalBuf[:])

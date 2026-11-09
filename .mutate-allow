@@ -137,12 +137,13 @@ internal/server/match.go:490:26 replace || with && # equivalent: re-guard duplic
 internal/server/match.go:498:84 replace - with + # equivalent: timing epsilon, same node-budget-bound argument as 460:88
 internal/server/match.go:621:22 replace 0 with -1 # equivalent: ReleaseTT(bytes<=0) returns immediately, the guard and the reset are behaviorally inert including double closeEnginesLocked
 internal/server/match.go:623:19 replace 0 with -1 # equivalent: same admission no-op-on-non-positive argument
-internal/server/match.go:689:10 replace 0 with 1 # equivalent: botTurnLocked color discarded on !ok by both callers
-internal/server/match.go:692:10 replace 0 with 1 # equivalent: same discarded-color argument
-internal/server/match.go:704:31 replace > with >= # equivalent: clamp-to-equal, >= only clamps the budget onto its own value at equality
-internal/server/match.go:721:11 replace true with false # equivalent: convergent botLoop returns, the value only gates maybeFinish plus an immediate re-loop, in every reachable state where the mutant differs quit is already closed and maybeFinish is an idempotent no-op
-internal/server/match.go:737:10 replace false with true # equivalent: same convergent-return argument
-internal/server/match.go:767:9 replace true with false # equivalent: same convergent-return argument
+internal/server/match.go:695:10 replace 0 with 1 # equivalent: botTurnLocked color discarded on !ok by both callers
+internal/server/match.go:698:10 replace 0 with 1 # equivalent: same discarded-color argument
+internal/server/match.go:710:31 replace > with >= # equivalent: clamp-to-equal, >= only clamps the budget onto its own value at equality
+internal/server/match.go:727:11 replace true with false # equivalent: convergent botLoop returns, the value only gates maybeFinish plus an immediate re-loop, in every reachable state where the mutant differs quit is already closed and maybeFinish is an idempotent no-op
+internal/server/match.go:743:10 replace false with true # equivalent: convergent unarmed dispatch, the only proceed=false path is the state-changed guard where the zero arm is declined by the dispatch gate, and the re-loop converges with the original wait either through the botTurnLocked refusal on retired states or through the identical next-turn execution on the interleaved state
+internal/server/match.go:752:23 replace false with true # equivalent: same convergent-return argument
+internal/server/match.go:746:9 replace true with false # equivalent: same convergent-return argument
 internal/server/ponder.go:30:10 replace 1 with 2 # equivalent: the sentinel only anchors the running max; every depth enters the ring through GrantDepthRing.Append (sole production writer match.go:632, fed by eng.Search and ponder stops), and no writer in internal/engine or internal/server stores a negative SearchStats.Depth, so every candidate depth d >= 0 compares d > -1 and d > -2 identically while the final ref < 0 gate at ponder.go:39 rejects both sentinels the same way
 internal/server/ponder.go:34:22 replace > with >= # equivalent: ref is a running max over matching slots; a tie (depths[slot] == ref) reassigns the value already held, so the returned max is identical for every ring contents
 internal/server/ponder.go:64:46 replace 1 with 2 # equivalent: the stability window i in [n-k, n-1] with k=PonderStableIters=3 contains both n-1 and n-2, so the n-1 and n-2 anchors make the loop condition equivalent to window-constant; config_test enforces k>=2, empirically confirmed under the full AdoptPonder suite and fuzz seeds

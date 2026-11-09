@@ -18,12 +18,14 @@ import (
 )
 
 const (
-	verdictKilled     = "KILLED"
-	verdictSurvived   = "SURVIVED"
-	verdictChallenged = "CHALLENGED"
-	verdictRunError   = "RUN ERROR"
-	testFailPrefix    = "--- FAIL:"
-	buildFailedSuffix = " [build failed]"
+	verdictKilled      = "KILLED"
+	verdictSurvived    = "SURVIVED"
+	verdictChallenged  = "CHALLENGED"
+	verdictRunError    = "RUN ERROR"
+	testFailPrefix     = "--- FAIL:"
+	runtimePanicPrefix = "panic: "
+	timeoutPanicPrefix = "panic: test timed out after"
+	buildFailedSuffix  = " [build failed]"
 )
 
 var errInterrupted = errors.New("interrupted")
@@ -93,6 +95,9 @@ func classify(err error, out, pkg string, baseline map[string]bool) string {
 	if hasTestFailure(out) {
 		return verdictKilled
 	}
+	if baseline[pkg] && hasRuntimePanic(out) {
+		return verdictKilled
+	}
 	if baseline[pkg] && hasBuildFailure(out, pkg) {
 		return verdictKilled
 	}
@@ -104,6 +109,19 @@ func hasTestFailure(out string) bool {
 		if strings.HasPrefix(line, testFailPrefix) {
 			return true
 		}
+	}
+	return false
+}
+
+func hasRuntimePanic(out string) bool {
+	for line := range strings.SplitSeq(out, "\n") {
+		if !strings.HasPrefix(line, runtimePanicPrefix) {
+			continue
+		}
+		if strings.HasPrefix(line, timeoutPanicPrefix) {
+			continue
+		}
+		return true
 	}
 	return false
 }
@@ -149,7 +167,7 @@ func isDigits(s string) bool {
 }
 
 func runErrorf(site string, err error, out string) error {
-	return fmt.Errorf("run error %s: %v (no test failure signature and no build failure of the mutated package in the suite output; verdicts so far void, rerun the gate)%s", site, err, suiteTailSuffix(out))
+	return fmt.Errorf("run error %s: %v (no test failure signature, no runtime panic, and no build failure of the mutated package in the suite output; verdicts so far void, rerun the gate)%s", site, err, suiteTailSuffix(out))
 }
 
 func suiteTailSuffix(out string) string {

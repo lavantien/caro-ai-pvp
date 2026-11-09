@@ -513,6 +513,27 @@ func TestForfeitDuringBotSearchDiscardsAnswer(t *testing.T) {
 		t.Errorf("double forfeit = %v, want ErrRoomClosed", err)
 	}
 }
+func TestBotWorkerPanicRetiresTheRoom(t *testing.T) {
+	s := newStack(t)
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return panickingBot{} }
+	alice := seedUser(t, s.store, "alice")
+	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
+	if err != nil {
+		t.Fatalf("create vs easy: %v", err)
+	}
+	if err := r.Ready(alice.ID); err != nil {
+		t.Fatalf("ready vs easy: %v", err)
+	}
+	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
+		t.Fatalf("human opens: %v", err)
+	}
+	waitFor(t, func() bool {
+		_, ok := r.Info()
+		return !ok
+	})
+	waitFor(t, func() bool { return s.rm.LiveCoreBookings() == 0 })
+}
+
 func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierMedium)
