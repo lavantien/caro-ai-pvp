@@ -379,7 +379,7 @@ func TestMasterBlueSeatOpensFromTheBookLowerTiersNeverDo(t *testing.T) {
 		t.Run(tier.Name, func(t *testing.T) {
 			s := newStack(t)
 			alice, r := botRoom(t, s, tier)
-			defer r.Close()
+			defer closeRoomBounded(t, r)
 			if err := r.Ready(alice.ID); err != nil {
 				t.Fatalf("ready: %v", err)
 			}

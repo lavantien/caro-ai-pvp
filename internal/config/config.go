@@ -321,7 +321,7 @@ const (
 	MutateTimeoutMs           = 120_000
 	MutateMinTimeoutMs        = 2_000
 	MutateTestTimeoutSlack    = 1_000
-	MutateCompileReserveMs    = 60_000
+	MutateCompileReserveMs    = 120_000
 	MutateRunErrTailBytes     = 4096
 	MutateMaxParallel         = 4
 	MutateTreeMemCapBytes     = 3 << 30

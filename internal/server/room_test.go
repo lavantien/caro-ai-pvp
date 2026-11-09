@@ -17,6 +17,20 @@ type stack struct {
 	rm    *RoomManager
 }
 
+func closeRoomBounded(t *testing.T, r *Room) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		r.Close()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(testWaitBound):
+		t.Fatalf("room close blocked past %v, the searcher teardown wedged", testWaitBound)
+	}
+}
+
 func newStack(t *testing.T) *stack {
 	t.Helper()
 	st := mustOpen(t, dbPath(t))
