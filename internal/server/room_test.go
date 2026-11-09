@@ -25,7 +25,17 @@ func newStack(t *testing.T) *stack {
 	rm := NewRoomManager(hub, st, wq)
 	rm.SetMemoryProbe(func() (uint64, error) { return math.MaxUint64, nil })
 	t.Cleanup(func() {
-		rm.Shutdown()
+		bound := 10 * time.Second
+		shut := make(chan struct{})
+		go func() {
+			defer close(shut)
+			rm.Shutdown()
+		}()
+		select {
+		case <-shut:
+		case <-time.After(bound):
+			t.Fatalf("room manager shutdown blocked past %v, a test left a worker unreleased", bound)
+		}
 		wq.Close()
 		_ = st.Close()
 		hub.Close()

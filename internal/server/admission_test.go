@@ -195,7 +195,7 @@ func TestSearchAdmissionTimeoutRetiresTheRoom(t *testing.T) {
 
 func TestSecondMasterRoomWaitsForCoresThenProceeds(t *testing.T) {
 	s := newStack(t)
-	s.rm.adm.waitMax = 5 * time.Second
+	s.rm.adm.waitMax = 500 * time.Millisecond
 	gated := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
 	nobook := config.TierMaster
 	nobook.Book = false
