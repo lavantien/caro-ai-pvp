@@ -324,8 +324,8 @@ const (
 	MutateCompileReserveMs    = 60_000
 	MutateRunErrTailBytes     = 4096
 	MutateMaxParallel         = 4
-	MutateTreeMemCapBytes     = 2 << 30
-	MutateTotalMemCapBytes    = 8 << 30
+	MutateTreeMemCapBytes     = 3 << 30
+	MutateTotalMemCapBytes    = 12 << 30
 	MutateRemoveRetryAttempts = 5
 	MutateRemoveRetryDelayMs  = 200
 )

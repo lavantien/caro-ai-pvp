@@ -164,11 +164,11 @@ func TestSuiteTimeoutKeepsAlarmInsideOuterWindow(t *testing.T) {
 	}
 }
 func TestMutateMemCapLaw(t *testing.T) {
-	if MutateTreeMemCapBytes != 2<<30 {
-		t.Errorf("MutateTreeMemCapBytes = %d, want 2 GiB per test tree", MutateTreeMemCapBytes)
+	if MutateTreeMemCapBytes != 3<<30 {
+		t.Errorf("MutateTreeMemCapBytes = %d, want 3 GiB per test tree", MutateTreeMemCapBytes)
 	}
-	if MutateTotalMemCapBytes != 8<<30 {
-		t.Errorf("MutateTotalMemCapBytes = %d, want the 8 GiB mutation ceiling", MutateTotalMemCapBytes)
+	if MutateTotalMemCapBytes != 12<<30 {
+		t.Errorf("MutateTotalMemCapBytes = %d, want the 12 GiB mutation ceiling", MutateTotalMemCapBytes)
 	}
 	if worst := int64(MutateMaxParallel) * MutateTreeMemCapBytes; worst > MutateTotalMemCapBytes {
 		t.Errorf("worst-case gate commit %d (parallel %d x tree %d) exceeds the %d ceiling", worst, MutateMaxParallel, MutateTreeMemCapBytes, MutateTotalMemCapBytes)
