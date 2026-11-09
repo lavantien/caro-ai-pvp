@@ -104,10 +104,28 @@ func TestSearchWindowHoldsTierCoresOnlyDuringTheSearch(t *testing.T) {
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Fatalf("cores while the human thinks = %d, want 0", got)
 	}
-	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
-		t.Fatalf("human opens: %v", err)
+	open := rules.Cell(movesOf(t, []string{"H8"})[0])
+	played := make(chan error, 1)
+	go func() { played <- r.PlayMove(alice.ID, open) }()
+	select {
+	case err := <-played:
+		if err != nil {
+			t.Fatalf("human opens: %v", err)
+		}
+	case <-time.After(testWaitBound):
+		close(bot.release)
+		select {
+		case <-played:
+		case <-time.After(testWaitBound):
+		}
+		t.Fatalf("opening play blocked past %v, the live room entered finish lifecycle", testWaitBound)
 	}
-	<-bot.seen
+	select {
+	case <-bot.seen:
+	case <-time.After(testWaitBound):
+		close(bot.release)
+		t.Fatalf("bot search never started within %v, the live room was retired after the opening move", testWaitBound)
+	}
 	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
 		t.Fatalf("cores during the master search = %d, want %d", got, want)
 	}
