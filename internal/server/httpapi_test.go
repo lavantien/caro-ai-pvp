@@ -20,22 +20,18 @@ import (
 	"github.com/lavantien/caro-ai-pvp/internal/rules"
 )
 
-// The HTTP transport tests drive the landed stack (temp-file store, write
-// queue, hub, room manager) through an httptest.Server, so every exchange
-// exercises the persistence and event paths production serves. Real argon2
-// derivations only happen in the login test; every other session is minted
-// straight into the store.
-
-// apiResp is one finished exchange: status, drained body, set cookies.
 type apiResp struct {
 	status  int
 	body    []byte
 	cookies []*http.Cookie
 }
 
-// doJSON runs one request with an optional JSON body under an optional
-// session cookie token, and returns the exchange with the body drained.
 func doJSON(t *testing.T, c *http.Client, method, url, token string, in any) apiResp {
+	t.Helper()
+	return doJSONCtx(t, c, context.Background(), method, url, token, in)
+}
+
+func doJSONCtx(t *testing.T, c *http.Client, ctx context.Context, method, url, token string, in any) apiResp {
 	t.Helper()
 	var rd io.Reader
 	if in != nil {
@@ -45,7 +41,7 @@ func doJSON(t *testing.T, c *http.Client, method, url, token string, in any) api
 		}
 		rd = bytes.NewReader(b)
 	}
-	req, err := http.NewRequest(method, url, rd)
+	req, err := http.NewRequestWithContext(ctx, method, url, rd)
 	if err != nil {
 		t.Fatalf("new request %s %s: %v", method, url, err)
 	}
@@ -67,7 +63,6 @@ func doJSON(t *testing.T, c *http.Client, method, url, token string, in any) api
 	return apiResp{status: resp.StatusCode, body: body, cookies: resp.Cookies()}
 }
 
-// wantStatus asserts the status and decodes the JSON body into want.
 func wantStatus(t *testing.T, got apiResp, status int, want any) {
 	t.Helper()
 	if got.status != status {
@@ -80,7 +75,6 @@ func wantStatus(t *testing.T, got apiResp, status int, want any) {
 	}
 }
 
-// wantAPIError asserts the stable error envelope: status plus code.
 func wantAPIError(t *testing.T, got apiResp, status int, code string) {
 	t.Helper()
 	if got.status != status {
@@ -95,8 +89,6 @@ func wantAPIError(t *testing.T, got apiResp, status int, code string) {
 	}
 }
 
-// mintSession seeds a session row directly for a seeded user, bypassing
-// argon2: the suite's real-derivation budget stays inside the login test.
 func mintSession(t *testing.T, st *Store, u User) string {
 	t.Helper()
 	sess := NewSession(u.ID, time.Now().Unix())
@@ -112,7 +104,6 @@ func TestHTTPLoginCreateAndSessionCookie(t *testing.T) {
 	defer srv.Close()
 	c := srv.Client()
 
-	// Unknown username registers and logs in: the zero-stat summary line.
 	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "",
 		map[string]string{"username": "alice", "password": "hunter2"})
 	var sum userSummary
@@ -134,7 +125,6 @@ func TestHTTPLoginCreateAndSessionCookie(t *testing.T) {
 	}
 	token := cookie.Value
 
-	// Cookie reuse: /api/me reflects the same line.
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/me", token, nil)
 	var me userSummary
 	wantStatus(t, got, http.StatusOK, &me)
@@ -142,17 +132,14 @@ func TestHTTPLoginCreateAndSessionCookie(t *testing.T) {
 		t.Errorf("me = %+v, want the login summary %+v", me, sum)
 	}
 
-	// Re-login with the right password succeeds.
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "",
 		map[string]string{"username": "alice", "password": "hunter2"})
 	wantStatus(t, got, http.StatusOK, nil)
 
-	// Wrong password: the opaque 401.
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "",
 		map[string]string{"username": "alice", "password": "wrong"})
 	wantAPIError(t, got, http.StatusUnauthorized, "bad_credentials")
 
-	// Syntactically unusable usernames never touch the store.
 	for _, name := range []string{"", strings.Repeat("x", config.UsernameMaxBytes+1), "bad\x00name"} {
 		got = doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "",
 			map[string]string{"username": name, "password": "p"})
@@ -162,24 +149,16 @@ func TestHTTPLoginCreateAndSessionCookie(t *testing.T) {
 		}
 	}
 
-	// Malformed body.
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "", json.RawMessage(`{"username": 3}`))
 	wantAPIError(t, got, http.StatusBadRequest, "bad_request")
 }
 
-// TestHTTPLoginSummaryFailureSetsNoCookie pins the response ordering of
-// handleLogin: when the summary read fails after the login itself
-// succeeded, the response must carry no session cookie. Dropping the
-// rating-events table from inside the package is the injection seam: only
-// the summary reads it, the login leg touches users and sessions alone.
 func TestHTTPLoginSummaryFailureSetsNoCookie(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
 	defer srv.Close()
 	c := srv.Client()
 
-	// A real registration: the stored argon2 hash must verify for the
-	// login leg to pass (seedUser rows cannot).
 	got := doJSON(t, c, http.MethodPost, srv.URL+"/api/login", "",
 		map[string]string{"username": "alice", "password": "hunter2"})
 	wantStatus(t, got, http.StatusOK, nil)
@@ -224,7 +203,6 @@ func TestHTTPLogoutInvalidatesSession(t *testing.T) {
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/me", token, nil)
 	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
 
-	// Missing, garbage, and logout-without-cookie stay on the same surface.
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/me", "", nil)
 	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/me", "not-hex", nil)
@@ -241,7 +219,6 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 	alice := seedUser(t, s.store, "alice")
 	ta := mintSession(t, s.store, alice)
 
-	// The grid is public: a guest sees it empty.
 	got := doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms", "", nil)
 	var rooms []roomSummary
 	wantStatus(t, got, http.StatusOK, &rooms)
@@ -249,12 +226,10 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 		t.Fatalf("fresh grid = %+v, want empty", rooms)
 	}
 
-	// Acting on the grid needs a session.
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", "",
 		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
 	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
 
-	// Settings and body shapes the transport rejects up front.
 	for _, body := range []any{
 		map[string]any{"tcIdx": len(config.TimeControls), "boLen": config.SeriesBO3},
 		map[string]any{"tcIdx": -1, "boLen": config.SeriesBO3},
@@ -266,7 +241,6 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 		wantAPIError(t, got, http.StatusBadRequest, "bad_request")
 	}
 
-	// Create a bo5 room under the second time control.
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
 		map[string]any{"tcIdx": 1, "boLen": config.SeriesBO5})
 	var created roomSummary
@@ -277,7 +251,6 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 		t.Errorf("created = %+v, want the fresh alice bo5 room", created)
 	}
 
-	// A bot room by config tier name.
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
 		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3, "bot": config.TierEasy.Name})
 	var botRoom roomSummary
@@ -286,9 +259,6 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 		t.Errorf("bot room = %+v, want the easy bot seated", botRoom)
 	}
 
-	// The grid lists both, guest-readable. Order between same-instant rooms
-	// is the manager's tie-break on the random id, so assert membership;
-	// the creation order itself is the landed domain test's concern.
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms", "", nil)
 	wantStatus(t, got, http.StatusOK, &rooms)
 	ids := map[string]bool{}
@@ -299,7 +269,6 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 		t.Fatalf("grid = %+v, want exactly %s and %s", rooms, created.ID, botRoom.ID)
 	}
 
-	// The open pvp room carries no live game.
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+created.ID, "", nil)
 	var detail roomDetail
 	wantStatus(t, got, http.StatusOK, &detail)
@@ -307,15 +276,10 @@ func TestHTTPRoomsGridAndDetail(t *testing.T) {
 		t.Errorf("open room detail = %+v, want the summary and no live game", detail)
 	}
 
-	// Unknown rooms answer the 404 envelope.
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/deadbeef", "", nil)
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 }
 
-// TestRoomDetailPlayableFollowsRulesLaw pins the playable list the detail
-// ships for the side to move against the rules package's own LegalMoves on
-// the same position: the board presents only spaces the one legality law
-// allows, with no move-number special case anywhere.
 func TestRoomDetailPlayableFollowsRulesLaw(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
@@ -364,12 +328,9 @@ func TestRoomDetailPlayableFollowsRulesLaw(t *testing.T) {
 		return out
 	}
 
-	// Fresh board: every cell of the region is legal for red.
 	if set := gotSet(); len(set) != config.BoardCells {
 		t.Fatalf("fresh-board playable = %d cells, want all %d", len(set), config.BoardCells)
 	}
-	// Red's first stone plus blue's answer: red's next move sits inside the
-	// opening constraint, the only phase the law restricts beyond occupancy.
 	wantStatus(t, doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "H8"}),
 		http.StatusNoContent, nil)
 	wantStatus(t, doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "A1"}),
@@ -388,8 +349,6 @@ func TestRoomDetailPlayableFollowsRulesLaw(t *testing.T) {
 	}
 }
 
-// playHTTPScript alternates move posts, names[0] by the mover the redFirst
-// flag names, then alternating: every post must answer 204.
 func playHTTPScript(t *testing.T, srv *httptest.Server, roomID, redTok, blueTok string, names []string, redFirst bool) {
 	t.Helper()
 	tok := blueTok
@@ -426,27 +385,22 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 	wantStatus(t, got, http.StatusCreated, &room)
 	base := srv.URL + "/api/rooms/" + room.ID
 
-	// Acting on a room needs a session.
 	got = doJSON(t, c, http.MethodPost, base+"/join", "", nil)
 	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
 
-	// The host cannot join its own seat.
 	got = doJSON(t, c, http.MethodPost, base+"/join", ta, nil)
 	wantAPIError(t, got, http.StatusBadRequest, "bad_request")
 
-	// Bob joins, the third player bounces off the taken seat.
 	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/join", tcTok, nil)
 	wantAPIError(t, got, http.StatusConflict, "room_full")
 
-	// Handshake surface: stranger refused, moves before both ready refused.
 	got = doJSON(t, c, http.MethodPost, base+"/ready", tcTok, nil)
 	wantAPIError(t, got, http.StatusForbidden, "not_participant")
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantAPIError(t, got, http.StatusConflict, "not_ready")
 
-	// Ready handshake, idempotent on retry.
 	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
@@ -454,7 +408,6 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 
-	// Game 1 is live with the host on red per the spec.
 	got = doJSON(t, c, http.MethodGet, base, "", nil)
 	var detail roomDetail
 	wantStatus(t, got, http.StatusOK, &detail)
@@ -469,16 +422,13 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 		}
 	}
 
-	// A guest cannot act on the live room.
 	got = doJSON(t, c, http.MethodPost, base+"/move", "", map[string]string{"cell": "D4"})
 	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
 
-	// Turn and rules rejections over the wire.
 	got = doJSON(t, c, http.MethodPost, base+"/move", tb, map[string]string{"cell": "D4"})
 	wantAPIError(t, got, http.StatusConflict, "not_your_turn")
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
-	// After red's opening stone the turn reads blue with bob to move.
 	got = doJSON(t, c, http.MethodGet, base, "", nil)
 	wantStatus(t, got, http.StatusOK, &detail)
 	if detail.Game == nil || detail.Game.Turn != "blue" || detail.Game.TurnUserID != bob.ID {
@@ -495,13 +445,11 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D5"})
 	wantAPIError(t, got, http.StatusConflict, "illegal_move")
 
-	// Unknown rooms answer the 404 envelope on every action route.
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms/deadbeef/join", ta, nil)
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms/deadbeef/ready", ta, nil)
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 
-	// Mid-game board over the wire: after blue's stone the turn is red's.
 	got = doJSON(t, c, http.MethodGet, base, "", nil)
 	wantStatus(t, got, http.StatusOK, &detail)
 	if detail.Game == nil || detail.Game.Turn != "red" || detail.Game.TurnUserID != alice.ID {
@@ -512,13 +460,10 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 		t.Fatalf("mid-game moves = %v, want %v", detail.Game.Moves, want)
 	}
 
-	// Game 1 lands on the scripted host win (opening legality holds from H8).
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "H8"})
 	wantStatus(t, got, http.StatusNoContent, nil)
 	playHTTPScript(t, srv, room.ID, ta, tb, hostWinsRed[3:], false)
 
-	// Game 2 is live with the loser rotation: bob holds red, alice swept the
-	// first point.
 	got = doJSON(t, c, http.MethodGet, base, "", nil)
 	wantStatus(t, got, http.StatusOK, &detail)
 	if detail.State != "in-game" || detail.HostWins != 1 || detail.GuestWins != 0 {
@@ -529,8 +474,6 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 		t.Fatalf("game 2 snapshot = %+v, want bob on red fresh", detail.Game)
 	}
 
-	// Game 2 lands on the scripted blue win: the host sweeps, the room
-	// retires, and every further access answers 404.
 	playHTTPScript(t, srv, room.ID, ta, tb, guestRedLosesToBlue, false)
 	got = doJSON(t, c, http.MethodGet, base, "", nil)
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
@@ -543,9 +486,6 @@ func TestHTTPRoomActionsPlaySeries(t *testing.T) {
 		t.Fatalf("grid after series = %+v, want empty", rooms)
 	}
 
-	// The played series lands on the profile and the history tab: alice
-	// swept 2-0, the rating chain priced both games at 0 vs 0 then 30 vs
-	// -30, and the history lists the two games newest first.
 	_, _, _, afterOne := RatingDeltas(0, 0, RedWins)
 	_, _, _, afterTwo := RatingDeltas(afterOne, -afterOne, BlueWins)
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/me", ta, nil)
@@ -587,14 +527,11 @@ func TestHTTPForfeitRetiresRoom(t *testing.T) {
 	wantStatus(t, got, http.StatusCreated, &room)
 	base := srv.URL + "/api/rooms/" + room.ID
 
-	// Abandoning an open room costs nothing: the host forfeit retires it.
 	got = doJSON(t, c, http.MethodPost, base+"/forfeit", ta, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodGet, base, "", nil)
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 
-	// A live series: the stranger is refused, the guest forfeit sweeps and
-	// retires.
 	got = doJSON(t, c, http.MethodPost, srv.URL+"/api/rooms", ta,
 		map[string]any{"tcIdx": 0, "boLen": config.SeriesBO3})
 	wantStatus(t, got, http.StatusCreated, &room)
@@ -605,9 +542,6 @@ func TestHTTPForfeitRetiresRoom(t *testing.T) {
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
-	// One stone in: the quit is mid-game. (A forfeit before any stone now
-	// persists a zero-length blob too; the room-level regression is pinned
-	// in TestForfeitBeforeFirstStonePersistsZeroLengthBlob.)
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/forfeit", tcTok, nil)
@@ -618,22 +552,16 @@ func TestHTTPForfeitRetiresRoom(t *testing.T) {
 	wantAPIError(t, got, http.StatusNotFound, "room_not_found")
 }
 
-// sseFrame is one parsed SSE frame off the wire.
 type sseFrame struct {
 	event string
 	data  string
 }
 
-// sseReader reads frames, skipping keepalive comment frames and counting
-// them so tests can prove the cadence.
 type sseReader struct {
 	br         *bufio.Reader
 	keepalives int
 }
 
-// openSSE opens one room's event stream on a context bounded by timeout;
-// the body and the context close through the test cleanup, and the cancel
-// func is returned for explicit client-disconnect tests.
 func openSSE(t *testing.T, c *http.Client, url string, timeout time.Duration) (*sseReader, context.CancelFunc) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -657,8 +585,6 @@ func openSSE(t *testing.T, c *http.Client, url string, timeout time.Duration) (*
 	return &sseReader{br: bufio.NewReader(resp.Body)}, cancel
 }
 
-// next reads the next event frame. ok is false on the stream's clean end;
-// a frame cut in half by the end fails the test.
 func (sr *sseReader) next(t *testing.T) (sseFrame, bool) {
 	t.Helper()
 	var f sseFrame
@@ -707,7 +633,6 @@ func TestHTTPSSEStreamsSeriesToCleanClose(t *testing.T) {
 	wantStatus(t, got, http.StatusCreated, &room)
 	base := srv.URL + "/api/rooms/" + room.ID
 
-	// The guest opens the stream before the handshake, no session involved.
 	sr, _ := openSSE(t, c, base+"/events", 15*time.Second)
 	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
@@ -720,8 +645,6 @@ func TestHTTPSSEStreamsSeriesToCleanClose(t *testing.T) {
 	time.Sleep(60 * time.Millisecond) // keepalive frames must flow while idle
 	playHTTPScript(t, srv, room.ID, ta, tb, guestRedLosesToBlue, false)
 
-	// Read to the clean close: every stone in order, both game ends, the
-	// series frame, then EOF; keepalives interleaved as comments.
 	var moves []string
 	var ends []string
 	series := ""
@@ -786,8 +709,6 @@ func TestHTTPSSECleanCloseWhenHubEndsSubscription(t *testing.T) {
 		t.Fatalf("first frame = %+v ok %t, want the D4 move", f, ok)
 	}
 
-	// The hub closing every subscription ends the stream cleanly: the next
-	// read sees the stream end, not an error.
 	s.hub.Close()
 	if _, ok = sr.next(t); ok {
 		t.Fatal("frame after hub close, want the clean stream end")
@@ -807,10 +728,10 @@ func TestHTTPSSESubscribeFailureMapsToInternal(t *testing.T) {
 	var room roomSummary
 	wantStatus(t, got, http.StatusCreated, &room)
 
-	// A closed hub refuses new subscriptions: the stream open answers the
-	// internal envelope instead of a wedged connection.
 	s.hub.Close()
-	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+room.ID+"/events", "", nil)
+	streamCtx, cancelStream := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelStream()
+	got = doJSONCtx(t, c, streamCtx, http.MethodGet, srv.URL+"/api/rooms/"+room.ID+"/events", "", nil)
 	wantAPIError(t, got, http.StatusInternalServerError, "internal")
 }
 
@@ -836,8 +757,6 @@ func TestHTTPSSEClientDisconnectEndsStream(t *testing.T) {
 	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 
-	// The spectator leaves mid-stream: the request context done arm must
-	// release the handler, not park it on the keepalive ticker.
 	sr, cancel := openSSE(t, c, base+"/events", 15*time.Second)
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
@@ -870,8 +789,6 @@ func TestHTTPSSEMidRetirementRoomRefused(t *testing.T) {
 	var room roomSummary
 	wantStatus(t, got, http.StatusCreated, &room)
 
-	// Retire without dropping the manager entry: the exact state a stream
-	// open races. The stream must refuse instead of parking on keepalives.
 	r, err := s.rm.Get(room.ID)
 	if err != nil {
 		t.Fatalf("get room: %v", err)
@@ -883,11 +800,6 @@ func TestHTTPSSEMidRetirementRoomRefused(t *testing.T) {
 	wantAPIError(t, got, http.StatusConflict, "room_closed")
 }
 
-// TestHTTPSSEStreamEndsWhenRoomRetiresMidStream pins the subscribe-before-
-// liveness ordering: a room retired after the stream is established (here
-// through Room.Close, which publishes no event, the exact state an
-// eventless retirement leaves) must end the stream, not park it on
-// keepalive frames forever.
 func TestHTTPSSEStreamEndsWhenRoomRetiresMidStream(t *testing.T) {
 	s := newStack(t)
 	api := &apiServer{store: s.store, rooms: s.rm, keepalive: 20 * time.Millisecond}
@@ -902,26 +814,20 @@ func TestHTTPSSEStreamEndsWhenRoomRetiresMidStream(t *testing.T) {
 	var room roomSummary
 	wantStatus(t, got, http.StatusCreated, &room)
 
-	// Headers back means the handler is inside the stream loop already.
 	sr, _ := openSSE(t, c, srv.URL+"/api/rooms/"+room.ID+"/events", 5*time.Second)
 
-	// Retire the room out from under the live stream without any hub event.
 	r, err := s.rm.Get(room.ID)
 	if err != nil {
 		t.Fatalf("get room: %v", err)
 	}
 	r.Close()
 
-	// The stream must end on its own (plain EOF) well inside the request
-	// deadline; a handler parked on keepalives only ends when the context
-	// cuts it, which the next read reports as an error instead.
 	f, ok := sr.next(t)
 	if ok {
 		t.Fatalf("frame %+v after the retirement, want the plain stream end", f)
 	}
 }
 
-// historyMoves builds n distinct in-board cells for a seeded moves blob.
 func historyMoves(t *testing.T, n int) []rules.Move {
 	t.Helper()
 	if n*5+3 > config.BoardCells {
@@ -942,12 +848,9 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 	alice := seedUser(t, s.store, "alice")
 	bob := seedUser(t, s.store, "bob")
 
-	// Private surface: a guest gets the 401 envelope.
 	got := doJSON(t, c, http.MethodGet, srv.URL+"/api/history", "", nil)
 	wantAPIError(t, got, http.StatusUnauthorized, "unauthorized")
 
-	// Two rows straight into the store: the transport only renders. The
-	// long game runs past the preview window, the short one inside it.
 	sr := seedSeries(t, s.store, alice, bob)
 	longBlob := EncodeMoves(nil, historyMoves(t, 40))
 	wonBy := WonByFour
@@ -971,7 +874,6 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("history rows = %d, want 2 (body %s)", len(rows), got.body)
 	}
-	// Newest first: the second append lands on top.
 	long, short := rows[1], rows[0]
 	if len(short.Preview) != 6 || short.Truncated || !bytes.Equal(short.Moves, shortBlob) {
 		t.Errorf("short row = preview %v truncated %t, want the full 6 names", short.Preview, short.Truncated)
@@ -997,8 +899,6 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 		t.Errorf("short row wonBy = %q, want nil", *short.WonBy)
 	}
 
-	// A row this server never writes (odd-length blob) is skipped, not
-	// fatal: the two valid rows still answer the listing.
 	if _, err := s.store.AppendGame(Game{
 		SeriesID: sr.ID, IdxInSeries: 2, RedUser: alice.ID, BlueUser: bob.ID,
 		Outcome: OutcomeDraw, Moves: []byte{1, 2, 3}, FullTurns: 1,
@@ -1014,10 +914,6 @@ func TestHTTPHistoryPreviewAndPlaybackBlob(t *testing.T) {
 	}
 }
 
-// TestHTTPHistoryCorruptBlobSkippedNotListingFatal pins the isolation of
-// one hostile history row: an undecodable moves blob (odd length, never
-// written by this server) must not 500 the whole listing, the valid rows
-// still answer.
 func TestHTTPHistoryCorruptBlobSkippedNotListingFatal(t *testing.T) {
 	s := newStack(t)
 	srv := httptest.NewServer(NewHTTPAPI(s.store, s.rm))
@@ -1049,8 +945,6 @@ func TestHTTPHistoryCorruptBlobSkippedNotListingFatal(t *testing.T) {
 	}
 }
 
-// driveSeriesHTTP plays one full bo3 over the wire and reports the first
-// failure as an error, so it can run on its own goroutine.
 func driveSeriesHTTP(srv *httptest.Server, roomID, hostTok, guestTok string) error {
 	post := func(path, tok string, body map[string]string) error {
 		b, err := json.Marshal(body)
@@ -1128,8 +1022,6 @@ func TestHTTPParallelRoomsSmoke(t *testing.T) {
 		wantStatus(t, got, http.StatusNoContent, nil)
 	}
 
-	// Two full series through the same server, store, and write queue at
-	// once; the race detector rides every exchange.
 	done := make(chan error, len(pairs))
 	for i := range pairs {
 		go func(i int) {
