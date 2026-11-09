@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -580,5 +581,29 @@ func TestReverifySeriallyInfraErrorVoidsVerdict(t *testing.T) {
 	err := reverifySerially(context.Background(), dir, ms, &infraRunner{}, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "infra failure reverifying") {
 		t.Errorf("reverifySerially(infra runner) err = %v, want the infra failure", err)
+	}
+}
+
+func TestPickFirstErrorPrefersRealOverInterrupted(t *testing.T) {
+	realA := fmt.Errorf("run error at key-a")
+	realB := fmt.Errorf("run error at key-b")
+	interruptedA := fmt.Errorf("%w after 3/10 mutants", errInterrupted)
+	interruptedB := fmt.Errorf("%w after 7/10 mutants", errInterrupted)
+	cases := []struct {
+		name string
+		errs []error
+		want error
+	}{
+		{"interrupted at a lower index than the real", []error{nil, interruptedA, realA, nil}, realA},
+		{"real at a lower index than the interrupted", []error{realA, interruptedA, nil, nil}, realA},
+		{"only interruptions report the first one", []error{nil, interruptedA, nil, interruptedB}, interruptedA},
+		{"first real wins among reals", []error{nil, realA, realB, nil}, realA},
+		{"all nil reports nil", []error{nil, nil, nil, nil}, nil},
+		{"empty reports nil", nil, nil},
+	}
+	for _, tc := range cases {
+		if got := pickFirstError(tc.errs); got != tc.want {
+			t.Errorf("%s: pickFirstError = %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }

@@ -525,7 +525,16 @@ func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 		}
 	}
 	sub.Unsubscribe()
-	<-drained
+	select {
+	case <-drained:
+	case <-time.After(testWaitBound):
+		s.hub.Close()
+		select {
+		case <-drained:
+		case <-time.After(testWaitBound):
+		}
+		t.Fatalf("event drainer did not exit after Unsubscribe within %v", testWaitBound)
+	}
 	r.mu.Lock()
 	hostWins, guestWins := r.series.Score()
 	played := r.series.GamesPlayed()

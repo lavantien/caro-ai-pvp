@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -99,12 +100,10 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 	var res result
 	consumedUnion := allowlist{}
 	var survivors, challengedAll []mutation
-	var firstErr error
+	errs := make([]error, len(results))
 	for w := range results {
 		wo := &results[w]
-		if wo.err != nil && firstErr == nil {
-			firstErr = wo.err
-		}
+		errs[w] = wo.err
 		res.run += wo.res.run
 		res.killed += wo.res.killed
 		res.survived += wo.res.survived
@@ -124,7 +123,7 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 		}
 	}
 	res.total = len(ms)
-	if firstErr != nil {
+	if firstErr := pickFirstError(errs); firstErr != nil {
 		return res, firstErr
 	}
 	if serr := confirmSurvivorsSerially(ctx, out, dirs[0], survivors, newRunner(dirs[0]), baseline, &res); serr != nil {
@@ -137,6 +136,28 @@ func runMutationParallel(ctx context.Context, out io.Writer, dirs []string, patt
 		return res, uerr
 	}
 	return res, nil
+}
+
+func pickFirstError(errs []error) error {
+	var first, firstInterrupted error
+	for _, err := range errs {
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, errInterrupted) {
+			if firstInterrupted == nil {
+				firstInterrupted = err
+			}
+			continue
+		}
+		if first == nil {
+			first = err
+		}
+	}
+	if first != nil {
+		return first
+	}
+	return firstInterrupted
 }
 
 func resolveChallengedSerially(ctx context.Context, out io.Writer, dir string, challenged []mutation, r runner, baseline map[string]bool, allows allowlist, res *result, consumed allowlist) error {

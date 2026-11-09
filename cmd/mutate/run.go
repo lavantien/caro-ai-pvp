@@ -293,7 +293,7 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 	}()
 	for _, m := range ms {
 		if ctx.Err() != nil {
-			return res, consumed, survived, challenged, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
+			return res, consumed, survived, challenged, fmt.Errorf("%w after %d/%d mutants", errInterrupted, res.run, res.total)
 		}
 		key := m.key(workDir)
 		if resumeKilled[key] {
@@ -334,7 +334,7 @@ func executeMutants(ctx context.Context, out io.Writer, workDir string, ms []mut
 			return res, consumed, survived, challenged, werr
 		}
 		if ctx.Err() != nil {
-			return res, consumed, survived, challenged, fmt.Errorf("interrupted after %d/%d mutants", res.run, res.total)
+			return res, consumed, survived, challenged, fmt.Errorf("%w after %d/%d mutants", errInterrupted, res.run, res.total)
 		}
 		if isInfraError(testErr) {
 			return res, consumed, survived, challenged, fmt.Errorf("infra failure at %s: %v (verdicts so far void, rerun the gate)", key, testErr)
