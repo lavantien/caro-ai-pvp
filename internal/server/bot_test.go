@@ -27,6 +27,8 @@ type scriptedBot struct {
 	stats    engine.SearchStats
 	searches int
 	closed   bool
+	t        *testing.T
+	parked   chan struct{}
 }
 
 func fakeStats() engine.SearchStats {
@@ -47,10 +49,22 @@ func fakeStats() engine.SearchStats {
 }
 func (b *scriptedBot) Search(_ *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	if len(b.script) == 0 {
+		if b.parked == nil {
+			if b.t != nil {
+				b.t.Errorf("scripted bot exhausted its script after %d searches, the room kept asking", b.searches)
+			}
+			b.parked = make(chan struct{})
+		}
+		parked := b.parked
+		b.mu.Unlock()
+		<-parked
+		return 0, b.stats, ""
+	}
 	mv := b.script[0]
 	b.script = b.script[1:]
 	b.searches++
+	b.mu.Unlock()
 	return mv, b.stats, ""
 }
 func (b *scriptedBot) StartPonder(*rules.Board) {}
@@ -80,7 +94,7 @@ func injectScriptedBot(t *testing.T, r *Room, script []rules.Move) func() []*scr
 	var bots []*scriptedBot
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher {
-		b := &scriptedBot{script: append([]rules.Move(nil), script...), stats: fakeStats()}
+		b := &scriptedBot{script: append([]rules.Move(nil), script...), stats: fakeStats(), t: t}
 		mu.Lock()
 		bots = append(bots, b)
 		mu.Unlock()
@@ -338,7 +352,7 @@ func TestMLineEventCarriesStructuredStat(t *testing.T) {
 
 func drainEvents(sub *Subscription) []string {
 	var out []string
-	for {
+	for len(out) < drainEventCap {
 		select {
 		case ev := <-sub.Events():
 			out = append(out, ev.Kind+" "+ev.Payload)
@@ -346,6 +360,7 @@ func drainEvents(sub *Subscription) []string {
 			return out
 		}
 	}
+	return out
 }
 func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 	s := newStack(t)

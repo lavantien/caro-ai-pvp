@@ -49,7 +49,7 @@ func scriptBotVsBotTiers(t *testing.T, s *stack, byName map[string][]string) fun
 	gate := make(chan struct{})
 	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		return &startGatedBot{gate: gate, inner: &scriptedBot{
-			script: append([]rules.Move(nil), parsed[tier.Name]...), stats: fakeStats(),
+			script: append([]rules.Move(nil), parsed[tier.Name]...), stats: fakeStats(), t: t,
 		}}
 	}
 	return func() { close(gate) }
@@ -285,9 +285,9 @@ func TestRoomLastGameMoves(t *testing.T) {
 			script = movesOf(t, botVsBotGuestLine)
 		} else if hostEngines.Add(1) == 2 {
 			return &startGatedBot{gate: game2,
-				inner: &scriptedBot{script: script, stats: fakeStats()}}
+				inner: &scriptedBot{script: script, stats: fakeStats(), t: t}}
 		}
-		return &scriptedBot{script: script, stats: fakeStats()}
+		return &scriptedBot{script: script, stats: fakeStats(), t: t}
 	}
 	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {

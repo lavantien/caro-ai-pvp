@@ -183,7 +183,7 @@ func TestBookHitSkipsAndMissFallsThroughUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load staged artifact: %v", err)
 	}
-	rec := &deadlineRecorder{searcher: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats()}}
+	rec := &deadlineRecorder{searcher: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats(), t: t}}
 	s := &bookSearcher{inner: rec, book: bk, maxPly: 8, cores: 2}
 	dl := engine.NewFixedBudget(time.Second)
 	mv, _, tag := s.Search(rules.NewBoard(), dl)
@@ -239,7 +239,7 @@ func TestBookPlyBoundStopsProbingPastTheTierBound(t *testing.T) {
 		t.Fatalf("reload staged artifact: %v", err)
 	}
 	wide := &bookSearcher{
-		inner:  &scriptedBot{script: movesOf(t, []string{"B2"}), stats: fakeStats()},
+		inner:  &scriptedBot{script: movesOf(t, []string{"B2"}), stats: fakeStats(), t: t},
 		book:   bk,
 		maxPly: config.TierGrandmaster.BookMaxPly,
 		cores:  1,
@@ -427,12 +427,12 @@ func TestBookPlyBoundHoldsForBlueSideRows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load staged artifact: %v", err)
 	}
-	tight := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats()}, book: bk, maxPly: 1, cores: 1}
+	tight := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats(), t: t}, book: bk, maxPly: 1, cores: 1}
 	mv, _, tag := tight.Search(bookBoard(t, "D4"), engine.NewFixedBudget(time.Second))
 	if tag == config.BotLogTagBook || mv != mustMove(t, "A1") {
 		t.Fatalf("blue row under a maxPly-1 bound = (%s, %q), want the inward A1 untagged", cellName(rules.Cell(mv)), tag)
 	}
-	wide := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats()}, book: bk, maxPly: 8, cores: 1}
+	wide := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats(), t: t}, book: bk, maxPly: 8, cores: 1}
 	mv, _, tag = wide.Search(bookBoard(t, "D4"), engine.NewFixedBudget(time.Second))
 	if tag != config.BotLogTagBook || mv != mustMove(t, "E5") {
 		t.Fatalf("blue row under a maxPly-8 bound = (%s, %q), want the booked E5", cellName(rules.Cell(mv)), tag)
@@ -514,7 +514,7 @@ func TestBookSearcherDelegatesLifecycleAndPlainDeadlines(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load staged artifact: %v", err)
 	}
-	rec := &lifecycleRecorder{searcher: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats()}}
+	rec := &lifecycleRecorder{searcher: &scriptedBot{script: movesOf(t, []string{"A1"}), stats: fakeStats(), t: t}}
 	s := &bookSearcher{inner: rec, book: bk, maxPly: 8, cores: 2}
 	b := bookBoard(t, "P16")
 	s.StartPonder(b)
@@ -528,7 +528,7 @@ func TestBookSearcherDelegatesLifecycleAndPlainDeadlines(t *testing.T) {
 	if rec.closed != 1 {
 		t.Fatalf("close delegation = %d, want 1", rec.closed)
 	}
-	s2 := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"})}, book: bk, maxPly: 8, cores: 2}
+	s2 := &bookSearcher{inner: &scriptedBot{script: movesOf(t, []string{"A1"}), t: t}, book: bk, maxPly: 8, cores: 2}
 	_, st, tag := s2.Search(rules.NewBoard(), engine.NewStoppable())
 	if tag != config.BotLogTagBook {
 		t.Fatalf("plain-deadline hit tag = %q, want %q", tag, config.BotLogTagBook)

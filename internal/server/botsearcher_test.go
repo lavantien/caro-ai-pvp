@@ -18,7 +18,7 @@ import (
 func TestBotIllegalAnswerFallsBackToFirstLegal(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	illegal := &scriptedBot{script: movesOf(t, []string{"D4", "P16"}), stats: fakeStats()}
+	illegal := &scriptedBot{script: movesOf(t, []string{"D4", "P16"}), stats: fakeStats(), t: t}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return illegal }
 	r.mu.Unlock()
@@ -230,7 +230,7 @@ func TestSolverPonderPassStaysSilentOnNormalCompletion(t *testing.T) {
 		log.SetFlags(log.LstdFlags)
 	})
 	s := &solverSearcher{
-		inner: &scriptedBot{script: movesOf(t, []string{"H8"}), stats: fakeStats()},
+		inner: &scriptedBot{script: movesOf(t, []string{"H8"}), stats: fakeStats(), t: t},
 		vct:   vcf.New(vcf.KindVCT), cores: 2,
 	}
 	s.StartPonder(openFourBoard(t))

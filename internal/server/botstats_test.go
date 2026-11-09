@@ -33,7 +33,7 @@ func injectPerGameBot(t *testing.T, r *Room, scripts [][]string) {
 	next := 0
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher {
-		b := &scriptedBot{script: append([]rules.Move(nil), parsed[next%len(parsed)]...), stats: fakeStats()}
+		b := &scriptedBot{script: append([]rules.Move(nil), parsed[next%len(parsed)]...), stats: fakeStats(), t: t}
 		next++
 		return b
 	}

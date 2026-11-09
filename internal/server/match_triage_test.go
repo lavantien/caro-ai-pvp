@@ -227,7 +227,7 @@ func injectFailingRebuildBot(t *testing.T, r *Room) {
 		if calls.Add(1) > 1 {
 			panic("bot test: second game engine construction refused")
 		}
-		return &scriptedBot{script: movesOf(t, filler), stats: fakeStats()}
+		return &scriptedBot{script: movesOf(t, filler), stats: fakeStats(), t: t}
 	}
 	r.mu.Unlock()
 }

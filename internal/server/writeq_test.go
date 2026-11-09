@@ -16,6 +16,7 @@ import (
 const (
 	testBlockBound = 1 * time.Second
 	testWaitBound  = 10 * time.Second
+	drainEventCap  = 4096
 )
 
 func recvWithin[T any](t *testing.T, ch <-chan T, what string) T {

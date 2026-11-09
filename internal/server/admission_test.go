@@ -351,7 +351,7 @@ func TestBotVsBotPonderFollowsTierWidth(t *testing.T) {
 		if tier.Name == config.TierEasy.Name {
 			script = movesOf(t, botVsBotHostLine)
 		}
-		b := &ponderSpyBot{inner: &scriptedBot{script: script, stats: fakeStats()}}
+		b := &ponderSpyBot{inner: &scriptedBot{script: script, stats: fakeStats(), t: t}}
 		mu.Lock()
 		spies = append(spies, b)
 		mu.Unlock()
@@ -390,7 +390,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 		if tier.Name == config.TierEasy.Name {
 			script = movesOf(t, botVsBotHostLine)
 		}
-		return &startGatedBot{gate: scriptGate, inner: &scriptedBot{script: script, stats: fakeStats()}}
+		return &startGatedBot{gate: scriptGate, inner: &scriptedBot{script: script, stats: fakeStats(), t: t}}
 	}
 	alice := seedUser(t, s.store, "alice")
 	casual, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster, "")
@@ -434,7 +434,7 @@ func TestNextGameTTRefusalRetiresTheRoom(t *testing.T) {
 		if tier.Name == hostTier.Name {
 			script = movesOf(t, botVsBotHostLine)
 		}
-		return &scriptedBot{script: script, stats: fakeStats()}
+		return &scriptedBot{script: script, stats: fakeStats(), t: t}
 	}
 	r, err := s.rm.CreateBotVsBot(&hostTier, "", &guestTier, "", 0, config.SeriesBO3, "")
 	if err != nil {
@@ -455,7 +455,7 @@ func TestNextGameTTRefusalRetiresTheRoom(t *testing.T) {
 func TestReadyTTRefusalRetiresTheRoomAndRefusesMoves(t *testing.T) {
 	s := newStack(t)
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher {
-		return &scriptedBot{script: movesOf(t, botVsBotGuestLine), stats: fakeStats()}
+		return &scriptedBot{script: movesOf(t, botVsBotGuestLine), stats: fakeStats(), t: t}
 	}
 	alice := seedUser(t, s.store, "alice")
 	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMedium, "")
