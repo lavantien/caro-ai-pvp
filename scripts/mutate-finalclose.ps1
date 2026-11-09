@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
 	[int]$Parallel = 4,
+	[string]$Timeout = '5m',
 	[string]$Log = 'logs/archive/mutate-finalclose-engine-server.log',
 	[switch]$Help,
 	[switch]$DryRun,
@@ -25,9 +26,11 @@ mutate-finalclose: detached engine plus server mutation re-gate for the final
   skips
   marker .scratch/mutate-finalclose.status: running | all-done exit 0 |
   failed exit <n> | done, status artifact never edited by hand
-  per-mutant timeout 2m matches the prior gates, no GOMEMLIMIT: the tool
-  caps each worker tree itself and the prior green gates ran without one,
-  GOTMPDIR <repo>/.gotmp
+  per-mutant timeout defaults to 5m so the 86s clean internal/server suite
+  fits the derived inner window (outer minus 61s) with load headroom, the
+  prior engine-only gates ran at 2m whose inner 59s cannot hold the server
+  suite, no GOMEMLIMIT: the tool caps each worker tree itself and the prior
+  green gates ran without one, GOTMPDIR <repo>/.gotmp
 '@
 
 if ($Help) { Write-Output $usage; exit 0 }
@@ -49,7 +52,7 @@ if ($DryRun) {
 	} else {
 		Write-Output 'no prior log, fresh run'
 	}
-	Write-Output "command: go run ./cmd/mutate -pkgs $scope -allow .mutate-allow -allow-scope $scope -parallel $Parallel -timeout 2m > $Log"
+	Write-Output "command: go run ./cmd/mutate -pkgs $scope -allow .mutate-allow -allow-scope $scope -parallel $Parallel -timeout $Timeout > $Log"
 	exit 0
 }
 
@@ -80,7 +83,7 @@ if (Test-Path $fullLog) {
 }
 
 Write-Status 'running'
-$argList = @('run', './cmd/mutate', '-pkgs', $scope, '-allow', '.mutate-allow', '-allow-scope', $scope, '-parallel', "$Parallel", '-timeout', '2m') + $resumeArg
+$argList = @('run', './cmd/mutate', '-pkgs', $scope, '-allow', '.mutate-allow', '-allow-scope', $scope, '-parallel', "$Parallel", '-timeout', $Timeout) + $resumeArg
 $stamp = "$(Get-Date -Format s) mutate-finalclose start: go $($argList -join ' ')"
 Add-Content -Path $fullLog -Value $stamp
 & go @argList 2>&1 | ForEach-Object { "$_" | Add-Content -Path $fullLog }
