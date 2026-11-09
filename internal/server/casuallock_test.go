@@ -25,8 +25,20 @@ func TestLockExclusiveBlocksASecondHandleUntilRelease(t *testing.T) {
 		t.Fatalf("open second: %v", err)
 	}
 	defer func() { _ = second.Close() }()
+	bound := 2 * time.Second
 	start := time.Now()
-	err = lockExclusive(second, 80*time.Millisecond)
+	done := make(chan error, 1)
+	go func() { done <- lockExclusive(second, 80*time.Millisecond) }()
+	select {
+	case err = <-done:
+	case <-time.After(bound):
+		_ = unlockExclusive(first)
+		select {
+		case <-done:
+		case <-time.After(bound):
+		}
+		t.Fatalf("second handle acquire blocked past %v, want the bounded give-up", bound)
+	}
 	elapsed := time.Since(start)
 	if err == nil {
 		t.Fatal("second handle locked while the first held the file, want exclusion")
