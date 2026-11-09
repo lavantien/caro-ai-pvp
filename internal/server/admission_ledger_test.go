@@ -144,8 +144,21 @@ func TestAdmissionTryAcquireNeverWaits(t *testing.T) {
 	if !a.TryAcquireCores(config.MachineCores - 4) {
 		t.Fatal("try acquire to the exact fit = false, want true")
 	}
-	if a.TryAcquireCores(1) {
-		t.Fatal("try acquire over the full budget = true, want the instant refusal")
+	bound := time.Second
+	done := make(chan bool, 1)
+	go func() { done <- a.TryAcquireCores(1) }()
+	select {
+	case got := <-done:
+		if got {
+			t.Fatal("try acquire over the full budget = true, want the instant refusal")
+		}
+	case <-time.After(bound):
+		a.ReleaseCores(1)
+		select {
+		case <-done:
+		case <-time.After(bound):
+		}
+		t.Fatalf("try acquire over the full budget still blocked after %v, want the instant refusal", bound)
 	}
 	a.ReleaseCores(config.MachineCores)
 	if got := a.LiveCores(); got != 0 {
