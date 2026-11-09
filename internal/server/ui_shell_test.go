@@ -325,7 +325,7 @@ func TestShellGuestHomeShowsGridWithoutStats(t *testing.T) {
 	}
 	release := make(chan struct{})
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher {
-		return &gatedBot{seen: make(chan struct{}), release: release}
+		return &gatedBot{seen: make(chan struct{}), release: release, t: t}
 	}
 	t.Cleanup(func() { close(release) })
 	botRoom, err := s.rm.CreateBotVsBot(&config.TierEasy, "easy-a", &config.TierEasy, "easy-b", 0, config.SeriesBO3, "")

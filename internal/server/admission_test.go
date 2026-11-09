@@ -19,7 +19,7 @@ import (
 
 func fillTTBudget(t *testing.T, s *stack, rooms int) []*Room {
 	t.Helper()
-	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return &contractBot{} }
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return &contractBot{t: t} }
 	holder := seedUser(t, s.store, "holder")
 	out := make([]*Room, 0, rooms)
 	for range rooms {
@@ -73,7 +73,7 @@ func TestBotVsBotRefusesWhenTTBudgetFull(t *testing.T) {
 
 	fill[0].Close()
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.TierGrandmaster.TTBytes })
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
@@ -91,7 +91,7 @@ func TestBotVsBotRefusesWhenTTBudgetFull(t *testing.T) {
 
 func TestSearchWindowHoldsTierCoresOnlyDuringTheSearch(t *testing.T) {
 	s := newStack(t)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	alice := seedUser(t, s.store, "alice")
 	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster, "")
@@ -140,7 +140,7 @@ func TestSearchWindowHoldsTierCoresOnlyDuringTheSearch(t *testing.T) {
 
 func TestBotRoomForfeitDuringSearchDrainsLedger(t *testing.T) {
 	s := newStack(t)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	alice := seedUser(t, s.store, "alice")
 	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierHard, "")
@@ -188,7 +188,7 @@ func TestBotRoomRetireReleasesLedgerExactlyOnce(t *testing.T) {
 func TestSearchAdmissionTimeoutRetiresTheRoom(t *testing.T) {
 	s := newStack(t)
 	s.rm.adm.waitMax = 50 * time.Millisecond
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	alice := seedUser(t, s.store, "alice")
 	r, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierEasy, "")
@@ -214,14 +214,14 @@ func TestSearchAdmissionTimeoutRetiresTheRoom(t *testing.T) {
 func TestSecondMasterRoomWaitsForCoresThenProceeds(t *testing.T) {
 	s := newStack(t)
 	s.rm.adm.waitMax = 500 * time.Millisecond
-	gated := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	gated := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	nobook := config.TierMaster
 	nobook.Book = false
 	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		if tier.Book {
 			return gated
 		}
-		return &contractBot{}
+		return &contractBot{t: t}
 	}
 	alice := seedUser(t, s.store, "alice")
 	casual, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierMaster, "")
@@ -271,7 +271,7 @@ func TestSecondMasterRoomWaitsForCoresThenProceeds(t *testing.T) {
 
 func TestPonderArmsThroughTheLedgerAtFullWidth(t *testing.T) {
 	s := newStack(t)
-	hard := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	hard := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	var masters []*ponderBot
 	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		if tier.Name != config.TierMaster.Name {
@@ -380,7 +380,7 @@ func TestBotVsBotPonderFollowsTierWidth(t *testing.T) {
 
 func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	s := newStack(t)
-	gated := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	gated := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	scriptGate := make(chan struct{})
 	s.rm.makeSearcher = func(_ string, tier config.Tier) searcher {
 		if tier.Name == config.TierMaster.Name {
@@ -488,7 +488,7 @@ func TestReadyTTRefusalRetiresTheRoomAndRefusesMoves(t *testing.T) {
 
 func TestCreateRefusesWhenAvailableMemoryShort(t *testing.T) {
 	s := newStack(t)
-	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return &contractBot{} }
+	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return &contractBot{t: t} }
 	alice := seedUser(t, s.store, "alice")
 	avail := uint64(math.MaxUint64)
 	s.rm.SetMemoryProbe(func() (uint64, error) { return avail, nil })

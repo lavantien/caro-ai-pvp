@@ -115,6 +115,8 @@ type gatedBot struct {
 	seen     chan struct{}
 	release  chan struct{}
 	closed   bool
+	t        *testing.T
+	parked   chan struct{}
 }
 
 func (g *gatedBot) Search(b *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
@@ -125,7 +127,20 @@ func (g *gatedBot) Search(b *rules.Board, _ engine.Deadline) (rules.Move, engine
 	<-g.release
 	var buf [config.BoardCells]rules.Move
 	if b.LegalMoves(buf[:]) == 0 {
-		panic("bot test: no legal move for the gated bot")
+		g.mu.Lock()
+		if g.parked == nil {
+			if g.t != nil {
+				g.t.Errorf("gated bot asked to search a board with no legal move")
+			}
+			g.parked = make(chan struct{})
+		}
+		parked := g.parked
+		g.mu.Unlock()
+		if parked == nil {
+			return 0, engine.SearchStats{}, ""
+		}
+		<-parked
+		return 0, engine.SearchStats{}, ""
 	}
 	return buf[0], engine.SearchStats{}, ""
 }
@@ -149,6 +164,8 @@ func (g *gatedBot) isClosed() bool {
 type contractBot struct {
 	mu     sync.Mutex
 	closed bool
+	t      *testing.T
+	parked chan struct{}
 }
 
 func (b *contractBot) Search(bd *rules.Board, _ engine.Deadline) (rules.Move, engine.SearchStats, string) {
@@ -156,13 +173,30 @@ func (b *contractBot) Search(bd *rules.Board, _ engine.Deadline) (rules.Move, en
 	closed := b.closed
 	b.mu.Unlock()
 	if closed {
-		panic("engine contract: Search on a closed instance")
+		return b.park("contract bot searched after Close")
 	}
 	var buf [config.BoardCells]rules.Move
 	if bd.LegalMoves(buf[:]) == 0 {
-		panic("bot test: no legal move for the contract bot")
+		return b.park("contract bot asked to search a board with no legal move")
 	}
 	return buf[0], engine.SearchStats{}, ""
+}
+
+func (b *contractBot) park(msg string) (rules.Move, engine.SearchStats, string) {
+	b.mu.Lock()
+	if b.parked == nil {
+		if b.t != nil {
+			b.t.Errorf("%s", msg)
+		}
+		b.parked = make(chan struct{})
+	}
+	parked := b.parked
+	b.mu.Unlock()
+	if parked == nil {
+		return 0, engine.SearchStats{}, ""
+	}
+	<-parked
+	return 0, engine.SearchStats{}, ""
 }
 func (b *contractBot) StartPonder(*rules.Board) {}
 
@@ -197,7 +231,7 @@ func blockAtSearchEntry(t *testing.T, r *Room) (entered, release chan struct{}) 
 func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	bot := &contractBot{}
+	bot := &contractBot{t: t}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
@@ -231,7 +265,7 @@ func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	bot := &contractBot{}
+	bot := &contractBot{t: t}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
@@ -446,7 +480,7 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 func TestForfeitDuringBotSearchDiscardsAnswer(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
@@ -598,7 +632,7 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 		}
 	}
 	live := newRoom()
-	gbot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	gbot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	live.mu.Lock()
 	live.makeSearcher = func(_ string, _ config.Tier) searcher { return gbot }
 	live.mu.Unlock()
@@ -691,7 +725,7 @@ func TestBotTurnBudgetCapClampsOnlyWhenSet(t *testing.T) {
 func TestBotTurnLockedRefusesFinishedWindow(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
@@ -722,7 +756,7 @@ func TestBotTurnLockedRefusesFinishedWindow(t *testing.T) {
 func TestBotTurnLockedRefusesRetireWindow(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
@@ -804,7 +838,7 @@ func TestBotTurnDiscardsAnswerWhenGameFinishesMidSearch(t *testing.T) {
 func TestBotTurnDiscardsAnswerAfterCloseMidSearch(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
@@ -974,7 +1008,7 @@ func TestFirstLegalPanicsOnAFullBoard(t *testing.T) {
 func TestWakeBotCoalescesToASingleBufferedToken(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()

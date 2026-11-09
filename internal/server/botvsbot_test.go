@@ -152,7 +152,7 @@ func TestBotVsBotSeatNamesNeverCollide(t *testing.T) {
 }
 func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 	s := newStack(t)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
@@ -265,7 +265,7 @@ func TestBotVsBotSeriesScriptedToMajority(t *testing.T) {
 }
 func TestRoomLastGameMoves(t *testing.T) {
 	s := newStack(t)
-	parked := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	parked := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return parked }
 	fresh, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
@@ -308,7 +308,7 @@ func TestRoomLastGameMoves(t *testing.T) {
 }
 func TestBotVsBotRenderSurface(t *testing.T) {
 	s := newStack(t)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
@@ -474,7 +474,7 @@ func TestBotVsBotDrawnSeriesRetiresOnTheFinalDraw(t *testing.T) {
 
 func TestBotVsBotSyntheticSeatIDs(t *testing.T) {
 	s := newStack(t)
-	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{})}
+	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {
