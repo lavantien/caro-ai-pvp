@@ -304,8 +304,15 @@ func waitFor(t *testing.T, cond func() bool) {
 	t.Helper()
 	deadline := time.Now().Add(testCondBound)
 	for time.Now().Before(deadline) {
-		if cond() {
-			return
+		poll := make(chan bool, 1)
+		go func() { poll <- cond() }()
+		select {
+		case ok := <-poll:
+			if ok {
+				return
+			}
+		case <-time.After(testBlockBound):
+			t.Fatalf("condition poll blocked past %v, a room lock is stranded", testBlockBound)
 		}
 		time.Sleep(time.Millisecond)
 	}
