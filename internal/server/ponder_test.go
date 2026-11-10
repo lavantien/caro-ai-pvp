@@ -771,6 +771,18 @@ func waitBotMove(t *testing.T, r *Room, moveCount int, want rules.Move) {
 		return r.board != nil && r.board.MoveCount == moveCount && r.moves[moveCount-1] == want
 	})
 }
+func stopLaneBounded(t *testing.T, l *ponderLane, side rules.Color) ponderResult {
+	t.Helper()
+	done := make(chan ponderResult, 1)
+	go func() { done <- l.stop(side) }()
+	select {
+	case res := <-done:
+		return res
+	case <-time.After(testCondBound):
+		t.Fatalf("lane stop blocked past %v, the panicking stop never closed its done channel", testCondBound)
+		return ponderResult{}
+	}
+}
 
 func TestPonderArmsAfterOwnMoveAndAdoptsOnHit(t *testing.T) {
 	s := newStack(t)
@@ -1525,7 +1537,7 @@ func TestPonderLaneReleasesTheGrantWhenStopPonderPanics(t *testing.T) {
 	if got := adm.LiveCores(); got != 2 {
 		t.Fatalf("cores during the armed ponder = %d, want 2", got)
 	}
-	if res := lane.stop(rules.Red); res.active {
+	if res := stopLaneBounded(t, lane, rules.Red); res.active {
 		t.Fatal("stop through the panicking bot went active")
 	}
 	<-done

@@ -196,7 +196,7 @@ func TestPonderLaneHaltSkipsAdmissionFreeArms(t *testing.T) {
 		defer eng.mu.Unlock()
 		return eng.starts == 1
 	})
-	if res := lane.stop(rules.Red); !res.active {
+	if res := stopLaneBounded(t, lane, rules.Red); !res.active {
 		t.Fatal("stop after an admission-free arm must report the drained ponder")
 	}
 	lane.close()

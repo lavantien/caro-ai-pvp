@@ -320,7 +320,7 @@ func TestPonderLaneRefusesArmingWhenCoresUnfunded(t *testing.T) {
 	}()
 	bot := &ponderBot{}
 	lane.start(bot, rules.Red, rules.NewBoard(), 0, 0, adm, config.TierMaster.PonderThreads)
-	if res := lane.stop(rules.Red); res.active {
+	if res := stopLaneBounded(t, lane, rules.Red); res.active {
 		t.Fatal("the unfunded arm went active, want the full-width-or-off refusal")
 	}
 	if _, starts, _ := bot.counts(); starts != 0 {
@@ -328,7 +328,7 @@ func TestPonderLaneRefusesArmingWhenCoresUnfunded(t *testing.T) {
 	}
 	adm.ReleaseCores(starved)
 	lane.start(bot, rules.Red, rules.NewBoard(), 0, 0, adm, config.TierMaster.PonderThreads)
-	res := lane.stop(rules.Red)
+	res := stopLaneBounded(t, lane, rules.Red)
 	if !res.active {
 		t.Fatal("the funded arm stayed inactive, want pondering")
 	}
