@@ -20,7 +20,7 @@ func TestReadyRefusedBeforeJoinAndAfterClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := r.Ready(alice.ID); !errors.Is(err, ErrNotReady) {
+	if err := readyRoomBounded(t, r, alice.ID); !errors.Is(err, ErrNotReady) {
 		t.Errorf("ready before join = %v, want ErrNotReady", err)
 	}
 	if rem := r.ClockRemaining(rules.Red); rem != 0 {
@@ -33,7 +33,7 @@ func TestReadyRefusedBeforeJoinAndAfterClose(t *testing.T) {
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit open room: %v", err)
 	}
-	if err := r.Ready(alice.ID); !errors.Is(err, ErrRoomClosed) {
+	if err := readyRoomBounded(t, r, alice.ID); !errors.Is(err, ErrRoomClosed) {
 		t.Errorf("ready after close = %v, want ErrRoomClosed", err)
 	}
 }

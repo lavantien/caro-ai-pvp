@@ -23,7 +23,7 @@ func TestBotIllegalAnswerFallsBackToFirstLegal(t *testing.T) {
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return illegal }
 	r.mu.Unlock()
 
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -118,7 +118,7 @@ func TestBotMoveFillsBoardToDraw(t *testing.T) {
 		}
 	}()
 
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	for _, name := range human {
@@ -178,7 +178,7 @@ func TestBotMoveFillsBoardToDraw(t *testing.T) {
 func TestBotEasyTierRealEngineAnswersLegally(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {

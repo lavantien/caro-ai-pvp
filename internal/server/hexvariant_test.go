@@ -90,7 +90,7 @@ func TestHexRoomPlaysHexMovesAndStoresBothSides(t *testing.T) {
 	if v := room.Variant(); v != "hex" {
 		t.Fatalf("room variant = %q, want hex", v)
 	}
-	if err := room.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, room, alice.ID); err != nil {
 		t.Fatalf("host ready: %v", err)
 	}
 

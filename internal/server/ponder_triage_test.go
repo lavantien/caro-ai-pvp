@@ -343,7 +343,7 @@ func TestPonderArmTierThreadMatrix(t *testing.T) {
 			{move: j10, pv: []rules.Move{j10}, stats: engine.SearchStats{Depth: 11, Threads: 8}},
 		}
 		alice, r := ponderRoomTier(t, s, "alice-"+row.tier.Name, bot, row.tier)
-		if err := r.Ready(alice.ID); err != nil {
+		if err := readyRoomBounded(t, r, alice.ID); err != nil {
 			t.Fatalf("ready vs %s: %v", row.tier.Name, err)
 		}
 		if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {

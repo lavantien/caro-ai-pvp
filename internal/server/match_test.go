@@ -54,10 +54,10 @@ func newPvPRoom(t *testing.T, s *stack) (host, guest User, r *Room) {
 
 func readyBoth(t *testing.T, r *Room, host, guest User) {
 	t.Helper()
-	if err := r.Ready(host.ID); err != nil {
+	if err := readyRoomBounded(t, r, host.ID); err != nil {
 		t.Fatalf("host ready: %v", err)
 	}
-	if err := r.Ready(guest.ID); err != nil {
+	if err := readyRoomBounded(t, r, guest.ID); err != nil {
 		t.Fatalf("guest ready: %v", err)
 	}
 }
@@ -91,19 +91,19 @@ func TestPlayMoveHandshakeAndValidation(t *testing.T) {
 	if err := r.PlayMove(alice.ID, d4); !errors.Is(err, ErrNotReady) {
 		t.Errorf("play before both ready = %v, want ErrNotReady", err)
 	}
-	if err := r.Ready(carol.ID); !errors.Is(err, ErrNotParticipant) {
+	if err := readyRoomBounded(t, r, carol.ID); !errors.Is(err, ErrNotParticipant) {
 		t.Errorf("stranger ready = %v, want ErrNotParticipant", err)
 	}
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("host ready: %v", err)
 	}
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("double ready must be idempotent: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, d4); !errors.Is(err, ErrNotReady) {
 		t.Errorf("play after one ready = %v, want ErrNotReady", err)
 	}
-	if err := r.Ready(bob.ID); err != nil {
+	if err := readyRoomBounded(t, r, bob.ID); err != nil {
 		t.Fatalf("guest ready: %v", err)
 	}
 

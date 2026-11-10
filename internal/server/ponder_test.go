@@ -784,7 +784,7 @@ func TestPonderArmsAfterOwnMoveAndAdoptsOnHit(t *testing.T) {
 	bot.stopMove = k10
 	bot.stopStats = adoptableStopStats(k10, 12, int64(10*time.Millisecond))
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -850,7 +850,7 @@ func TestPonderMissFallsThroughToSearch(t *testing.T) {
 	bot.stopMove = rules.Move(mustCellT(t, "K10"))
 	bot.stopStats = adoptableStopStats(bot.stopMove, 12, int64(10*time.Millisecond))
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -893,7 +893,7 @@ func TestPonderGateRejectFallsThroughToSearch(t *testing.T) {
 	bot.stopStats = adoptableStopStats(k10, 12, int64(10*time.Millisecond))
 	bot.stopStats.RootMoves[config.PonderStableIters-1] = other
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -928,7 +928,7 @@ func TestPonderSolverProofAdoptsWithoutClauses(t *testing.T) {
 	bot.stopStats = engine.SearchStats{}
 	bot.stopTag = config.BotLogTagVCF
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -964,7 +964,7 @@ func TestPonderNoArmWithoutPredictedReply(t *testing.T) {
 		{move: j10, pv: []rules.Move{j10}, stats: engine.SearchStats{Depth: 11, Threads: 8}},
 	}
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -996,7 +996,7 @@ func TestPonderCloseMidPonderJoins(t *testing.T) {
 		{move: h8, pv: []rules.Move{h8, p16}, stats: engine.SearchStats{Depth: 12, Threads: 8}},
 	}
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -1032,7 +1032,7 @@ func TestPonderForfeitMidPonderJoins(t *testing.T) {
 		{move: h8, pv: []rules.Move{h8, p16}, stats: engine.SearchStats{Depth: 12, Threads: 8}},
 	}
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -1095,7 +1095,7 @@ func TestPonderGameResetDrainsMidPonder(t *testing.T) {
 		return bots[0]
 	}
 
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	for i := range 4 {
@@ -1401,7 +1401,7 @@ func TestPonderRingRecordsOnlySearchTurns(t *testing.T) {
 	bot.stopMove = k10
 	bot.stopStats = adoptableStopStats(k10, 15, int64(10*time.Millisecond))
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -1565,7 +1565,7 @@ func TestPonderChainedAdoptionRearmsFromAdoptedPv(t *testing.T) {
 		{move: j10, pv: []rules.Move{j10}, stats: adoptableStopStats(j10, 14, int64(10*time.Millisecond))},
 	}
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -1620,7 +1620,7 @@ func TestPonderAdoptedIllegalMoveFallsBackToFirstLegal(t *testing.T) {
 	bot.stopMove = d4
 	bot.stopStats = adoptableStopStats(d4, 15, int64(10*time.Millisecond))
 	alice, r := ponderRoom(t, s, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -1724,7 +1724,7 @@ func TestRoomPonderTeardownRaceHammer(t *testing.T) {
 		r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 		r.budgetCap = 3 * time.Millisecond
 		r.mu.Unlock()
-		if err := r.Ready(alice.ID); err != nil {
+		if err := readyRoomBounded(t, r, alice.ID); err != nil {
 			t.Fatalf("ready %d: %v", i, err)
 		}
 		if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {

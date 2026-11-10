@@ -320,7 +320,7 @@ func TestRoomMasterOpensFromTheBookThenSearches(t *testing.T) {
 	stageBookArtifact(t, buildBookArtifact(t, rows))
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierMaster)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	grants := make([]string, len(redScript))
@@ -380,7 +380,7 @@ func TestMasterBlueSeatOpensFromTheBookLowerTiersNeverDo(t *testing.T) {
 			s := newStack(t)
 			alice, r := botRoom(t, s, tier)
 			defer closeRoomBounded(t, r)
-			if err := r.Ready(alice.ID); err != nil {
+			if err := readyRoomBounded(t, r, alice.ID); err != nil {
 				t.Fatalf("ready: %v", err)
 			}
 			waitFor(t, func() bool { return humanTurn(r, alice.ID) })
@@ -542,14 +542,14 @@ func TestReadySurfacesCorruptBookArtifactWithoutResidue(t *testing.T) {
 	stageBookArtifact(t, []byte("CAROBOOK2\n"))
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierMaster)
-	err := r.Ready(alice.ID)
+	err := readyRoomBounded(t, r, alice.ID)
 	if err == nil || !strings.Contains(err.Error(), "book") {
 		t.Fatalf("ready over a corrupt artifact err = %v, want the construction failure surfaced", err)
 	}
 	if _, err := s.rm.Get(r.ID()); !errors.Is(err, ErrRoomNotFound) {
 		t.Errorf("get the refused room = %v, want ErrRoomNotFound: the refusal must retire it from the manager", err)
 	}
-	if rerr := r.Ready(alice.ID); !errors.Is(rerr, ErrRoomClosed) {
+	if rerr := readyRoomBounded(t, r, alice.ID); !errors.Is(rerr, ErrRoomClosed) {
 		t.Fatalf("repeat ready over the retired room err = %v, want ErrRoomClosed", rerr)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); !errors.Is(err, ErrRoomClosed) {

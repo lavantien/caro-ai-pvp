@@ -613,7 +613,7 @@ func TestForfeitAfterALiveGameKeepsOneCasualFile(t *testing.T) {
 		t.Fatalf("subscribe: %v", err)
 	}
 	defer sub.Unsubscribe()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	for _, name := range humanWinSides[0] {
@@ -878,7 +878,7 @@ func TestCasualRoomSweepRecordsBothStorageSides(t *testing.T) {
 		t.Fatalf("subscribe: %v", err)
 	}
 	defer sub.Unsubscribe()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	driveHumanWonBotSweep(t, r, alice, sub)

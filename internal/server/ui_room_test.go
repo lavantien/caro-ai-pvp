@@ -457,7 +457,7 @@ func TestRoomPagePreMatchReadyHandshake(t *testing.T) {
 	}
 	wantBoard(t, body)
 
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("host ready: %v", err)
 	}
 	_, body = getRoomPage(t, srv, "/rooms/"+r.ID(), mintSession(t, s.store, bob))
@@ -523,7 +523,7 @@ func TestRoomPageBotSeatCarriesTierChip(t *testing.T) {
 		t.Fatalf("create bot room: %v", err)
 	}
 	injectScriptedBot(t, r, movesOf(t, botWinMoves))
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	waitFor(t, func() bool { return humanTurn(r, alice.ID) })

@@ -57,7 +57,7 @@ func TestPonderTTFallbackArmsAndAdopts(t *testing.T) {
 	inner.stopStats = adoptableStopStats(k10, 12, int64(10*time.Millisecond))
 	bot := &ttReplyBot{ponderBot: inner, reply: p16}
 	alice, r := ttFallbackRoom(t, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -114,7 +114,7 @@ func TestPonderTTFallbackRefusesIllegalReply(t *testing.T) {
 	inner.answers = []ponderAnswer{{move: h8, pv: []rules.Move{h8}, stats: engine.SearchStats{Depth: 12, Threads: 8}}}
 	bot := &ttReplyBot{ponderBot: inner, reply: d4}
 	alice, r := ttFallbackRoom(t, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -137,7 +137,7 @@ func TestPonderTTFallbackRefusesSentinelReply(t *testing.T) {
 	inner.answers = []ponderAnswer{{move: h8, pv: []rules.Move{h8}, stats: engine.SearchStats{Depth: 12, Threads: 8}}}
 	bot := &ttReplyBot{ponderBot: inner, reply: rules.MoveNone}
 	alice, r := ttFallbackRoom(t, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {
@@ -160,7 +160,7 @@ func TestPonderTTFallbackNeedsAnAnswerMove(t *testing.T) {
 	inner.answers = []ponderAnswer{{move: h8, pv: []rules.Move{}, stats: engine.SearchStats{Depth: 12, Threads: 8}}}
 	bot := &ttReplyBot{ponderBot: inner, reply: rules.Move(mustCellT(t, "P16"))}
 	alice, r := ttFallbackRoom(t, bot)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(d4)); err != nil {

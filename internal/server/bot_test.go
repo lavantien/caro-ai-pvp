@@ -236,7 +236,7 @@ func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	entered, release := blockAtSearchEntry(t, r)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -270,7 +270,7 @@ func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
 	entered, release := blockAtSearchEntry(t, r)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -348,7 +348,7 @@ func TestMLineEventCarriesStructuredStat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	waitFor(t, func() bool { return humanTurn(r, alice.ID) })
@@ -415,7 +415,7 @@ func TestBotSeriesScriptedThroughWorker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	for game := 0; game < 2; game++ {
@@ -495,7 +495,7 @@ func TestForfeitDuringBotSearchDiscardsAnswer(t *testing.T) {
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -532,7 +532,7 @@ func TestBotWorkerPanicRetiresTheRoom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create vs easy: %v", err)
 	}
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready vs easy: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
@@ -573,7 +573,7 @@ func TestBotRoomMediumBeatsRandomMover(t *testing.T) {
 			mu.Unlock()
 		}
 	}()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	rng := rand.New(rand.NewPCG(20261002, 42))
@@ -654,7 +654,7 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 	}
 	scripted := newRoom()
 	injectScriptedBot(t, scripted, movesOf(t, botWinMoves))
-	if err := scripted.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, scripted, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	for _, name := range humanFiller {
@@ -668,7 +668,7 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 	live.mu.Lock()
 	live.makeSearcher = func(_ string, _ config.Tier) searcher { return gbot }
 	live.mu.Unlock()
-	if err := live.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, live, alice.ID); err != nil {
 		t.Fatalf("ready live: %v", err)
 	}
 	if err := live.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -738,7 +738,7 @@ func TestBotTurnBudgetCapClampsOnlyWhenSet(t *testing.T) {
 		r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 		r.budgetCap = limit
 		r.mu.Unlock()
-		if err := r.Ready(alice.ID); err != nil {
+		if err := readyRoomBounded(t, r, alice.ID); err != nil {
 			t.Fatalf("ready: %v", err)
 		}
 		if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -761,7 +761,7 @@ func TestBotTurnLockedRefusesFinishedWindow(t *testing.T) {
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -792,7 +792,7 @@ func TestBotTurnLockedRefusesRetireWindow(t *testing.T) {
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -844,7 +844,7 @@ func TestBotTurnDiscardsAnswerWhenGameFinishesMidSearch(t *testing.T) {
 		return &finishingBot{room: r, answer: rules.Move(mustCellT(t, "D5"))}
 	}
 	r.mu.Unlock()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -874,7 +874,7 @@ func TestBotTurnDiscardsAnswerAfterCloseMidSearch(t *testing.T) {
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -938,7 +938,7 @@ func TestBotTurnDiscardsStaleAnswerAfterInterleavedMoves(t *testing.T) {
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot2 }
 	r.mu.Unlock()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
@@ -983,7 +983,7 @@ func TestBotIllegalAnswerOnTheLastCellFillsTheBoard(t *testing.T) {
 	}
 	bot[len(bot)-1] = "D4"
 	bots := injectScriptedBot(t, r, movesOf(t, bot))
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	for _, name := range human {
@@ -1044,7 +1044,7 @@ func TestWakeBotCoalescesToASingleBufferedToken(t *testing.T) {
 	r.mu.Lock()
 	r.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
 	r.mu.Unlock()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {

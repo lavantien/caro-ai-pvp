@@ -27,7 +27,7 @@ func fillTTBudget(t *testing.T, s *stack, rooms int) []*Room {
 		if err != nil {
 			t.Fatalf("fill the tt budget: %v", err)
 		}
-		if err := r.Ready(holder.ID); err != nil {
+		if err := readyRoomBounded(t, r, holder.ID); err != nil {
 			t.Fatalf("ready the filler room: %v", err)
 		}
 		out = append(out, r)
@@ -98,7 +98,7 @@ func TestSearchWindowHoldsTierCoresOnlyDuringTheSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create vs master: %v", err)
 	}
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready vs master: %v", err)
 	}
 	if got := s.rm.LiveCoreBookings(); got != 0 {
@@ -147,7 +147,7 @@ func TestBotRoomForfeitDuringSearchDrainsLedger(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create vs hard: %v", err)
 	}
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready vs hard: %v", err)
 	}
 	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
@@ -195,7 +195,7 @@ func TestSearchAdmissionTimeoutRetiresTheRoom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create vs easy: %v", err)
 	}
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready vs easy: %v", err)
 	}
 	if !s.rm.adm.TryAcquireCores(config.MachineCores) {
@@ -228,7 +228,7 @@ func TestSecondMasterRoomWaitsForCoresThenProceeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create the casual master room: %v", err)
 	}
-	if err := casual.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, casual, alice.ID); err != nil {
 		t.Fatalf("ready the casual room: %v", err)
 	}
 	if err := casual.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
@@ -397,7 +397,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create the casual master room: %v", err)
 	}
-	if err := casual.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, casual, alice.ID); err != nil {
 		t.Fatalf("ready the casual room: %v", err)
 	}
 	if err := casual.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
@@ -466,7 +466,7 @@ func TestReadyTTRefusalRetiresTheRoomAndRefusesMoves(t *testing.T) {
 	if err := s.rm.adm.AcquireTT(drain); err != nil {
 		t.Fatalf("drain the tt budget: %v", err)
 	}
-	if err := r.Ready(alice.ID); !errors.Is(err, ErrMachineBusy) {
+	if err := readyRoomBounded(t, r, alice.ID); !errors.Is(err, ErrMachineBusy) {
 		t.Fatalf("ready over the drained budget = %v, want ErrMachineBusy", err)
 	}
 	if _, err := s.rm.Get(r.ID()); !errors.Is(err, ErrRoomNotFound) {

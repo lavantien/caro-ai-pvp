@@ -254,7 +254,7 @@ func TestNextGameStartFailureSurfacesThroughHumanMove(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
 	injectFailingRebuildBot(t, r)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	err := playHumanWinOverScriptedBot(t, r, alice, nil)
@@ -270,7 +270,7 @@ func TestPersistErrorBeatsStartErrorInCompletion(t *testing.T) {
 	s := newStack(t)
 	alice, r := botRoom(t, s, config.TierEasy)
 	injectFailingRebuildBot(t, r)
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	err := playHumanWinOverScriptedBot(t, r, alice, func() {

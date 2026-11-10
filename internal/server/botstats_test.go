@@ -121,7 +121,7 @@ func TestBotSeriesRecordsGamesStatsAndHistory(t *testing.T) {
 		t.Fatalf("subscribe: %v", err)
 	}
 	defer sub.Unsubscribe()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	events := driveHumanWonBotSweep(t, r, alice, sub)
@@ -210,7 +210,7 @@ func TestForfeitVsBotBooksSweptLossesWithoutRating(t *testing.T) {
 		t.Fatalf("subscribe: %v", err)
 	}
 	defer sub.Unsubscribe()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 
@@ -404,7 +404,7 @@ func TestPlaybackBotGameOpensForTheHumanSeat(t *testing.T) {
 		t.Fatalf("subscribe: %v", err)
 	}
 	defer sub.Unsubscribe()
-	if err := r.Ready(alice.ID); err != nil {
+	if err := readyRoomBounded(t, r, alice.ID); err != nil {
 		t.Fatalf("ready: %v", err)
 	}
 	driveHumanWonBotSweep(t, r, alice, sub)

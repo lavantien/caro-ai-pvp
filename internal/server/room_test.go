@@ -30,6 +30,23 @@ func closeRoomBounded(t *testing.T, r *Room) {
 		t.Fatalf("room close blocked past %v, the searcher teardown wedged", testWaitBound)
 	}
 }
+func readyRoomBounded(t *testing.T, r *Room, userID int64) error {
+	t.Helper()
+	type readyOutcome struct {
+		err error
+	}
+	done := make(chan readyOutcome, 1)
+	go func() {
+		done <- readyOutcome{r.Ready(userID)}
+	}()
+	select {
+	case out := <-done:
+		return out.err
+	case <-time.After(testWaitBound):
+		t.Fatalf("room ready blocked past %v, the engine handoff wedged on a stranded lock", testWaitBound)
+		return nil
+	}
+}
 
 func newStack(t *testing.T) *stack {
 	t.Helper()
