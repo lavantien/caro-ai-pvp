@@ -61,7 +61,7 @@ func goEnv(cacheDir, tmpDir string) []string {
 }
 
 func testArgv(outer time.Duration, pkg string) []string {
-	return []string{"go", "test", "-count=1", "-short", "-timeout", config.SuiteTimeout(outer).String(), pkg}
+	return []string{"go", "test", "-count=1", "-short", "-v", "-timeout", config.SuiteTimeout(outer).String(), pkg}
 }
 
 func (r execRunner) runTest(ctx context.Context, pkg string) (string, error) {

@@ -556,7 +556,7 @@ func TestReadySurfacesCorruptBookArtifactWithoutResidue(t *testing.T) {
 		t.Errorf("move into the retired room = %v, want ErrRoomClosed", err)
 	}
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
-	r.Close()
+	closeRoomBounded(t, r)
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Errorf("core bookings after close = %d, want 0: the retired room must release on teardown", got)
 	}

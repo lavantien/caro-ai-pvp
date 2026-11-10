@@ -583,7 +583,7 @@ func TestLobbyJoinClosedRoomRendersClosedMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	r.Close()
+	closeRoomBounded(t, r)
 	mux := http.NewServeMux()
 	NewLobbyPages(s.store, s.rm).Mount(mux)
 	req := httptest.NewRequest(http.MethodPost, "/lobby/"+r.ID()+"/join", nil)

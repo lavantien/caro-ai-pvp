@@ -793,7 +793,7 @@ func TestHTTPSSEMidRetirementRoomRefused(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get room: %v", err)
 	}
-	r.Close()
+	closeRoomBounded(t, r)
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+room.ID+"/events", "", nil)
 	wantAPIError(t, got, http.StatusConflict, "room_closed")
 	got = doJSON(t, c, http.MethodGet, srv.URL+"/api/rooms/"+room.ID, "", nil)
@@ -820,7 +820,7 @@ func TestHTTPSSEStreamEndsWhenRoomRetiresMidStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get room: %v", err)
 	}
-	r.Close()
+	closeRoomBounded(t, r)
 
 	f, ok := sr.next(t)
 	if ok {

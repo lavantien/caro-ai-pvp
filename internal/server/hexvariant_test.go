@@ -115,7 +115,7 @@ func TestHexRoomPlaysHexMovesAndStoresBothSides(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	room.Close()
+	closeRoomBounded(t, room)
 
 	games, err := s.store.MatchHistory(alice.ID)
 	if err != nil || len(games) != 1 {

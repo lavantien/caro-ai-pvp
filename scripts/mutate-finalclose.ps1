@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
 	[int]$Parallel = 4,
-	[string]$Timeout = '5m',
+	[string]$Timeout = '8m',
 	[string]$Log = 'logs/archive/mutate-finalclose-engine-server.log',
 	[switch]$Help,
 	[switch]$DryRun,
@@ -26,8 +26,9 @@ mutate-finalclose: detached engine plus server mutation re-gate for the final
   skips
   marker .scratch/mutate-finalclose.status: running | all-done exit 0 |
   failed exit <n> | done, status artifact never edited by hand
-  per-mutant timeout defaults to 5m so the 86s clean internal/server suite
-  fits the derived inner window (outer minus 61s) with load headroom, the
+  per-mutant timeout defaults to 8m so the 86s clean internal/server suite
+  fits the derived inner window (outer minus 121s) with load headroom and
+  every suite alarm prints before the outer kill for builds under 2m, the
   prior engine-only gates ran at 2m whose inner 59s cannot hold the server
   suite, no GOMEMLIMIT: the tool caps each worker tree itself and the prior
   green gates ran without one, GOTMPDIR <repo>/.gotmp

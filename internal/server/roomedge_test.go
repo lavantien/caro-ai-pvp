@@ -22,7 +22,7 @@ func TestJoinAndListDuringRetirementWindow(t *testing.T) {
 		t.Fatalf("create live: %v", err)
 	}
 
-	retiring.Close()
+	closeRoomBounded(t, retiring)
 
 	if err := s.rm.Join(retiring.ID(), bob.ID); !errors.Is(err, ErrRoomClosed) {
 		t.Errorf("join a retired-but-keyed room = %v, want ErrRoomClosed", err)
@@ -100,7 +100,7 @@ func TestPlayMoveAfterCloseRefused(t *testing.T) {
 	readyBoth(t, r, alice, bob)
 	playScript(t, r, alice.ID, bob.ID, []string{"D4", "P16"})
 
-	r.Close()
+	closeRoomBounded(t, r)
 	if err := r.PlayMove(alice.ID, mustCellT(t, "H8")); !errors.Is(err, ErrRoomClosed) {
 		t.Errorf("play after close = %v, want ErrRoomClosed", err)
 	}
@@ -124,7 +124,7 @@ func TestForfeitAfterCloseRefused(t *testing.T) {
 	readyBoth(t, r, alice, bob)
 	playScript(t, r, alice.ID, bob.ID, []string{"D4", "P16"})
 
-	r.Close()
+	closeRoomBounded(t, r)
 	if err := r.Forfeit(alice.ID); !errors.Is(err, ErrRoomClosed) {
 		t.Errorf("forfeit after close = %v, want ErrRoomClosed", err)
 	}

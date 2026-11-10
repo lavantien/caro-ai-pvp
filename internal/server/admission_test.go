@@ -57,7 +57,7 @@ func TestCreateRefusesBotRoomWhenTTBudgetFull(t *testing.T) {
 		t.Errorf("human room over the full tt budget: %v", err)
 	}
 
-	fill[0].Close()
+	closeRoomBounded(t, fill[0])
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.TierGrandmaster.TTBytes })
 	if _, err := s.rm.Create(alice.ID, 0, config.SeriesBO3, &config.TierGrandmaster, ""); err != nil {
 		t.Fatalf("create after the tt release: %v", err)
@@ -71,7 +71,7 @@ func TestBotVsBotRefusesWhenTTBudgetFull(t *testing.T) {
 		t.Fatalf("bot vs bot over the full tt budget = %v, want ErrMachineBusy", err)
 	}
 
-	fill[0].Close()
+	closeRoomBounded(t, fill[0])
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.TierGrandmaster.TTBytes })
 	bot := &gatedBot{seen: make(chan struct{}), release: make(chan struct{}), t: t}
 	s.rm.makeSearcher = func(_ string, _ config.Tier) searcher { return bot }
@@ -134,7 +134,7 @@ func TestSearchWindowHoldsTierCoresOnlyDuringTheSearch(t *testing.T) {
 	}
 	close(bot.release)
 	waitFor(t, func() bool { return s.rm.LiveCoreBookings() == 0 })
-	r.Close()
+	closeRoomBounded(t, r)
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
 }
 
@@ -161,7 +161,7 @@ func TestBotRoomForfeitDuringSearchDrainsLedger(t *testing.T) {
 		t.Fatalf("forfeit during the search: %v", err)
 	}
 	close(bot.release)
-	r.Close()
+	closeRoomBounded(t, r)
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Errorf("cores after the forfeited room = %d, want 0", got)
 	}
@@ -261,9 +261,9 @@ func TestSecondMasterRoomWaitsForCoresThenProceeds(t *testing.T) {
 	if _, ok := second.Info(); !ok {
 		t.Fatal("the second master room died after its wait cleared")
 	}
-	second.Close()
+	closeRoomBounded(t, second)
 	close(gated.release)
-	casual.Close()
+	closeRoomBounded(t, casual)
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Errorf("cores after the closed rooms = %d, want 0", got)
 	}
@@ -300,7 +300,7 @@ func TestPonderArmsThroughTheLedgerAtFullWidth(t *testing.T) {
 		t.Fatalf("cores during hard searching while master ponders = %d, want the peak %d", got, peak)
 	}
 	close(hard.release)
-	r1.Close()
+	closeRoomBounded(t, r1)
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Errorf("cores after the closed rooms = %d, want 0", got)
 	}
@@ -415,7 +415,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	}
 	waitFor(t, func() bool { return s.rm.LiveCoreBookings() == config.TierMaster.Cores })
 	close(gated.release)
-	casual.Close()
+	closeRoomBounded(t, casual)
 }
 
 func TestNextGameTTRefusalRetiresTheRoom(t *testing.T) {
@@ -445,7 +445,7 @@ func TestNextGameTTRefusalRetiresTheRoom(t *testing.T) {
 		t.Errorf("get the refused room = %v, want ErrRoomNotFound: the refusal must retire it from the manager", err)
 	}
 	s.rm.adm.ReleaseTT(config.MachineTTBudgetBytes - 1)
-	r.Close()
+	closeRoomBounded(t, r)
 	if got := s.rm.LiveCoreBookings(); got != 0 {
 		t.Errorf("cores after the parked room closed = %d, want 0", got)
 	}
@@ -479,7 +479,7 @@ func TestReadyTTRefusalRetiresTheRoomAndRefusesMoves(t *testing.T) {
 		t.Errorf("move into the retired room = %v, want ErrRoomClosed", err)
 	}
 	s.rm.adm.ReleaseTT(drain)
-	r.Close()
+	closeRoomBounded(t, r)
 	waitFor(t, func() bool { return s.rm.adm.TTFree() == config.MachineTTBudgetBytes })
 	if _, ok := r.Info(); ok {
 		t.Error("the retired room still reports live info")

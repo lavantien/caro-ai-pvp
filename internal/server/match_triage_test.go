@@ -61,7 +61,8 @@ func TestAuditRefutedRunsAtTheGrantGate(t *testing.T) {
 	mv := rules.Move(mustCellT(t, "E5"))
 	st := engine.SearchStats{Score: config.EvalMateMax - 5*config.EvalMateScoreStep, Depth: 4}
 	grant := time.Duration(config.SolverMinGrantMs) * time.Millisecond
-	if !s.auditRefuted(blueFourBoard(t), mv, st, time.Now(), grant, true) {
+	start := time.Now().Add(time.Second)
+	if !s.auditRefuted(blueFourBoard(t), mv, st, start, grant, true) {
 		t.Error("a grant exactly at the solver gate must still run the refutation audit")
 	}
 }

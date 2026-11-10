@@ -762,7 +762,7 @@ func TestRoomViewOfRetiredRoomIsNotFound(t *testing.T) {
 	s := newStack(t)
 	alice, bob, r := newPvPRoom(t, s)
 	readyBoth(t, r, alice, bob)
-	r.Close()
+	closeRoomBounded(t, r)
 	p := NewRoomPages(s.rm, s.store)
 	req := httptest.NewRequest(http.MethodGet, "/rooms/"+r.ID(), nil)
 	if _, err := p.roomViewOf(req, r); !errors.Is(err, ErrRoomNotFound) {
@@ -1275,7 +1275,7 @@ func TestRoomPageClosedRoomStillListedIs404(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	r.Close()
+	closeRoomBounded(t, r)
 	status, body := getRoomPage(t, srv, "/rooms/"+r.ID(), "")
 	if status != http.StatusNotFound {
 		t.Errorf("closed room page = %d, want 404 (body %s)", status, body)

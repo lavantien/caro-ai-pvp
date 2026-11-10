@@ -765,7 +765,7 @@ func TestBotTurnLockedRefusesFinishedWindow(t *testing.T) {
 		t.Errorf("botTurnLocked in the finished window = (%d, %t), want (0, false)", side, ok)
 	}
 	close(bot.release)
-	r.Close()
+	closeRoomBounded(t, r)
 	r.mu.Lock()
 	stones := r.board.MoveCount
 	r.mu.Unlock()
@@ -1058,5 +1058,5 @@ drain:
 		t.Errorf("buffered wake tokens = %d, want exactly one coalesced signal", tokens)
 	}
 	close(bot.release)
-	r.Close()
+	closeRoomBounded(t, r)
 }

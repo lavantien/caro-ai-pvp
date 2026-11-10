@@ -145,7 +145,7 @@ func TestSSEStalledReaderGetsBufferedEventsThenEnds(t *testing.T) {
 		s.hub.Publish(r.ID(), Event{Kind: EventKindMove, Payload: "D" + strconv.Itoa(i+1)})
 	}
 	s.hub.Publish(r.ID(), Event{Kind: EventKindSeries, Payload: SideNone.String()})
-	r.Close()
+	closeRoomBounded(t, r)
 
 	select {
 	case <-done:

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -532,8 +533,9 @@ func TestExecRunnerCommandShape(t *testing.T) {
 func TestRunTestWiresSuiteTimeoutIntoArgv(t *testing.T) {
 	outer := 5 * time.Minute
 	argv := testArgv(outer, "example.com/p")
-	if len(argv) != 7 || argv[4] != "-timeout" || argv[5] != config.SuiteTimeout(outer).String() || argv[5] == outer.String() {
-		t.Fatalf("argv = %v, want the suite timeout %s wired after -timeout and derived below the outer window", argv, config.SuiteTimeout(outer))
+	want := []string{"go", "test", "-count=1", "-short", "-v", "-timeout", config.SuiteTimeout(outer).String(), "example.com/p"}
+	if !slices.Equal(argv, want) || config.SuiteTimeout(outer) == outer {
+		t.Fatalf("argv = %v, want %v with the suite timeout derived below the outer window", argv, want)
 	}
 }
 

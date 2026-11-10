@@ -1010,7 +1010,7 @@ func TestPonderCloseMidPonderJoins(t *testing.T) {
 	closed := make(chan struct{})
 	go func() {
 		defer close(closed)
-		r.Close()
+		closeRoomBounded(t, r)
 	}()
 	select {
 	case <-closed:
@@ -1130,7 +1130,7 @@ func TestPonderGameResetDrainsMidPonder(t *testing.T) {
 		searches, _, _ := finalBot.counts()
 		return searches >= 1
 	})
-	r.Close()
+	closeRoomBounded(t, r)
 }
 
 func TestBotVsBotPonderMLineObserved(t *testing.T) {
@@ -1219,7 +1219,7 @@ func TestBotVsBotPonderMLineObserved(t *testing.T) {
 	if _, starts, stops := master.counts(); starts != 1 || stops != 1 {
 		t.Fatalf("master ponder counts = %d starts %d stops, want the one arm and drain", starts, stops)
 	}
-	r.Close()
+	closeRoomBounded(t, r)
 }
 
 type startGatedPonderBot struct {
