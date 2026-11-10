@@ -25,6 +25,7 @@ const (
 	depFailOut       = "# example.com/dep\nexample.com\\dep\\den.go:3:11: invalid operation: operator - not defined on \"a\" (untyped string constant)\nFAIL\texample.com/use [build failed]\nFAIL\n"
 	toolFailOut      = "# probe [probe.test]\ncompile: out of memory\nFAIL\tprobe [build failed]\nFAIL\n"
 	mixedFailOut     = "--- FAIL: TestF (0.00s)\n    a_test.go:7: F(1) = 0, want 2\nFAIL\tprobe [build failed]\nFAIL\n"
+	failfastOut      = "=== RUN   TestF\n--- FAIL: TestF (5.04s)\n    a_test.go:7: bot search never started\nFAIL\tprobe\t35.162s\nFAIL\n"
 	timedOutOut      = "panic: test timed out after 1s\n\trunning tests:\n\t\tTestSlow (1s)\nFAIL\tprobe\t1.375s\nFAIL\n"
 	workerPanicOut   = "panic: runtime error: slice bounds out of range [:1] with capacity 0\n\ngoroutine 68 [running]:\nFAIL\tprobe\t1.289s\nFAIL\n"
 	greenSuiteOut    = "ok  probe 0.321s\n"
@@ -78,6 +79,7 @@ func TestClassify(t *testing.T) {
 		{"dependency build failure", &exec.ExitError{}, depFailOut, "example.com/use", green, verdictRunError},
 		{"toolchain failure behind the build marker", &exec.ExitError{}, toolFailOut, "probe", green, verdictRunError},
 		{"test failure signature outranks the build marker", &exec.ExitError{}, mixedFailOut, "probe", green, verdictKilled},
+		{"first failure under failfast with the tail dropped", &exec.ExitError{}, failfastOut, "probe", green, verdictKilled},
 		{"test timeout panic", &exec.ExitError{}, timedOutOut, "probe", green, verdictRunError},
 		{"runtime panic on a background goroutine under a green baseline", &exec.ExitError{}, workerPanicOut, "probe", green, verdictKilled},
 		{"runtime panic without a green baseline", &exec.ExitError{}, workerPanicOut, "probe", nil, verdictRunError},
@@ -533,7 +535,7 @@ func TestExecRunnerCommandShape(t *testing.T) {
 func TestRunTestWiresSuiteTimeoutIntoArgv(t *testing.T) {
 	outer := 5 * time.Minute
 	argv := testArgv(outer, "example.com/p")
-	want := []string{"go", "test", "-count=1", "-short", "-v", "-timeout", config.SuiteTimeout(outer).String(), "example.com/p"}
+	want := []string{"go", "test", "-count=1", "-short", "-v", "-failfast", "-timeout", config.SuiteTimeout(outer).String(), "example.com/p"}
 	if !slices.Equal(argv, want) || config.SuiteTimeout(outer) == outer {
 		t.Fatalf("argv = %v, want %v with the suite timeout derived below the outer window", argv, want)
 	}
