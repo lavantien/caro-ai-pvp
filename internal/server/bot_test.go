@@ -242,7 +242,7 @@ func TestForfeitInSearchEntryGapSurvives(t *testing.T) {
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("human move: %v", err)
 	}
-	<-entered
+	waitBotSignal(t, entered, release, "the search entry hook before the forfeit never fired")
 	if err := r.Forfeit(alice.ID); err != nil {
 		t.Fatalf("forfeit inside the search entry gap: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("human move: %v", err)
 	}
-	<-entered
+	waitBotSignal(t, entered, release, "the search entry hook before the shutdown never fired")
 	shut := make(chan struct{})
 	go func() {
 		defer close(shut)
@@ -302,7 +302,7 @@ func TestShutdownInSearchEntryGapSurvives(t *testing.T) {
 }
 func waitFor(t *testing.T, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testCondBound)
 	for time.Now().Before(deadline) {
 		if cond() {
 			return
@@ -310,6 +310,17 @@ func waitFor(t *testing.T, cond func() bool) {
 		time.Sleep(time.Millisecond)
 	}
 	t.Fatal("condition not reached within timeout")
+}
+func waitBotSignal(t *testing.T, seen <-chan struct{}, release chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-seen:
+	case <-time.After(testCondBound):
+		if release != nil {
+			close(release)
+		}
+		t.Fatalf("bot search never started within %v, %s", testCondBound, what)
+	}
 }
 func humanTurn(r *Room, userID int64) bool {
 	r.mu.Lock()
@@ -490,7 +501,7 @@ func TestForfeitDuringBotSearchDiscardsAnswer(t *testing.T) {
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("human move: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the gated search before the forfeit never fired")
 	if err := r.PlayMove(alice.ID, mustCellT(t, "P16")); !errors.Is(err, ErrNotYourTurn) {
 		t.Errorf("human moves for the bot = %v, want ErrNotYourTurn", err)
 	}
@@ -663,7 +674,7 @@ func TestNoGoroutineLeakAcrossBotRooms(t *testing.T) {
 	if err := live.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("live move: %v", err)
 	}
-	<-gbot.seen
+	waitBotSignal(t, gbot.seen, gbot.release, "the shutdown-leak room's search never fired")
 	close(gbot.release)
 	s.rm.Shutdown()
 	deadline := time.Now().Add(10 * time.Second)
@@ -705,7 +716,7 @@ func (b *budgetProbeBot) Close() {}
 
 func (b *budgetProbeBot) firstBudget(t *testing.T) time.Duration {
 	t.Helper()
-	<-b.seen
+	waitBotSignal(t, b.seen, nil, "the budget probe search never fired")
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if len(b.budgets) != 1 {
@@ -756,7 +767,7 @@ func TestBotTurnLockedRefusesFinishedWindow(t *testing.T) {
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("human move: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the gated search before the finished-flag flip never fired")
 	r.mu.Lock()
 	r.finished = true
 	side, ok := r.botTurnLocked()
@@ -787,7 +798,7 @@ func TestBotTurnLockedRefusesRetireWindow(t *testing.T) {
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("human move: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the gated search in the retire window never fired")
 	r.mu.Lock()
 	close(r.quit)
 	side, ok := r.botTurnLocked()
@@ -869,7 +880,7 @@ func TestBotTurnDiscardsAnswerAfterCloseMidSearch(t *testing.T) {
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("human move: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the gated search before the mid-search Close never fired")
 	r.mu.Lock()
 	close(r.quit)
 	r.mu.Unlock()
@@ -1039,7 +1050,7 @@ func TestWakeBotCoalescesToASingleBufferedToken(t *testing.T) {
 	if err := r.PlayMove(alice.ID, mustCellT(t, "D4")); err != nil {
 		t.Fatalf("human move: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the gated search before the wake coalescing probe never fired")
 	r.mu.Lock()
 	r.wakeBotLocked()
 	r.wakeBotLocked()

@@ -16,6 +16,7 @@ import (
 const (
 	testBlockBound = 1 * time.Second
 	testWaitBound  = 10 * time.Second
+	testCondBound  = 5 * time.Second
 	drainEventCap  = 4096
 )
 

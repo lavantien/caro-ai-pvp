@@ -158,7 +158,7 @@ func TestCreateBotVsBotSeatingAndLiveGame(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the seating room's opening search never fired")
 	rooms := s.rm.List()
 	if len(rooms) != 1 || rooms[0].ID != r.ID() {
 		t.Fatalf("grid = %+v, want the one bot-vs-bot room", rooms)
@@ -271,7 +271,7 @@ func TestRoomLastGameMoves(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
-	<-parked.seen
+	waitBotSignal(t, parked.seen, parked.release, "the fresh room's opening search never fired")
 	if got := fresh.LastGameMoves(); got != nil {
 		t.Errorf("last game moves before any completion = %v, want nil", got)
 	}
@@ -314,7 +314,7 @@ func TestBotVsBotRenderSurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the render-surface room's opening search never fired")
 	defer close(bot.release)
 	shellSrv := httptest.NewServer(NewShellPages(s.store, s.rm, nil))
 	defer shellSrv.Close()
@@ -480,7 +480,7 @@ func TestBotVsBotSyntheticSeatIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create bot vs bot: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the synthetic-seat room's opening search never fired")
 	info, ok := r.Info()
 	if !ok {
 		t.Fatal("info: want the room live")

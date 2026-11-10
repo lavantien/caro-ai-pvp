@@ -79,7 +79,7 @@ func TestBotVsBotRefusesWhenTTBudgetFull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create within the budget: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the room created after the tt release never searched")
 	if got, want := s.rm.LiveCoreBookings(), config.TierEasy.Cores; got != want {
 		t.Fatalf("cores during the gated easy search = %d, want %d", got, want)
 	}
@@ -153,7 +153,7 @@ func TestBotRoomForfeitDuringSearchDrainsLedger(t *testing.T) {
 	if err := r.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
 		t.Fatalf("human opens: %v", err)
 	}
-	<-bot.seen
+	waitBotSignal(t, bot.seen, bot.release, "the hard search after the opening never fired")
 	if got, want := s.rm.LiveCoreBookings(), config.TierHard.Cores; got != want {
 		t.Fatalf("cores during the hard search = %d, want %d", got, want)
 	}
@@ -234,7 +234,7 @@ func TestSecondMasterRoomWaitsForCoresThenProceeds(t *testing.T) {
 	if err := casual.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
 		t.Fatalf("human opens the casual room: %v", err)
 	}
-	<-gated.seen
+	waitBotSignal(t, gated.seen, gated.release, "the casual master search after the opening never fired")
 	if got, want := s.rm.LiveCoreBookings(), config.TierMaster.Cores; got != want {
 		t.Fatalf("cores held by the casual search = %d, want %d", got, want)
 	}
@@ -289,7 +289,7 @@ func TestPonderArmsThroughTheLedgerAtFullWidth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create master vs hard: %v", err)
 	}
-	<-hard.seen
+	waitBotSignal(t, hard.seen, hard.release, "the hard side of the master vs hard room never searched")
 	seat := masters[0]
 	waitFor(t, func() bool {
 		_, starts, _ := seat.counts()
@@ -403,7 +403,7 @@ func TestCasualAndBotVsBotRoomsCoexist(t *testing.T) {
 	if err := casual.PlayMove(alice.ID, rules.Cell(movesOf(t, []string{"H8"})[0])); err != nil {
 		t.Fatalf("human opens: %v", err)
 	}
-	<-gated.seen
+	waitBotSignal(t, gated.seen, gated.release, "the coexistence room's casual master search never fired")
 	close(scriptGate)
 	botRoom, err := s.rm.CreateBotVsBot(&config.TierEasy, "", &config.TierMedium, "", 0, config.SeriesBO3, "")
 	if err != nil {

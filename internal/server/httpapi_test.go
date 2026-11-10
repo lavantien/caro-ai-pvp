@@ -633,7 +633,8 @@ func TestHTTPSSEStreamsSeriesToCleanClose(t *testing.T) {
 	wantStatus(t, got, http.StatusCreated, &room)
 	base := srv.URL + "/api/rooms/" + room.ID
 
-	sr, _ := openSSE(t, c, base+"/events", 15*time.Second)
+	sr, cancel := openSSE(t, c, base+"/events", 15*time.Second)
+	defer cancel()
 	got = doJSON(t, c, http.MethodPost, base+"/join", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 	got = doJSON(t, c, http.MethodPost, base+"/ready", ta, nil)
@@ -642,7 +643,7 @@ func TestHTTPSSEStreamsSeriesToCleanClose(t *testing.T) {
 	wantStatus(t, got, http.StatusNoContent, nil)
 
 	playHTTPScript(t, srv, room.ID, ta, tb, hostWinsRed, true)
-	time.Sleep(60 * time.Millisecond) // keepalive frames must flow while idle
+	time.Sleep(60 * time.Millisecond)
 	playHTTPScript(t, srv, room.ID, ta, tb, guestRedLosesToBlue, false)
 
 	var moves []string
@@ -701,7 +702,8 @@ func TestHTTPSSECleanCloseWhenHubEndsSubscription(t *testing.T) {
 	got = doJSON(t, c, http.MethodPost, base+"/ready", tb, nil)
 	wantStatus(t, got, http.StatusNoContent, nil)
 
-	sr, _ := openSSE(t, c, base+"/events", 15*time.Second)
+	sr, cancel := openSSE(t, c, base+"/events", 15*time.Second)
+	defer cancel()
 	got = doJSON(t, c, http.MethodPost, base+"/move", ta, map[string]string{"cell": "D4"})
 	wantStatus(t, got, http.StatusNoContent, nil)
 	f, ok := sr.next(t)
@@ -814,7 +816,8 @@ func TestHTTPSSEStreamEndsWhenRoomRetiresMidStream(t *testing.T) {
 	var room roomSummary
 	wantStatus(t, got, http.StatusCreated, &room)
 
-	sr, _ := openSSE(t, c, srv.URL+"/api/rooms/"+room.ID+"/events", 5*time.Second)
+	sr, cancel := openSSE(t, c, srv.URL+"/api/rooms/"+room.ID+"/events", 5*time.Second)
+	defer cancel()
 
 	r, err := s.rm.Get(room.ID)
 	if err != nil {

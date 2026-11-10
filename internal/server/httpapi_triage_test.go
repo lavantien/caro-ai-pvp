@@ -113,7 +113,8 @@ func TestHTTPSSEDefaultHandlerOpensStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create room: %v", err)
 	}
-	_, _ = openSSE(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()+"/events", 250*time.Millisecond)
+	_, cancel := openSSE(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()+"/events", 250*time.Millisecond)
+	defer cancel()
 }
 
 func TestHTTPSSEKeepaliveKeepsStreamOpen(t *testing.T) {
@@ -127,7 +128,8 @@ func TestHTTPSSEKeepaliveKeepsStreamOpen(t *testing.T) {
 	srv := httptest.NewServer(api.routes())
 	defer srv.Close()
 
-	sr, _ := openSSE(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()+"/events", 5*time.Second)
+	sr, cancel := openSSE(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()+"/events", 5*time.Second)
+	defer cancel()
 	keepalives := 0
 	for keepalives < 2 {
 		line, err := sr.br.ReadString('\n')
@@ -152,7 +154,8 @@ func TestHTTPSSEDefaultKeepaliveCadence(t *testing.T) {
 	}
 
 	cadence := time.Duration(config.SSEKeepaliveMs) * time.Millisecond
-	sr, _ := openSSE(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()+"/events", 2*cadence)
+	sr, cancel := openSSE(t, srv.Client(), srv.URL+"/api/rooms/"+r.ID()+"/events", 2*cadence)
+	defer cancel()
 	start := time.Now()
 	for {
 		line, err := sr.br.ReadString('\n')
