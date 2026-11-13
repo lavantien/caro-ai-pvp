@@ -40,3 +40,15 @@ jobs:
           cache: true
       - name: rules-core mutation smoke gate
         run: go run ./cmd/run mutate-smoke
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: tagged e2e tournament suite
+        run: go run ./cmd/run e2e

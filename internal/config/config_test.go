@@ -715,6 +715,20 @@ func TestQualityGates(t *testing.T) {
 		t.Errorf("core gate %v below overall gate %v", QualityCoverageCoreMin, QualityCoverageOverallMin)
 	}
 }
+func TestRaceTestConstants(t *testing.T) {
+	want := []string{"internal/engine", "internal/server", "internal/tourney"}
+	if len(RaceTestPackages) != len(want) {
+		t.Fatalf("len(RaceTestPackages) = %d, want %d", len(RaceTestPackages), len(want))
+	}
+	for i, p := range want {
+		if RaceTestPackages[i] != p {
+			t.Errorf("RaceTestPackages[%d] = %q, want %q", i, RaceTestPackages[i], p)
+		}
+	}
+	if RaceTestParallel != 4 {
+		t.Errorf("RaceTestParallel = %d, want 4", RaceTestParallel)
+	}
+}
 func TestQualityBadgeBands(t *testing.T) {
 	if BadgeCoverageOverallGoodMin != 95 || BadgeCoverageOverallWarnMin != 90 {
 		t.Errorf("overall badge bands = %v %v, want 95 90", BadgeCoverageOverallGoodMin, BadgeCoverageOverallWarnMin)

@@ -6,7 +6,10 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/lavantien/caro-ai-pvp/internal/config"
 )
 
 type specBuilder func(r *runner, v vars) ([]step, error)
@@ -109,12 +112,20 @@ func registerGoTargets() {
 		args = append(args, v.get("PKG", "./..."))
 		return []step{{name: "test-pkg", path: "go", args: args, env: map[string]string{"CGO_ENABLED": "1"}}}, nil
 	})
+	register("e2e", func(r *runner, v vars) ([]step, error) {
+		return []step{goStep("e2e", "test", "-tags", "e2e", "-count=1", "-timeout", goTestTimeout, "./internal/tourney")}, nil
+	})
+	register("race", func(r *runner, v vars) ([]step, error) {
+		args := []string{"test", "-race", "-count=1", "-parallel", strconv.Itoa(config.RaceTestParallel), "-timeout", goTestTimeout}
+		args = append(args, config.RaceTestPackages[:]...)
+		return []step{goStep("race", args...)}, nil
+	})
 	register("cover", func(r *runner, v vars) ([]step, error) {
 		extra, err := splitArgs(v)
 		if err != nil {
 			return nil, err
 		}
-		args := append([]string{"test", "-race", "-coverprofile=coverage.out", "-covermode=atomic", "-timeout", goTestTimeout}, extra...)
+		args := append([]string{"test", "-coverprofile=coverage.out", "-covermode=set", "-timeout", goTestTimeout}, extra...)
 		args = append(args, v.get("PKG", "./..."))
 		return []step{
 			{name: "cover", path: "go", args: args, env: map[string]string{"CGO_ENABLED": "1"}},

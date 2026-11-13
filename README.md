@@ -173,10 +173,11 @@ Requires go 1.27.1+ and a C toolchain (gcc or llvm/clang), with CGO enabled.
 
 ```
 go run ./cmd/run doctor          # toolchain check: go >= 1.27.1, CGO, gcc
-go run ./cmd/run ci              # fmt-check, vet, build, race tests with coverage gates
+go run ./cmd/run ci              # fmt-check, vet, build, coverage gates, scoped race tests
 go run ./cmd/run mutate-smoke    # rules-core mutation gate (runs in CI on every push)
 go run ./cmd/run mutate-full LABEL=vX PARALLEL=4 CHALLENGE=1  # whole gate, auto-resumes host crashes; every test tree runs under a kernel-enforced 2 GiB commit cap so a broken-bound mutant dies in its own tree and 4 workers hold the 8 GiB mutation ceiling
 go run ./cmd/run mutate-resume LOG=prior-run.log PARALLEL=4 CHALLENGE=1
+go run ./cmd/run e2e              # tagged end-to-end tournament suite, 2 real series at 1+0 (runs in CI on every push)
 go run ./cmd/run bench           # engine, clock, rules benchmarks with allocs
 go run ./cmd/run fuzz            # rules differential, vcf soundness, geom parsing fuzz targets
 go run ./cmd/run clocktune       # PID gain sweep for 1 time control, artifact under playground/clocktune/out/
@@ -188,7 +189,7 @@ go run ./cmd/run db-checkpoint   # fold every db/*.db write-ahead log into its m
 go run ./cmd/run serve           # serve on the configured port, db under db/
 ```
 
-Coverage gates: 95% overall, 100% on internal/rules, internal/engine, and internal/clock, read from the real suite's race coverage profile. The working tree keeps its artifacts placed: databases under db/, tournament logs under logs/tourny/, nothing database- or log-shaped in the root.
+Coverage gates: 95% overall, 100% on internal/rules, internal/engine, and internal/clock, read from the full suite's coverage profile. The race suite runs scoped over the engine, server, and tourney concurrency packages at bounded parallelism. The working tree keeps its artifacts placed: databases under db/, tournament logs under logs/tourny/, nothing database- or log-shaped in the root.
 
 Mutation harness verdict laws: the unmutated suite must be green per package before any mutant is scored, a run that would execute nothing (full resume replay or a fully allowed population) skips that baseline, and only a real test exit can score a kill: infrastructure failures (spawn errors, missing shell, cap setup) void the whole run loudly instead of counting as kills. Parallel gates spread mutants round-robin over isolated module copies; survivors and challenge-flagged allowances are re-verified once serially, and worker-phase kills are load-trusted without re-verification, so kill-dominated populations scale near-linearly while any reported survivor is confirmed alone. Each test tree runs under a kernel memory cap, a Windows job object or a POSIX ulimit wrapper, and the cap wrapper must pass the command through intact: a dropped argv head turns every verdict into an instant fake kill.
 
@@ -325,6 +326,6 @@ Implemented:
 - the hexagon variant on every playing surface, bookless
 - the machine-wide admission ledger: full tier width or off, never a shrunken engine
 - casual dual storage: every completion writes its series log as append-only text beside its sqlite rows
-- verification: the race suite with 95% overall and 100% core coverage gates, the rules-core mutation smoke gate in CI on every push, the full mutation gate scoped to the core packages rules, geom, engine, and clock as the on-demand verb, and the core fuzz set over rules differential, solver soundness, and geometry parsing
+- verification: the coverage suite with 95% overall and 100% core coverage gates, the race suite scoped over the engine, server, and tourney concurrency packages, the rules-core mutation smoke gate and the tagged end-to-end suite over the tournament conductor in CI on every push, the full mutation gate scoped to the core packages rules, geom, engine, and clock as the on-demand verb, and the core fuzz set over rules differential, solver soundness, and geometry parsing
 
 The design record and the wave-by-wave log live in [devlog.md](devlog.md).

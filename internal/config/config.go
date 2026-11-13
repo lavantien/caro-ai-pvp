@@ -316,6 +316,10 @@ const (
 
 var CorePackages = [...]string{"internal/rules", "internal/engine", "internal/clock"}
 
+var RaceTestPackages = [...]string{"internal/engine", "internal/server", "internal/tourney"}
+
+const RaceTestParallel = 4
+
 const (
 	MutatePackages            = "internal/rules,internal/geom,internal/engine,internal/clock"
 	MutateTimeoutMs           = 120_000

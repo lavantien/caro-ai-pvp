@@ -3,9 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -250,22 +254,25 @@ func TestMutateLogFailureIgnoresMissingLog(t *testing.T) {
 }
 
 func TestCiChainScopedToCoreSteps(t *testing.T) {
-	if got := strings.Join(ciChain, ","); got != "fmt-check,lint,build,cover" {
-		t.Fatalf("ciChain = [%s], want [fmt-check,lint,build,cover]", got)
+	if got := strings.Join(ciChain, ","); got != "fmt-check,lint,build,cover,race" {
+		t.Fatalf("ciChain = [%s], want [fmt-check,lint,build,cover,race]", got)
 	}
 }
 
 func TestFuzzGroupsScopedToCoreEnginePackages(t *testing.T) {
-	want := map[string]string{
-		"internal/rules": "FuzzRulesDifferential",
-		"internal/vcf":   "FuzzSoundness",
-		"internal/geom":  "FuzzParseCell,FuzzFromSpec",
+	want := map[string]struct {
+		targets  string
+		fuzztime string
+	}{
+		"internal/rules": {"FuzzRulesDifferential", "60s"},
+		"internal/vcf":   {"FuzzSoundness", "30s"},
+		"internal/geom":  {"FuzzParseCell,FuzzFromSpec", "30s"},
 	}
 	if len(fuzzGroups) != len(want) {
 		t.Fatalf("fuzz group count = %d, want %d", len(fuzzGroups), len(want))
 	}
 	for _, g := range fuzzGroups {
-		targets, ok := want[g.dir]
+		w, ok := want[g.dir]
 		if !ok {
 			t.Fatalf("fuzz group dir %s is outside the core set", g.dir)
 		}
@@ -273,12 +280,64 @@ func TestFuzzGroupsScopedToCoreEnginePackages(t *testing.T) {
 		if g.pkgArg != "./"+g.dir {
 			t.Fatalf("fuzz pkgArg for %s = %s, want ./%s", g.dir, g.pkgArg, g.dir)
 		}
-		if got := strings.Join(g.targets, ","); got != targets {
-			t.Fatalf("fuzz targets for %s = [%s], want [%s]", g.dir, got, targets)
+		if got := strings.Join(g.targets, ","); got != w.targets {
+			t.Fatalf("fuzz targets for %s = [%s], want [%s]", g.dir, got, w.targets)
+		}
+		if g.fuzztime != w.fuzztime {
+			t.Fatalf("fuzztime for %s = %s, want %s", g.dir, g.fuzztime, w.fuzztime)
 		}
 	}
 	if len(want) > 0 {
 		t.Fatalf("fuzz groups missing core dirs %v", want)
+	}
+}
+
+func isTestingFParam(expr ast.Expr) bool {
+	star, ok := expr.(*ast.StarExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := star.X.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "F" {
+		return false
+	}
+	ident, ok := sel.X.(*ast.Ident)
+	return ok && ident.Name == "testing"
+}
+
+func TestFuzzGroupTargetsNameRealFuzzFunctions(t *testing.T) {
+	root := repoRoot(t)
+	fset := token.NewFileSet()
+	for _, g := range fuzzGroups {
+		dir := filepath.Join(root, g.dir)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("fuzz group dir %s: %v", g.dir, err)
+		}
+		found := map[string]bool{}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), "_test.go") {
+				continue
+			}
+			f, perr := parser.ParseFile(fset, filepath.Join(dir, e.Name()), nil, 0)
+			if perr != nil {
+				t.Fatalf("parse %s: %v", e.Name(), perr)
+			}
+			for _, d := range f.Decls {
+				fd, ok := d.(*ast.FuncDecl)
+				if !ok || fd.Recv != nil || len(fd.Type.Params.List) != 1 || len(fd.Type.Params.List[0].Names) != 1 {
+					continue
+				}
+				if isTestingFParam(fd.Type.Params.List[0].Type) {
+					found[fd.Name.Name] = true
+				}
+			}
+		}
+		for _, target := range g.targets {
+			if !found[target] {
+				t.Errorf("fuzz target %s names no Fuzz function in %s", target, g.dir)
+			}
+		}
 	}
 }
 
@@ -293,18 +352,34 @@ func TestFuzzFlowBuildsEveryGroupStep(t *testing.T) {
 	if err := runRegistered(r, vars{}, "fuzz"); err != nil {
 		t.Fatalf("fuzz flow failed: %v", err)
 	}
-	if len(steps) != 4 {
-		t.Fatalf("fuzz steps = %d, want 4", len(steps))
+	var wantPkg []string
+	for _, g := range fuzzGroups {
+		for range g.targets {
+			wantPkg = append(wantPkg, g.pkgArg)
+		}
+	}
+	if len(steps) != len(wantPkg) {
+		t.Fatalf("fuzz steps = %d, want %d", len(steps), len(wantPkg))
 	}
 	var fuzztime bool
-	for _, s := range steps {
+	for i, s := range steps {
+		var runFilter bool
 		for _, a := range s.args {
 			if strings.HasPrefix(a, "-fuzztime=") {
 				fuzztime = true
 			}
+			if a == "-run=^$" {
+				runFilter = true
+			}
 			if a == "-C" {
 				t.Fatalf("fuzz step %s still runs through -C", s.name)
 			}
+		}
+		if !runFilter {
+			t.Fatalf("fuzz step %s carries no -run=^$ flag", s.name)
+		}
+		if got := s.args[len(s.args)-1]; got != wantPkg[i] {
+			t.Fatalf("fuzz step %s pkg = %s, want %s", s.name, got, wantPkg[i])
 		}
 		if s.dir != "" {
 			t.Fatalf("fuzz step %s still carries dir %s", s.name, s.dir)
@@ -361,11 +436,6 @@ func TestChainFlowCompletesArmsWithSummaries(t *testing.T) {
 func TestCiFlowRunsChainAndRegeneratesBadges(t *testing.T) {
 	dir := tempGitRepo(t)
 	commitFile(t, dir, "a.go", "package tmp\n")
-	for _, sub := range []string{filepath.Join("playground", "bookgen"), filepath.Join("playground", "evalfit")} {
-		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
 	t.Chdir(dir)
 	var names []string
 	stubExecStep(t, func(s step, env []string) (int, error) {
@@ -376,11 +446,9 @@ func TestCiFlowRunsChainAndRegeneratesBadges(t *testing.T) {
 	if err := runRegistered(r, vars{}, "ci"); err != nil {
 		t.Fatalf("ci flow failed: %v", err)
 	}
-	joined := "," + strings.Join(names, ",") + ","
-	for _, want := range []string{",build,", ",cover,", ",cover-badges,"} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("ci steps missed %s: %v", want, names)
-		}
+	want := []string{"lint", "build", "cover", "cover-func", "covergate", "race", "cover-badges"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("ci steps = %v, want %v", names, want)
 	}
 }
 

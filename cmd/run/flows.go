@@ -433,7 +433,7 @@ func registerCi() {
 	})
 }
 
-var ciChain = []string{"fmt-check", "lint", "build", "cover"}
+var ciChain = []string{"fmt-check", "lint", "build", "cover", "race"}
 
 func runCiChain(r *runner, v vars) error {
 	for _, t := range ciChain {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -41,7 +42,7 @@ func TestBuildTarget(t *testing.T) {
 
 func TestCoverTarget(t *testing.T) {
 	steps := specs(t, "cover", vars{"ARGS": "-run TestCover -count=1", "PKG": "./internal/server"})
-	want := []string{"test", "-race", "-coverprofile=coverage.out", "-covermode=atomic", "-timeout", goTestTimeout, "-run", "TestCover", "-count=1", "./internal/server"}
+	want := []string{"test", "-coverprofile=coverage.out", "-covermode=set", "-timeout", goTestTimeout, "-run", "TestCover", "-count=1", "./internal/server"}
 	if !reflect.DeepEqual(steps[0].args, want) {
 		t.Fatalf("cover argv = %v, want %v", steps[0].args, want)
 	}
@@ -50,6 +51,18 @@ func TestCoverTarget(t *testing.T) {
 	}
 	if !reflect.DeepEqual(steps[2].args, []string{"run", "./cmd/covergate", "coverage.out"}) {
 		t.Fatalf("covergate argv = %v", steps[2].args)
+	}
+}
+
+func TestRaceTarget(t *testing.T) {
+	steps := specs(t, "race", vars{})
+	want := []string{"test", "-race", "-count=1", "-parallel", strconv.Itoa(config.RaceTestParallel), "-timeout", goTestTimeout}
+	want = append(want, config.RaceTestPackages[:]...)
+	if len(steps) != 1 || steps[0].path != "go" || !reflect.DeepEqual(steps[0].args, want) {
+		t.Fatalf("race argv = %v, want %v", steps[0].args, want)
+	}
+	if steps[0].env["CGO_ENABLED"] != "1" {
+		t.Fatalf("race env = %v", steps[0].env)
 	}
 }
 
@@ -114,6 +127,17 @@ func TestTestPkgTarget(t *testing.T) {
 	want := []string{"test", "-race", "-timeout", goTestTimeout, "-run", "TestX", "./internal/tourney"}
 	if !reflect.DeepEqual(steps[0].args, want) {
 		t.Fatalf("test-pkg argv = %v, want %v", steps[0].args, want)
+	}
+}
+
+func TestE2ETarget(t *testing.T) {
+	steps := specs(t, "e2e", vars{})
+	want := []string{"test", "-tags", "e2e", "-count=1", "-timeout", goTestTimeout, "./internal/tourney"}
+	if len(steps) != 1 || steps[0].path != "go" || !reflect.DeepEqual(steps[0].args, want) {
+		t.Fatalf("e2e argv = %v %v, want go %v", steps[0].path, steps[0].args, want)
+	}
+	if steps[0].env["CGO_ENABLED"] != "1" {
+		t.Fatalf("e2e env = %v", steps[0].env)
 	}
 }
 
@@ -680,7 +704,7 @@ func TestChildEnvOverrides(t *testing.T) {
 func TestRunnerTargetSurface(t *testing.T) {
 	want := map[string]bool{
 		"all": true, "build": true, "lint": true, "vet": true, "test": true,
-		"test-race": true, "test-pkg": true, "cover": true, "cover-pcts": true, "cover-badges": true, "cover-verdict": true, "bench": true,
+		"test-race": true, "test-pkg": true, "e2e": true, "race": true, "cover": true, "cover-pcts": true, "cover-badges": true, "cover-verdict": true, "bench": true,
 		"tidy": true, "run": true, "migrate": true, "serve": true, "firewall": true,
 		"contrast": true, "icons": true, "shots": true, "playground-modules": true, "evalfit-test": true,
 		"arena-test": true, "bookgen-build": true, "bookgen": true, "booktree": true, "bookgen-test": true,

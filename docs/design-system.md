@@ -1,6 +1,6 @@
 # Design system
 
-The v0.29 light contract. Light is the base presentation on every surface. The page is light pink with a pastel palette and dark plum ink, and no dark variant exists. The palette hub stays `internal/server/web/shell.css` `:root`. `go run ./cmd/run contrast` (playground/contrast, wired into `ci`) checks it.
+The v0.29 light contract. Light is the base presentation on every surface. The page is light pink with a pastel palette and dark plum ink, and no dark variant exists. The palette hub stays `internal/server/web/shell.css` `:root`. `go run ./cmd/run contrast` (playground/contrast) checks it by hand.
 
 ## Identity
 
@@ -12,7 +12,7 @@ The mover is never announced by a text line: no "red to move", "your move", or "
 
 ## Color tokens
 
-The 12 shipped anchors never change value without a contrast gate rerun.
+The 12 shipped anchors hold the contrast contract below, checked by running `go run ./cmd/run contrast` by hand.
 
 | token | value | role |
 | --- | --- | --- |
@@ -106,7 +106,7 @@ Every list that accumulates over time renders newest first: the room grids on th
 
 ## Contrast contract
 
-`go run ./cmd/run contrast` fails the build on any miss and recomputes every pair from `:root` at runtime. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line at `--text-xl` bold, large text, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary). Decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor. Tightest shipped margins on the light palette: `text-muted` on `background` 5.00, `border` on `surface` 2.64, `mark` on `background` 3.60.
+`go run ./cmd/run contrast` recomputes every pair from `:root` at runtime and exits nonzero on any miss. Pairs beyond the shipped set: `background` on `accent-strong` (hovered button label, 4.5), `text` on `accent-soft` (chip and quiet-hover label, 4.5), `mark` on `background` (live-tournament line at `--text-xl` bold, large text, 3), `accent-strong` on `background` (focus ring over the page, 3). Boundaries split by meaning: a boundary that carries state must clear WCAG 1.4.11's 3:1 (`text-muted` on `background`, `surface`, and `accent-soft` for the chip state boundary). Decorative boundaries (the board lattice, hairlines) stay at the 2.5 floor. Tightest shipped margins on the light palette: `text-muted` on `background` 5.00, `border` on `surface` 2.64, `mark` on `background` 3.60.
 
 ## Board
 
