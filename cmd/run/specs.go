@@ -117,7 +117,9 @@ func registerGoTargets() {
 	})
 	register("race", func(r *runner, v vars) ([]step, error) {
 		args := []string{"test", "-race", "-count=1", "-parallel", strconv.Itoa(config.RaceTestParallel), "-timeout", goTestTimeout}
-		args = append(args, config.RaceTestPackages[:]...)
+		for _, p := range config.RaceTestPackages {
+			args = append(args, "./"+p)
+		}
 		return []step{goStep("race", args...)}, nil
 	})
 	register("cover", func(r *runner, v vars) ([]step, error) {

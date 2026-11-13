@@ -56,8 +56,7 @@ func TestCoverTarget(t *testing.T) {
 
 func TestRaceTarget(t *testing.T) {
 	steps := specs(t, "race", vars{})
-	want := []string{"test", "-race", "-count=1", "-parallel", strconv.Itoa(config.RaceTestParallel), "-timeout", goTestTimeout}
-	want = append(want, config.RaceTestPackages[:]...)
+	want := []string{"test", "-race", "-count=1", "-parallel", strconv.Itoa(config.RaceTestParallel), "-timeout", goTestTimeout, "./internal/engine", "./internal/server", "./internal/tourney"}
 	if len(steps) != 1 || steps[0].path != "go" || !reflect.DeepEqual(steps[0].args, want) {
 		t.Fatalf("race argv = %v, want %v", steps[0].args, want)
 	}
