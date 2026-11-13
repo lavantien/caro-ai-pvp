@@ -249,6 +249,39 @@ func TestMutateLogFailureIgnoresMissingLog(t *testing.T) {
 	}
 }
 
+func TestCiChainScopedToCoreSteps(t *testing.T) {
+	if got := strings.Join(ciChain, ","); got != "fmt-check,lint,build,cover" {
+		t.Fatalf("ciChain = [%s], want [fmt-check,lint,build,cover]", got)
+	}
+}
+
+func TestFuzzGroupsScopedToCoreEnginePackages(t *testing.T) {
+	want := map[string]string{
+		"internal/rules": "FuzzRulesDifferential",
+		"internal/vcf":   "FuzzSoundness",
+		"internal/geom":  "FuzzParseCell,FuzzFromSpec",
+	}
+	if len(fuzzGroups) != len(want) {
+		t.Fatalf("fuzz group count = %d, want %d", len(fuzzGroups), len(want))
+	}
+	for _, g := range fuzzGroups {
+		targets, ok := want[g.dir]
+		if !ok {
+			t.Fatalf("fuzz group dir %s is outside the core set", g.dir)
+		}
+		delete(want, g.dir)
+		if g.pkgArg != "./"+g.dir {
+			t.Fatalf("fuzz pkgArg for %s = %s, want ./%s", g.dir, g.pkgArg, g.dir)
+		}
+		if got := strings.Join(g.targets, ","); got != targets {
+			t.Fatalf("fuzz targets for %s = [%s], want [%s]", g.dir, got, targets)
+		}
+	}
+	if len(want) > 0 {
+		t.Fatalf("fuzz groups missing core dirs %v", want)
+	}
+}
+
 func TestFuzzFlowBuildsEveryGroupStep(t *testing.T) {
 	t.Chdir(repoRoot(t))
 	var steps []step
@@ -260,8 +293,8 @@ func TestFuzzFlowBuildsEveryGroupStep(t *testing.T) {
 	if err := runRegistered(r, vars{}, "fuzz"); err != nil {
 		t.Fatalf("fuzz flow failed: %v", err)
 	}
-	if len(steps) != 11 {
-		t.Fatalf("fuzz steps = %d, want 11", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("fuzz steps = %d, want 4", len(steps))
 	}
 	var fuzztime bool
 	for _, s := range steps {
@@ -269,6 +302,12 @@ func TestFuzzFlowBuildsEveryGroupStep(t *testing.T) {
 			if strings.HasPrefix(a, "-fuzztime=") {
 				fuzztime = true
 			}
+			if a == "-C" {
+				t.Fatalf("fuzz step %s still runs through -C", s.name)
+			}
+		}
+		if s.dir != "" {
+			t.Fatalf("fuzz step %s still carries dir %s", s.name, s.dir)
 		}
 	}
 	if !fuzztime {

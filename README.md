@@ -14,7 +14,6 @@ Mobile-first web arena for a custom gomoku variant played on 2 boards, a 16x16 g
 6. [repository layout](#repository-layout)
 7. [diagrams](#diagrams)
 8. [status](#status)
-9. [roadmap](#roadmap)
 
 ## variant ruleset
 
@@ -179,7 +178,7 @@ go run ./cmd/run mutate-smoke    # rules-core mutation gate (runs in CI on every
 go run ./cmd/run mutate-full LABEL=vX PARALLEL=4 CHALLENGE=1  # whole gate, auto-resumes host crashes; every test tree runs under a kernel-enforced 2 GiB commit cap so a broken-bound mutant dies in its own tree and 4 workers hold the 8 GiB mutation ceiling
 go run ./cmd/run mutate-resume LOG=prior-run.log PARALLEL=4 CHALLENGE=1
 go run ./cmd/run bench           # engine, clock, rules benchmarks with allocs
-go run ./cmd/run fuzz            # rules differential fuzz target
+go run ./cmd/run fuzz            # rules differential, vcf soundness, geom parsing fuzz targets
 go run ./cmd/run clocktune       # PID gain sweep for 1 time control, artifact under playground/clocktune/out/
 go run ./cmd/run booktree-run    # detached tree-expansion book build, resumable from its expansion log
 go run ./cmd/run bookval-short   # detached book validation arms (also bookval-confirm, bookval-cross), each resumable
@@ -326,14 +325,6 @@ Implemented:
 - the hexagon variant on every playing surface, bookless
 - the machine-wide admission ledger: full tier width or off, never a shrunken engine
 - casual dual storage: every completion writes its series log as append-only text beside its sqlite rows
-- verification: 95% overall and 100% core coverage gates on the race suite, mutation gates closed over rules, engine, clock, and server, the differential and soundness fuzz corpora in CI
+- verification: the race suite with 95% overall and 100% core coverage gates, the rules-core mutation smoke gate in CI on every push, the full mutation gate scoped to the core packages rules, geom, engine, and clock as the on-demand verb, and the core fuzz set over rules differential, solver soundness, and geometry parsing
 
 The design record and the wave-by-wave log live in [devlog.md](devlog.md).
-
-## roadmap
-
-- v0.24 hexagon close: the hex gate chain verdict (master, master noise floors, the pass gates, ladder inversion checks at 2+1 and 3+2), then the full verification batch and the tag.
-- v0.25 opening book: the fixed-budget tree-expansion build run, then the short, confirm, and cross validation arms, the master floors, and the strength gates rerun with the book in place (first 16 plies, entries backed by solver proofs or tree agreement over a visit floor, grandmaster probes 16 plies and master 8) before the tag.
-- v0.26 pondering: the ponder arena pair (noponder versus pondering seats at the gated control) and the tag.
-- v0.27 grandmaster pass gate: once the book and the weight chain land, grandmaster's W+D record across both red and blue seats must hold 2/3 or better versus master, 3/4 versus hard, 4/5 versus medium, and 9/10 versus easy, with screenshots from all supported flows including the ui-started tournament mid run with 2 grandmaster bots. Anything below is a strength anomaly and reopens the tier behind the inversion research law.
-- v0.28 final close: full gates, the closing ladder round-robin over all 4 time controls with 0 inversions at 2+1, 3+2, 10+5 (1+0 recorded as thread-decided), README final state, evidence bundle, tag.

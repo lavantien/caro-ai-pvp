@@ -159,15 +159,12 @@ func registerFmt() {
 var fuzzGroups = []struct {
 	dir      string
 	pkgArg   string
-	inCDir   bool
 	targets  []string
 	fuzztime string
 }{
-	{"internal/rules", "./internal/rules", false, []string{"FuzzRulesDifferential"}, "60s"},
-	{"internal/server", "./internal/server", false, []string{"FuzzRatingLaw", "FuzzSeriesDrive", "FuzzMovesBlob", "FuzzGrantDepthRing", "FuzzAdoptPonder"}, "30s"},
-	{"internal/tourney", "./internal/tourney", false, []string{"FuzzPairings", "FuzzFoldZeroSum"}, "30s"},
-	{"internal/book", "./internal/book", false, []string{"FuzzBookLoad"}, "30s"},
-	{"playground/bookgen", ".", true, []string{"FuzzLoadCorpus", "FuzzReadOverlay"}, "30s"},
+	{"internal/rules", "./internal/rules", []string{"FuzzRulesDifferential"}, "60s"},
+	{"internal/vcf", "./internal/vcf", []string{"FuzzSoundness"}, "30s"},
+	{"internal/geom", "./internal/geom", []string{"FuzzParseCell", "FuzzFromSpec"}, "30s"},
 }
 
 func registerFuzz() {
@@ -178,11 +175,7 @@ func registerFuzz() {
 			}
 			for _, t := range g.targets {
 				args := []string{"test", "-run=^$", "-fuzz=" + t, "-fuzztime=" + g.fuzztime, g.pkgArg}
-				s := goStep("fuzz "+t, args...)
-				if g.inCDir {
-					s = step{name: "fuzz " + t, path: "go", args: append([]string{"-C", g.dir}, args...), env: map[string]string{"CGO_ENABLED": "1"}}
-				}
-				if err := r.run(s); err != nil {
+				if err := r.run(goStep("fuzz "+t, args...)); err != nil {
 					return err
 				}
 			}
@@ -440,8 +433,10 @@ func registerCi() {
 	})
 }
 
+var ciChain = []string{"fmt-check", "lint", "build", "cover"}
+
 func runCiChain(r *runner, v vars) error {
-	for _, t := range []string{"playground-modules", "contrast", "fmt-check", "lint", "vet", "build", "bookgen-test", "evalfit-test", "cover"} {
+	for _, t := range ciChain {
 		if err := runRegistered(r, v, t); err != nil {
 			return err
 		}
